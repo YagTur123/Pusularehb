@@ -55,15 +55,122 @@ export function formatTurkishDate(dateStr: string): string {
   try {
     const [y, m, d] = dateStr.split('-').map(Number);
     const date = new Date(y, m - 1, d);
-    return date.toLocaleDateString('tr-TR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      weekday: 'long',
-    });
+    const day = date.getDate();
+    const months = [
+      'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+    ];
+    const days = [
+      'Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'
+    ];
+    const monthName = months[date.getMonth()];
+    const dayName = days[date.getDay()];
+    return `${day} ${monthName} ${y}, ${dayName}`;
   } catch {
     return dateStr;
   }
+}
+
+export interface WeekDayInfo {
+  date: string; // YYYY-MM-DD
+  dayName: string; // Pazartesi, Salı...
+  shortDayName: string; // Pzt, Sal...
+  dayNumber: number; // 8
+  isToday: boolean;
+  isPast: boolean;
+}
+
+export function getWeekDays(baseDate: string, includeWeekend = false): WeekDayInfo[] {
+  const [y, m, d] = baseDate.split('-').map(Number);
+  const current = new Date(y, m - 1, d);
+  const dayOfWeek = current.getDay(); // 0=Sun, 1=Mon...
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(current);
+  monday.setDate(current.getDate() + diffToMonday);
+
+  const daysCount = includeWeekend ? 7 : 5;
+  const shortDays = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+  const fullDays = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+  const todayStr = getTodayDateString();
+
+  const result: WeekDayInfo[] = [];
+  for (let i = 0; i < daysCount; i++) {
+    const dObj = new Date(monday);
+    dObj.setDate(monday.getDate() + i);
+    const yStr = dObj.getFullYear();
+    const mStr = String(dObj.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(dObj.getDate()).padStart(2, '0');
+    const dateFormatted = `${yStr}-${mStr}-${dayStr}`;
+
+    result.push({
+      date: dateFormatted,
+      dayName: fullDays[i],
+      shortDayName: shortDays[i],
+      dayNumber: dObj.getDate(),
+      isToday: dateFormatted === todayStr,
+      isPast: dateFormatted < todayStr,
+    });
+  }
+  return result;
+}
+
+export function getMonthDays(
+  year: number,
+  monthZeroIndexed: number
+): { date: string; dayNumber: number; isCurrentMonth: boolean; isToday: boolean }[] {
+  const todayStr = getTodayDateString();
+  const firstDay = new Date(year, monthZeroIndexed, 1);
+  const lastDay = new Date(year, monthZeroIndexed + 1, 0);
+
+  const days: { date: string; dayNumber: number; isCurrentMonth: boolean; isToday: boolean }[] = [];
+
+  const firstDayWeekDay = firstDay.getDay(); // 0=Sun, 1=Mon...
+  const startOffset = firstDayWeekDay === 0 ? 6 : firstDayWeekDay - 1;
+
+  for (let i = startOffset; i > 0; i--) {
+    const prevDate = new Date(year, monthZeroIndexed, 1 - i);
+    const yStr = prevDate.getFullYear();
+    const mStr = String(prevDate.getMonth() + 1).padStart(2, '0');
+    const dStr = String(prevDate.getDate()).padStart(2, '0');
+    const dateStr = `${yStr}-${mStr}-${dStr}`;
+    days.push({
+      date: dateStr,
+      dayNumber: prevDate.getDate(),
+      isCurrentMonth: false,
+      isToday: dateStr === todayStr,
+    });
+  }
+
+  for (let i = 1; i <= lastDay.getDate(); i++) {
+    const currDate = new Date(year, monthZeroIndexed, i);
+    const yStr = currDate.getFullYear();
+    const mStr = String(currDate.getMonth() + 1).padStart(2, '0');
+    const dStr = String(currDate.getDate()).padStart(2, '0');
+    const dateStr = `${yStr}-${mStr}-${dStr}`;
+    days.push({
+      date: dateStr,
+      dayNumber: i,
+      isCurrentMonth: true,
+      isToday: dateStr === todayStr,
+    });
+  }
+
+  const remaining = 35 - days.length > 0 ? 35 - days.length : (42 - days.length > 0 ? 42 - days.length : 0);
+  for (let i = 1; i <= remaining; i++) {
+    const nextDate = new Date(year, monthZeroIndexed + 1, i);
+    const yStr = nextDate.getFullYear();
+    const mStr = String(nextDate.getMonth() + 1).padStart(2, '0');
+    const dStr = String(nextDate.getDate()).padStart(2, '0');
+    const dateStr = `${yStr}-${mStr}-${dStr}`;
+    days.push({
+      date: dateStr,
+      dayNumber: i,
+      isCurrentMonth: false,
+      isToday: dateStr === todayStr,
+    });
+  }
+
+  return days;
 }
 
 // Generate default 40-min slots with 10-min breaks
@@ -86,7 +193,7 @@ const INITIAL_STUDENTS: Student[] = [
     id: 'std_1',
     full_name: 'Ahmet Yılmaz',
     class_grade: '12-A',
-    phone: '905551112233',
+    phone: '905324182914',
     last_meeting_date: getTodayDateString(),
     status_flags: ['Net Düşüşü', 'Geometri Eksiği'],
     target_goal: 'İTÜ Bilgisayar Mühendisliği',
@@ -97,10 +204,10 @@ const INITIAL_STUDENTS: Student[] = [
     id: 'std_2',
     full_name: 'Ayşe Demir',
     class_grade: 'Mezun',
-    phone: '905552223344',
+    phone: '905438201945',
     last_meeting_date: getTodayDateString(),
     status_flags: ['Motivasyon', 'Paragraf Rutini'],
-    target_goal: 'Boğaziçi İşletme',
+    target_goal: '',
     notes: 'Mezun psikolojisi, deneme sıklığı haftada 2 olacak.',
     created_at: new Date(Date.now() - 40 * 86400000).toISOString(),
   },
@@ -108,7 +215,7 @@ const INITIAL_STUDENTS: Student[] = [
     id: 'std_3',
     full_name: 'Emre Can Öztürk',
     class_grade: '12-B',
-    phone: '905553334455',
+    phone: '905056714289',
     last_meeting_date: getTodayDateString(),
     status_flags: ['AYT Matematik', 'Zaman Yönetimi'],
     target_goal: 'ODTÜ Elektrik-Elektronik',
@@ -119,10 +226,10 @@ const INITIAL_STUDENTS: Student[] = [
     id: 'std_4',
     full_name: 'Zeynep Kaya',
     class_grade: '11-A',
-    phone: '905554445566',
+    phone: '905359124038',
     last_meeting_date: shiftDateString(getTodayDateString(), -25), // 25 gün önce (Risk Radarı)
     status_flags: ['Sınav Kaygısı', 'Net Düşüşü'],
-    target_goal: 'Cerrahpaşa Tıp Fakültesi',
+    target_goal: '',
     notes: '20+ gündür görüşülmedi. Acil randevu atanmalı.',
     created_at: new Date(Date.now() - 60 * 86400000).toISOString(),
   },
@@ -130,10 +237,10 @@ const INITIAL_STUDENTS: Student[] = [
     id: 'std_5',
     full_name: 'Berkay Şahin',
     class_grade: '12-C',
-    phone: '905556667788',
+    phone: '905362948172',
     last_meeting_date: shiftDateString(getTodayDateString(), -22), // 22 gün önce (Risk Radarı)
     status_flags: ['Program Aksatması'],
-    target_goal: 'Yıldız Teknik Makine',
+    target_goal: '',
     notes: 'Program aksatıyor, veli görüşmesi gerekebilir.',
     created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
   },
@@ -141,10 +248,10 @@ const INITIAL_STUDENTS: Student[] = [
     id: 'std_6',
     full_name: 'Selin Arslan',
     class_grade: 'Mezun',
-    phone: '905557778899',
+    phone: '905447193825',
     last_meeting_date: shiftDateString(getTodayDateString(), -2),
     status_flags: ['Paragraf Rutini', 'Deneme Analizi'],
-    target_goal: 'Hacettepe Hukuk',
+    target_goal: '',
     notes: 'Son seansa gelmedi.',
     created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
   },
@@ -152,10 +259,10 @@ const INITIAL_STUDENTS: Student[] = [
     id: 'std_7',
     full_name: 'Kaan Yıldırım',
     class_grade: '12-A',
-    phone: '905558889900',
+    phone: '905336021874',
     last_meeting_date: shiftDateString(getTodayDateString(), -10),
     status_flags: ['FKB Çalışması', 'AYT Matematik'],
-    target_goal: 'Koç Endüstri Mühendisliği',
+    target_goal: '',
     notes: 'AYT Fizik denemeleri incelenecek.',
     created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
   },
@@ -173,7 +280,7 @@ function getInitialSessions(): Session[] {
       time_slot: '09:30',
       student_id: 'std_1',
       topic: 'TYT Analiz & Net Takibi',
-      action_items: 'Günlük 30 paragraf + Haftalık 2 TYT Türkçe denemesi.',
+      action_items: 'Geometri soru bankası taraması.',
       tags: ['Net Düşüşü', 'Geometri Eksiği'],
       status: 'Geldi',
       next_followup_date: nextWeek,
@@ -185,7 +292,7 @@ function getInitialSessions(): Session[] {
       time_slot: '10:15',
       student_id: 'std_2',
       topic: 'Hedef Belirleme & Mezun Rutini',
-      action_items: 'Sosyal deneme çözümleri ve sabah 08:30 kütüphane başlangıcı.',
+      action_items: '',
       tags: ['Motivasyon', 'Paragraf Rutini'],
       status: 'Bekliyor',
       next_followup_date: nextWeek,
@@ -209,7 +316,7 @@ function getInitialSessions(): Session[] {
       time_slot: '13:30',
       student_id: 'std_6',
       topic: 'Randevu Telafisi & Deneme Analizi',
-      action_items: 'Önceki hafta kaçırılan seans telafisi yapılacak.',
+      action_items: '',
       tags: ['Deneme Analizi'],
       status: 'Gelmedi',
       next_followup_date: nextWeek,
@@ -233,7 +340,7 @@ function getInitialSessions(): Session[] {
       time_slot: '10:00',
       student_id: 'std_6',
       topic: 'YKS Haftalık Çizelge',
-      action_items: 'Randevuya katılmadı.',
+      action_items: '',
       tags: ['Program Aksatması'],
       status: 'Gelmedi',
       created_at: new Date(Date.now() - 86400000).toISOString(),
@@ -260,7 +367,29 @@ export const StorageService = {
         this.saveStudents(INITIAL_STUDENTS);
         return INITIAL_STUDENTS;
       }
-      return JSON.parse(data);
+      const parsed: Student[] = JSON.parse(data);
+      let migrated = false;
+      const realisticMap: Record<string, string> = {
+        std_1: '905324182914',
+        std_2: '905438201945',
+        std_3: '905056714289',
+        std_4: '905359124038',
+        std_5: '905362948172',
+        std_6: '905447193825',
+        std_7: '905336021874',
+      };
+      const cleaned = parsed.map((s) => {
+        if (s.phone && (s.phone.includes('1112233') || s.phone.includes('2223344') || s.phone.includes('3334455') || s.phone.includes('4445566') || s.phone.includes('6667788') || s.phone.includes('7778899') || s.phone.includes('8889900'))) {
+          migrated = true;
+          return { ...s, phone: realisticMap[s.id] || ('9053' + Math.floor(10000000 + Math.random() * 90000000).toString().slice(0, 8)) };
+        }
+        return s;
+      });
+      if (migrated) {
+        this.saveStudents(cleaned);
+        return cleaned;
+      }
+      return parsed;
     } catch {
       return INITIAL_STUDENTS;
     }
@@ -405,6 +534,41 @@ export const StorageService = {
     newSessions.sort((a, b) => a.time_slot.localeCompare(b.time_slot));
     this.saveSessions(newSessions);
     return newSessions;
+  },
+
+  // Populates standard slots for all weekdays (Mon-Fri) of the week
+  fillStandardSlotsForWeek(baseDate: string): Session[] {
+    const weekDays = getWeekDays(baseDate, false);
+    let allSessions = this.getSessions();
+    const standardSlots = generateDefaultTimeSlots();
+
+    weekDays.forEach((w) => {
+      const existingForDay = allSessions.filter((s) => s.date === w.date);
+      standardSlots.forEach((slot) => {
+        const alreadyHas = existingForDay.some((s) => s.time_slot === slot);
+        if (!alreadyHas) {
+          allSessions.push({
+            id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            date: w.date,
+            time_slot: slot,
+            student_id: null,
+            topic: '',
+            action_items: '',
+            tags: [],
+            status: 'Bekliyor',
+            created_at: new Date().toISOString(),
+          });
+        }
+      });
+    });
+
+    allSessions.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.time_slot.localeCompare(b.time_slot);
+    });
+
+    this.saveSessions(allSessions);
+    return allSessions;
   },
 
   exportBackupJson(): string {

@@ -60,80 +60,73 @@ export function RiskRadarBar({
   };
 
   return (
-    <div className="bg-slate-900/60 border-b border-slate-800/80 px-4 sm:px-6 py-2.5">
+    <div className="bg-[#090a0f] border-b border-white/[0.06] px-4 sm:px-6 py-1.5">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
-        {/* Left: Risk Badges */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <span className="text-[11px] font-mono tracking-wider text-slate-500 uppercase flex items-center gap-1">
-            <AlertCircle className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Risk Radarı:</span>
-          </span>
-
-          {/* Badge 1: 20+ Gündür Görüşülmeyenler */}
+        {/* Left: Triage Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 20+ Gündür Görüşülmeyenler */}
           <button
             onClick={() => handleFilterClick('uncontacted_20d')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
               activeRiskFilter === 'uncontacted_20d'
-                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-sm shadow-amber-950/50'
-                : 'bg-slate-950/80 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white'
+                ? 'bg-amber-500/15 border-amber-500/50 text-amber-200'
+                : 'bg-zinc-900/90 hover:bg-zinc-850 border-white/[0.06] text-zinc-300'
             }`}
-            title="20 günden uzun süredir görüşülmeyen öğrencileri filtrele"
           >
-            <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span>20+ Gündür Görüşülmeyenler</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span>20+ Gün İletişimsiz</span>
+            <span className="px-1.5 py-0.2 rounded font-mono text-[11px] bg-amber-400/15 text-amber-300 font-semibold">
               {uncontactedStudents.length}
             </span>
           </button>
 
-          {/* Badge 2: Randevu Kaçıranlar (Bu Hafta Gelmedi) */}
-          <button
-            onClick={() => handleFilterClick('missed_this_week')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border font-medium transition-all ${
-              activeRiskFilter === 'missed_this_week'
-                ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 shadow-sm shadow-rose-950/50'
-                : 'bg-slate-950/80 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white'
-            }`}
-            title="Son 7 günde randevusuna gelmeyen öğrencileri filtrele"
-          >
-            <UserX className="w-3.5 h-3.5 text-rose-400" />
-            <span>Randevu Kaçıranlar</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-              {missedStudentIds.size}
-            </span>
-          </button>
+          {/* Son 7 günde gelmeyen */}
+          {missedStudentIds.size > 0 && (
+            <button
+              onClick={() => handleFilterClick('missed_this_week')}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors border cursor-pointer ${
+                activeRiskFilter === 'missed_this_week'
+                  ? 'bg-rose-950/40 border-rose-500/50 text-rose-300'
+                  : 'bg-zinc-900/90 hover:bg-zinc-850 border-white/[0.06] text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+              <span>Gelmeyen</span>
+              <span className="font-mono text-rose-400 font-semibold">{missedStudentIds.size}</span>
+            </button>
+          )}
 
           {/* Active Filter Clear Button */}
           {activeRiskFilter !== 'none' && (
             <button
               onClick={() => onSelectRiskFilter('none')}
-              className="flex items-center gap-1 px-2 py-0.8 rounded text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition-colors cursor-pointer"
             >
-              <span>Filtreyi Kaldır</span>
-              <X className="w-3 h-3 text-slate-400" />
+              <span>Temizle</span>
+              <X className="w-3 h-3 text-zinc-400" />
             </button>
           )}
         </div>
 
         {/* Right: Günün Seansları Analytics */}
-        <div className="flex items-center gap-3 ml-auto text-slate-400">
-          <div className="flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1 rounded-md border border-slate-800/80">
-            <CalendarCheck className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-slate-300 font-medium">Günün Seansları:</span>
-            <span className="font-mono font-semibold text-white">{totalToday}</span>
-            <div className="h-3 w-px bg-slate-800 mx-1" />
-            <span className="flex items-center gap-1 text-emerald-400" title="Tamamlanan Seanslar">
+        <div className="flex items-center gap-2 ml-auto text-zinc-400">
+          <div className="flex items-center gap-2 bg-[#0c0d12] px-2.5 py-1 rounded-md border border-white/[0.06] text-[11px]">
+            <CalendarCheck className="w-3.5 h-3.5 text-zinc-400" />
+            <span className="text-zinc-300 font-medium">Bugün:</span>
+            <span className="font-mono text-white font-medium">{totalToday} seans</span>
+            <div className="h-2.5 w-px bg-white/[0.1] mx-0.5" />
+            <span className="flex items-center gap-1 text-emerald-400">
               <CheckCircle2 className="w-3 h-3" />
-              <span className="font-mono font-medium">{completedToday}</span>
+              <span className="font-mono">{completedToday}</span>
             </span>
-            <span className="flex items-center gap-1 text-amber-400" title="Bekleyen Seanslar">
+            <span className="flex items-center gap-1 text-zinc-400">
               <Clock className="w-3 h-3" />
-              <span className="font-mono font-medium">{pendingToday}</span>
+              <span className="font-mono">{pendingToday}</span>
             </span>
             {missedToday > 0 && (
-              <span className="flex items-center gap-1 text-rose-400" title="Kaçırılan Seanslar">
+              <span className="flex items-center gap-1 text-rose-400">
                 <UserX className="w-3 h-3" />
-                <span className="font-mono font-medium">{missedToday}</span>
+                <span className="font-mono">{missedToday}</span>
               </span>
             )}
           </div>

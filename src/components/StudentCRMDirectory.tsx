@@ -14,8 +14,9 @@ import {
   UserX,
   Target,
   ExternalLink,
+  Download,
 } from 'lucide-react';
-import { displayPhone, formatTurkishDate } from '../lib/storage';
+import { displayPhone, formatTurkishDate, StorageService } from '../lib/storage';
 import { getWhatsAppDirectUrl } from '../lib/whatsapp';
 import { StudentHistoryModal } from './StudentHistoryModal';
 import { StudentProfileModal } from './StudentProfileModal';
@@ -113,20 +114,33 @@ export function StudentCRMDirectory({
     window.open(url, '_blank');
   };
 
+  const handleExportCsv = () => {
+    const csvContent = StorageService.exportToCsv();
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `rehberlik_ogrenci_listesi_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    onShowToast('CSV İndirildi', 'Öğrenci portföyü Excel / CSV formatında kaydedildi.', 'success');
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Top Filter Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
-        <div className="flex flex-wrap items-center gap-2.5 flex-1 max-w-2xl">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-[#0c0d12] p-2.5 rounded-lg border border-white/[0.07]">
+        <div className="flex flex-wrap items-center gap-2 flex-1 max-w-2xl">
           {/* Search Input */}
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Öğrenci adı, sınıf, telefon veya teşhis ara..."
-              className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              placeholder="Öğrenci, sınıf veya telefon ara..."
+              className="w-full pl-8 pr-3 py-1.5 rounded-md bg-[#08090b] border border-white/[0.08] text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
             />
           </div>
 
@@ -134,7 +148,7 @@ export function StudentCRMDirectory({
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-300 focus:outline-none focus:border-indigo-500"
+            className="px-2.5 py-1.5 rounded-md bg-[#08090b] border border-white/[0.08] text-xs text-zinc-300 focus:outline-none focus:border-zinc-500 cursor-pointer"
           >
             <option value="all">Tüm Sınıflar</option>
             {classes.map((cls) => (
@@ -148,9 +162,9 @@ export function StudentCRMDirectory({
           <select
             value={selectedTag}
             onChange={(e) => setSelectedTag(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-300 focus:outline-none focus:border-indigo-500 max-w-[160px] truncate"
+            className="px-2.5 py-1.5 rounded-md bg-[#08090b] border border-white/[0.08] text-xs text-zinc-300 focus:outline-none focus:border-zinc-500 max-w-[160px] truncate cursor-pointer"
           >
-            <option value="all">Tüm Teşhis Etiketleri</option>
+            <option value="all">Tüm Etiketler</option>
             {DIAGNOSTIC_TAGS.map((tag) => (
               <option key={tag} value={tag}>
                 {tag}
@@ -160,13 +174,13 @@ export function StudentCRMDirectory({
 
           {/* Active Risk Radar indication badge */}
           {activeRiskFilter !== 'none' && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
               <span>
-                Filtre: {activeRiskFilter === 'uncontacted_20d' ? '20+ Gündür Görüşülmeyenler' : 'Randevu Kaçıranlar'}
+                {activeRiskFilter === 'uncontacted_20d' ? '20+ Gün' : 'Gelmeyenler'}
               </span>
               <button
                 onClick={onClearRiskFilter}
-                className="text-amber-400 hover:text-white font-bold ml-1"
+                className="text-amber-400 hover:text-white font-bold ml-0.5 cursor-pointer"
               >
                 &times;
               </button>
@@ -174,34 +188,47 @@ export function StudentCRMDirectory({
           )}
         </div>
 
-        {/* Add Student Button */}
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Yeni Öğrenci Ekle</span>
-        </button>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-1.5">
+          {/* CSV Export Button */}
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#0e1015] hover:bg-[#12141a] border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+            title="CSV formatında indir"
+          >
+            <Download className="w-3.5 h-3.5 text-zinc-400" />
+            <span>CSV İndir</span>
+          </button>
+
+          {/* Add Student Button */}
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-medium shadow-xs transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Öğrenci Ekle</span>
+          </button>
+        </div>
       </div>
 
       {/* Students Table */}
-      <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/60 shadow-xl shadow-slate-950/30">
+      <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-[#0a0b0f] shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-900/90 border-b border-slate-800 text-slate-400 font-mono text-[11px] uppercase tracking-wider">
-                <th className="py-2.5 px-4">Öğrenci & Sınıf</th>
-                <th className="py-2.5 px-4">Telefon</th>
-                <th className="py-2.5 px-4">Son Görüşme</th>
-                <th className="py-2.5 px-4">Hedef & Teşhis Etiketleri</th>
-                <th className="py-2.5 px-4 text-right">Aksiyonlar</th>
+              <tr className="bg-[#090a0f] border-b border-white/[0.06] text-zinc-400 text-xs">
+                <th className="py-2 px-3 font-normal">Öğrenci & Sınıf</th>
+                <th className="py-2 px-3 font-normal">Telefon</th>
+                <th className="py-2 px-3 font-normal">Son Görüşme</th>
+                <th className="py-2 px-3 font-normal">Hedef & Etiket</th>
+                <th className="py-2 px-3 text-right font-normal">İşlem</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-sans">
+            <tbody className="divide-y divide-white/[0.04] font-sans">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-slate-500">
-                    Kriterlere uygun öğrenci kaydı bulunamadı.
+                  <td colSpan={5} className="py-12 text-center text-zinc-500">
+                    Öğrenci kaydı bulunamadı.
                   </td>
                 </tr>
               ) : (
@@ -214,23 +241,23 @@ export function StudentCRMDirectory({
                   return (
                     <tr
                       key={student.id}
-                      className="group hover:bg-slate-900/40 transition-colors"
+                      className="group hover:bg-white/[0.02] transition-colors"
                     >
                       {/* Name & Grade */}
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-3">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setHistoryStudent(student)}
-                            className="font-semibold text-white hover:text-indigo-400 text-left hover:underline"
+                            className="font-medium text-zinc-200 hover:text-white text-left hover:underline cursor-pointer"
                           >
                             {student.full_name}
                           </button>
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700">
+                          <span className="text-[10px] font-mono text-zinc-400 shrink-0">
                             {student.class_grade}
                           </span>
                           {isUncontacted20d && (
                             <span
-                              className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"
+                              className="w-1.5 h-1.5 rounded-full bg-amber-400"
                               title="20+ gündür görüşülmedi"
                             />
                           )}
@@ -238,60 +265,61 @@ export function StudentCRMDirectory({
                       </td>
 
                       {/* Phone */}
-                      <td className="py-3 px-4 font-mono text-slate-300 whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono text-zinc-300 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
-                          <Phone className="w-3 h-3 text-slate-500" />
+                          <Phone className="w-3 h-3 text-zinc-500" />
                           <span>{displayPhone(student.phone)}</span>
                         </div>
                       </td>
 
                       {/* Son Görüşme */}
-                      <td className="py-3 px-4 whitespace-nowrap">
+                      <td className="py-2.5 px-3 whitespace-nowrap">
                         {student.last_meeting_date ? (
                           <div className="flex items-center gap-1.5">
-                            <Clock className={`w-3.5 h-3.5 ${isUncontacted20d ? 'text-amber-400' : 'text-slate-500'}`} />
-                            <span className={isUncontacted20d ? 'text-amber-300 font-medium' : 'text-slate-300'}>
+                            <Clock className={`w-3.5 h-3.5 ${isUncontacted20d ? 'text-amber-400' : 'text-zinc-500'}`} />
+                            <span className={isUncontacted20d ? 'text-amber-300 font-medium' : 'text-zinc-300'}>
                               {formatTurkishDate(student.last_meeting_date)}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-rose-400 text-[11px] font-medium flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" /> Hiç görüşülmedi
+                          <span className="text-zinc-500 text-[11px] flex items-center gap-1">
+                            Hiç görüşülmedi
                           </span>
                         )}
                       </td>
 
                       {/* Hedef & Teşhis Etiketleri */}
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-3">
                         <div className="space-y-1">
                           {student.target_goal && (
-                            <div className="flex items-center gap-1 text-[11px] text-indigo-300 font-medium truncate max-w-xs">
-                              <Target className="w-3 h-3 shrink-0 text-indigo-400" />
-                              <span className="truncate">{student.target_goal}</span>
+                            <div className="text-[11px] text-zinc-300 font-normal truncate max-w-xs">
+                              {student.target_goal}
                             </div>
                           )}
 
-                          <div className="flex flex-wrap gap-1">
-                            {student.status_flags.map((flag) => (
-                              <span
-                                key={flag}
-                                className="text-[10px] px-1.5 py-0.2 rounded bg-slate-900 text-slate-300 border border-slate-800"
-                              >
-                                {flag}
+                          {student.status_flags && student.status_flags.length > 0 && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700/60">
+                                {student.status_flags[0]}
                               </span>
-                            ))}
-                          </div>
+                              {student.status_flags.length > 1 && (
+                                <span className="text-[11px] text-zinc-400 font-normal">
+                                  {student.status_flags.slice(1).join(', ')}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
 
                       {/* Aksiyonlar */}
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-2.5 px-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {/* Quick Schedule */}
                           <button
                             onClick={() => onQuickScheduleStudent(student)}
-                            className="p-1.5 rounded-md bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-800/60 text-indigo-300 hover:text-indigo-200 text-xs transition-colors"
-                            title="Bu öğrenciye günün ilk boş seansını ata"
+                            className="p-1.5 rounded-md bg-[#0e1015] hover:bg-zinc-800 border border-white/[0.08] text-zinc-300 hover:text-white text-xs transition-colors cursor-pointer"
+                            title="Bugüne seans planla"
                           >
                             <Calendar className="w-3.5 h-3.5" />
                           </button>
@@ -299,8 +327,8 @@ export function StudentCRMDirectory({
                           {/* WhatsApp Direct Chat */}
                           <button
                             onClick={() => handleOpenDirectChat(student)}
-                            className="p-1.5 rounded-md bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-800/60 text-emerald-400 text-xs transition-colors"
-                            title="WhatsApp sohbeti başlat"
+                            className="p-1.5 rounded-md bg-[#0e1015] hover:bg-zinc-800 border border-white/[0.08] text-emerald-400 hover:text-emerald-300 text-xs transition-colors cursor-pointer"
+                            title="WhatsApp mesajı"
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
                           </button>
@@ -308,8 +336,8 @@ export function StudentCRMDirectory({
                           {/* Past Meeting History */}
                           <button
                             onClick={() => setHistoryStudent(student)}
-                            className="p-1.5 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white text-xs transition-colors"
-                            title="Görüşme geçmişini görüntüle"
+                            className="p-1.5 rounded-md bg-[#0e1015] hover:bg-zinc-800 border border-white/[0.08] text-zinc-400 hover:text-white text-xs transition-colors cursor-pointer"
+                            title="Geçmiş seanslar"
                           >
                             <History className="w-3.5 h-3.5" />
                           </button>
@@ -317,8 +345,8 @@ export function StudentCRMDirectory({
                           {/* Edit Profile */}
                           <button
                             onClick={() => setEditingStudent(student)}
-                            className="p-1.5 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white text-xs transition-colors"
-                            title="Öğrenci bilgilerini düzenle"
+                            className="p-1.5 rounded-md bg-[#0e1015] hover:bg-zinc-800 border border-white/[0.08] text-zinc-400 hover:text-white text-xs transition-colors cursor-pointer"
+                            title="Düzenle"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -331,8 +359,8 @@ export function StudentCRMDirectory({
                                 onShowToast('Öğrenci Silindi', student.full_name, 'info');
                               }
                             }}
-                            className="p-1.5 rounded-md text-slate-600 hover:text-rose-400 hover:bg-slate-900 transition-colors"
-                            title="Öğrenciyi sil"
+                            className="p-1.5 rounded-md text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition-colors cursor-pointer"
+                            title="Sil"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

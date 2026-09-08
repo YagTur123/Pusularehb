@@ -60,3 +60,25 @@ export const COMMON_TOPICS = [
   'Meslek & Üniversite Tanıtımı',
   'Ders Çalışma Stratejisi',
 ] as const;
+
+export type UserRole =
+  | 'Rehber Öğretmen & Psikolojik Danışman'
+  | 'YKS / LGS Öğrenci Koçu'
+  | 'Eğitim Danışmanı'
+  | 'Okul Yöneticisi';
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  school?: string;
+  phone?: string;
+  created_at: string;
+  avatar_color?: string;
+}
+
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+}

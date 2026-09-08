@@ -10,8 +10,17 @@ import {
   Check,
   UserCheck,
   FileSpreadsheet,
+  Layers,
+  ArrowRight,
+  LogIn,
+  UserPlus,
+  LogOut,
+  ChevronDown,
+  User as UserIcon,
+  ShieldCheck,
 } from 'lucide-react';
 import { StorageService } from '../lib/storage';
+import { User } from '../types';
 
 interface HeaderProps {
   activeTab: 'scheduler' | 'students';
@@ -21,6 +30,10 @@ interface HeaderProps {
   onOpenCommandPalette: () => void;
   onShowToast: (title: string, desc?: string, type?: 'success' | 'info' | 'warning') => void;
   refreshData: () => void;
+  currentUser: User | null;
+  onOpenAuth: (mode?: 'signin' | 'signup') => void;
+  onOpenProfile: () => void;
+  onSignOut: () => void;
 }
 
 export function Header({
@@ -31,18 +44,34 @@ export function Header({
   onOpenCommandPalette,
   onShowToast,
   refreshData,
+  currentUser,
+  onOpenAuth,
+  onOpenProfile,
+  onSignOut,
 }: HeaderProps) {
-  const [counselorName, setCounselorName] = useState(() => StorageService.getCounselorName());
+  const [counselorName, setCounselorName] = useState(() => currentUser?.name || StorageService.getCounselorName());
   const [isEditingCounselor, setIsEditingCounselor] = useState(false);
   const [editNameInput, setEditNameInput] = useState(counselorName);
   const [showBackupMenu, setShowBackupMenu] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (currentUser?.name) {
+      setCounselorName(currentUser.name);
+      setEditNameInput(currentUser.name);
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (backupMenuRef.current && !backupMenuRef.current.contains(event.target as Node)) {
         setShowBackupMenu(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -107,64 +136,61 @@ export function Header({
   };
 
   return (
-    <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-        {/* Logo & Brand */}
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-indigo-950/50">
-              <Compass className="w-4 h-4 text-white animate-spin-slow" />
+    <header className="border-b border-white/[0.08] bg-[#08090a]/95 backdrop-blur-md sticky top-0 z-30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between gap-4">
+        {/* Logo & Linear Breadcrumb */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-gradient-to-b from-zinc-800 to-zinc-900 border border-white/10 flex items-center justify-center text-zinc-200 shadow-xs">
+              <Compass className="w-3.5 h-3.5 text-zinc-300" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-semibold text-sm tracking-tight text-white flex items-center gap-1.5">
-                  Pusula <span className="text-slate-400 font-normal">Rehberlik</span>
-                </h1>
-                <span className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  v2.4 Pro
-                </span>
-              </div>
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="font-semibold tracking-tight text-white">Pusula</span>
+              <span className="text-zinc-600">/</span>
+              <span className="text-zinc-300 font-medium">
+                {activeTab === 'scheduler' ? 'Seanslar' : 'Öğrenciler'}
+              </span>
             </div>
           </div>
 
-          {/* Navigation tabs */}
-          <nav className="hidden md:flex items-center gap-1 bg-slate-900/90 border border-slate-800 p-0.5 rounded-lg">
+          {/* Linear Segmented View Tabs */}
+          <nav className="hidden md:flex items-center gap-0.5 bg-[#0e1015] border border-white/[0.06] p-0.5 rounded-md">
             <button
               onClick={() => setActiveTab('scheduler')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors cursor-pointer ${
                 activeTab === 'scheduler'
-                  ? 'bg-slate-800 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'bg-zinc-800 text-white font-medium shadow-xs'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <Calendar className="w-3.5 h-3.5" />
-              <span>Günlük Seanslar</span>
+              <span>Seanslar</span>
             </button>
             <button
               onClick={() => setActiveTab('students')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors cursor-pointer ${
                 activeTab === 'students'
-                  ? 'bg-slate-800 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'bg-zinc-800 text-white font-medium shadow-xs'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Öğrenci Portalı & Risk Radarı</span>
+              <span>Öğrenciler</span>
             </button>
           </nav>
         </div>
 
-        {/* Center / Search trigger */}
-        <div className="flex-1 max-w-xs hidden lg:block">
+        {/* Center / Linear Search Command Bar */}
+        <div className="flex-1 max-w-sm hidden lg:block">
           <button
             onClick={onOpenCommandPalette}
-            className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs transition-colors group"
+            className="w-full flex items-center justify-between px-2.5 py-1 rounded-md bg-[#0e1015] hover:bg-[#12141a] border border-white/[0.08] text-zinc-400 hover:text-zinc-200 text-xs transition-colors group cursor-pointer"
           >
             <span className="flex items-center gap-2">
-              <Search className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300" />
-              <span>Öğrenci, seans veya komut ara...</span>
+              <Search className="w-3 h-3 text-zinc-500 group-hover:text-zinc-300" />
+              <span className="text-[11px]">Ara veya komut yaz...</span>
             </span>
-            <kbd className="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded bg-slate-800 border border-slate-700 text-slate-400">
+            <kbd className="px-1.5 py-0.2 text-[10px] font-mono font-medium rounded bg-zinc-850 border border-zinc-750 text-zinc-400">
               ⌘K
             </kbd>
           </button>
@@ -172,56 +198,47 @@ export function Header({
 
         {/* Right actions */}
         <div className="flex items-center gap-2">
-          {/* Quick Command button on mobile */}
-          <button
-            onClick={onOpenCommandPalette}
-            className="lg:hidden p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
-            title="Komut Paleti (Ctrl+K)"
-          >
-            <Search className="w-4 h-4" />
-          </button>
-
           {/* Smart Paste (Excel/WhatsApp) */}
           <button
             onClick={onOpenSmartPaste}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800/80 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium transition-colors"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0e1015] hover:bg-zinc-850 border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
             title="Excel veya WhatsApp'tan toplu öğrenci yapıştır"
           >
-            <UploadCloud className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Toplu İçe Aktar</span>
+            <UploadCloud className="w-3.5 h-3.5 text-zinc-400" />
+            <span>İçe Aktar</span>
           </button>
 
           {/* Backup dropdown */}
           <div className="relative" ref={backupMenuRef}>
             <button
               onClick={() => setShowBackupMenu(!showBackupMenu)}
-              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800/80 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
-              title="Veri Yedekleme & Dışa Aktarma"
+              className="px-2.5 py-1 rounded-md bg-[#0e1015] hover:bg-zinc-850 border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Yedekleme & Dışa Aktarma"
             >
-              <Download className="w-3.5 h-3.5 text-slate-400" />
+              <Download className="w-3.5 h-3.5 text-zinc-400" />
               <span className="hidden sm:inline">Yedekle</span>
             </button>
 
             {showBackupMenu && (
-              <div className="absolute right-0 mt-1.5 w-48 rounded-lg bg-slate-900 border border-slate-800 shadow-xl shadow-slate-950/60 p-1.5 z-50 text-xs animate-in fade-in">
+              <div className="absolute right-0 mt-1 w-44 rounded-lg bg-[#0e1015] border border-white/[0.08] shadow-2xl p-1 z-50 text-xs animate-in fade-in">
                 <button
                   onClick={handleExportJson}
-                  className="w-full text-left px-2.5 py-1.5 rounded text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2"
+                  className="w-full text-left px-2 py-1 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 flex items-center gap-2 cursor-pointer"
                 >
-                  <Download className="w-3.5 h-3.5 text-emerald-400" />
+                  <Download className="w-3 h-3 text-emerald-400" />
                   <span>JSON Yedeği İndir</span>
                 </button>
                 <button
                   onClick={handleExportCsv}
-                  className="w-full text-left px-2.5 py-1.5 rounded text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2"
+                  className="w-full text-left px-2 py-1 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 flex items-center gap-2 cursor-pointer"
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-sky-400" />
+                  <FileSpreadsheet className="w-3 h-3 text-sky-400" />
                   <span>Excel (CSV) İndir</span>
                 </button>
-                <div className="h-px bg-slate-800 my-1" />
-                <label className="w-full cursor-pointer text-left px-2.5 py-1.5 rounded text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-2">
-                  <UploadCloud className="w-3.5 h-3.5 text-amber-400" />
-                  <span>JSON Yedeği Yükle</span>
+                <div className="h-px bg-white/[0.06] my-1" />
+                <label className="w-full cursor-pointer text-left px-2 py-1 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 flex items-center gap-2">
+                  <UploadCloud className="w-3 h-3 text-amber-400" />
+                  <span>JSON Yükle</span>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -234,73 +251,166 @@ export function Header({
             )}
           </div>
 
-          {/* WhatsApp Group Broadcast Trigger */}
+          {/* WhatsApp Group Broadcast Trigger (Linear Style) */}
           <button
             onClick={onOpenBroadcast}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm shadow-emerald-950/40 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-medium transition-colors cursor-pointer shadow-xs"
           >
-            <MessageSquare className="w-3.5 h-3.5 fill-white/20" />
-            <span>Grup İlanı</span>
-            <kbd className="hidden sm:inline-block px-1.5 py-0.2 rounded bg-emerald-700/60 text-[10px] font-mono border border-emerald-500/40">
+            <MessageSquare className="w-3.5 h-3.5 text-zinc-900" />
+            <span>WhatsApp İlanı</span>
+            <kbd className="hidden sm:inline-block px-1 py-0.2 rounded bg-zinc-200 text-[10px] font-mono text-zinc-800 border border-zinc-300">
               ⌘↵
             </kbd>
           </button>
 
-          {/* Counselor Name / Profile pill */}
-          <div className="relative pl-1 border-l border-slate-800 hidden xl:block">
-            {isEditingCounselor ? (
-              <form onSubmit={handleSaveCounselor} className="flex items-center gap-1">
-                <input
-                  type="text"
-                  value={editNameInput}
-                  onChange={(e) => setEditNameInput(e.target.value)}
-                  className="px-2 py-1 rounded bg-slate-900 border border-indigo-500 text-xs text-white focus:outline-none w-48"
-                  autoFocus
-                  placeholder="Danışman Adı..."
-                />
+          {/* Authentication & Counselor Profile */}
+          <div className="relative pl-2 border-l border-white/[0.08]" ref={userMenuRef}>
+            {currentUser ? (
+              <div>
                 <button
-                  type="submit"
-                  className="p-1 rounded bg-indigo-600 text-white hover:bg-indigo-500"
+                  type="button"
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-white/[0.05] border border-transparent hover:border-white/[0.08] transition-all cursor-pointer group"
+                  title={`${currentUser.name} - ${currentUser.role}`}
                 >
-                  <Check className="w-3.5 h-3.5" />
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold shadow-xs ${
+                      currentUser.avatar_color || 'bg-emerald-600 text-white'
+                    }`}
+                  >
+                    {currentUser.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <span className="block text-xs font-medium text-zinc-200 group-hover:text-white max-w-[130px] truncate leading-tight">
+                      {currentUser.name}
+                    </span>
+                    <span className="block text-[10px] text-zinc-500 max-w-[130px] truncate leading-tight">
+                      {currentUser.role.split(' ')[0]}
+                    </span>
+                  </div>
+                  <ChevronDown className="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
                 </button>
-              </form>
+
+                {/* User Dropdown Menu */}
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-1.5 w-64 rounded-xl bg-[#0e1017] border border-white/[0.1] shadow-2xl p-1.5 z-50 text-xs animate-in fade-in duration-100">
+                    {/* User Summary Card */}
+                    <div className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/[0.05] mb-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-white truncate text-xs">
+                          {currentUser.name}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-emerald-400 font-medium truncate mb-0.5">
+                        {currentUser.role}
+                      </div>
+                      {currentUser.school && (
+                        <div className="text-[10px] text-zinc-400 truncate flex items-center gap-1">
+                          <span>🏫</span>
+                          <span>{currentUser.school}</span>
+                        </div>
+                      )}
+                      <div className="text-[10px] text-zinc-500 truncate mt-1">
+                        {currentUser.email}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        onOpenProfile();
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800/80 flex items-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <UserIcon className="w-3.5 h-3.5 text-zinc-400" />
+                      <span>Profili & Kurum Bilgilerini Düzenle</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        onOpenAuth('signin');
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800/80 flex items-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <LogIn className="w-3.5 h-3.5 text-sky-400" />
+                      <span>Hesap Değiştir (Giriş Yap)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        onOpenAuth('signup');
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-zinc-300 hover:text-white hover:bg-zinc-800/80 flex items-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <UserPlus className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Yeni Danışman Hesabı Aç</span>
+                    </button>
+
+                    <div className="h-px bg-white/[0.06] my-1" />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        onSignOut();
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 flex items-center gap-2 cursor-pointer transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Çıkış Yap</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
-              <button
-                onClick={() => {
-                  setEditNameInput(counselorName);
-                  setIsEditingCounselor(true);
-                }}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 transition-colors"
-                title="Danışman adını değiştirmek için tıklayın"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-slate-500" />
-                <span className="truncate max-w-[140px]">{counselorName}</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onOpenAuth('signin')}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#0e1015] hover:bg-zinc-800 border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+                >
+                  <LogIn className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>Giriş Yap</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenAuth('signup')}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Kayıt Ol</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
       </div>
 
       {/* Mobile Sub-Navigation Bar */}
-      <div className="md:hidden flex items-center justify-around border-t border-slate-800/80 bg-slate-950 px-2 py-1">
+      <div className="md:hidden flex items-center justify-around border-t border-white/[0.06] bg-[#08090a] px-2 py-1">
         <button
           onClick={() => setActiveTab('scheduler')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded ${
-            activeTab === 'scheduler' ? 'bg-slate-800 text-white' : 'text-slate-400'
+          className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-medium rounded ${
+            activeTab === 'scheduler' ? 'bg-zinc-800 text-white' : 'text-zinc-400'
           }`}
         >
           <Calendar className="w-3.5 h-3.5" />
-          <span>Seans Programı</span>
+          <span>Seanslar</span>
         </button>
         <button
           onClick={() => setActiveTab('students')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium rounded ${
-            activeTab === 'students' ? 'bg-slate-800 text-white' : 'text-slate-400'
+          className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-medium rounded ${
+            activeTab === 'students' ? 'bg-zinc-800 text-white' : 'text-zinc-400'
           }`}
         >
           <Users className="w-3.5 h-3.5" />
-          <span>Öğrenci Rehberi</span>
+          <span>Öğrenciler</span>
         </button>
       </div>
     </header>

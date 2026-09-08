@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Student, Session } from '../types';
+import { Student, Session, User } from '../types';
 import {
   Search,
   Zap,
@@ -11,6 +11,9 @@ import {
   Users,
   Clock,
   ArrowRight,
+  LogIn,
+  UserPlus,
+  UserCheck,
 } from 'lucide-react';
 import { getTodayDateString } from '../lib/storage';
 
@@ -26,6 +29,9 @@ interface CommandPaletteProps {
   onSelectDate: (date: string) => void;
   onExportJson: () => void;
   onExportCsv: () => void;
+  currentUser?: User | null;
+  onOpenAuth?: (mode: 'signin' | 'signup') => void;
+  onOpenProfile?: () => void;
 }
 
 interface CommandItem {
@@ -49,6 +55,9 @@ export function CommandPalette({
   onSelectDate,
   onExportJson,
   onExportCsv,
+  currentUser,
+  onOpenAuth,
+  onOpenProfile,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -65,12 +74,54 @@ export function CommandPalette({
   const items: CommandItem[] = useMemo(() => {
     const list: CommandItem[] = [];
 
+    // Auth actions
+    if (currentUser) {
+      if (onOpenProfile) {
+        list.push({
+          id: 'act_user_profile',
+          category: 'İşlemler',
+          title: `Danışman Profili: ${currentUser.name}`,
+          subtitle: `${currentUser.role} • Profil ve kurum ayarlarını düzenle`,
+          icon: <UserCheck className="w-4 h-4 text-emerald-400" />,
+          action: () => {
+            onClose();
+            onOpenProfile();
+          },
+        });
+      }
+    } else {
+      if (onOpenAuth) {
+        list.push({
+          id: 'act_sign_in',
+          category: 'İşlemler',
+          title: 'Danışman Girişi Yap (Sign In)',
+          subtitle: 'E-posta ve şifrenizle giriş yapın',
+          icon: <LogIn className="w-4 h-4 text-sky-400" />,
+          action: () => {
+            onClose();
+            onOpenAuth('signin');
+          },
+        });
+        list.push({
+          id: 'act_sign_up',
+          category: 'İşlemler',
+          title: 'Yeni Danışman Hesabı Aç (Sign Up)',
+          subtitle: '30 saniyede ücretsiz danışman profili oluştur',
+          icon: <UserPlus className="w-4 h-4 text-emerald-400" />,
+          action: () => {
+            onClose();
+            onOpenAuth('signup');
+          },
+        });
+      }
+    }
+
     // Static actions
     list.push({
       id: 'act_broadcast',
       category: 'İşlemler',
       title: 'WhatsApp Grup İlan Tablosu',
-      subtitle: 'ASCII tablosunu kopyala veya önizle',
+      subtitle: 'Profesyonel seans tablosunu kopyala veya önizle',
       icon: <MessageSquare className="w-4 h-4 text-emerald-400" />,
       action: () => {
         onClose();

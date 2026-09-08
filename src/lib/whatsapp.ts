@@ -1,58 +1,144 @@
 import { Session, Student } from '../types';
-import { formatTurkishDate } from './storage';
+import { formatTurkishDate, getWeekDays } from './storage';
 
 // Helper to pad string taking visual width into account
 function padEndVis(str: string, targetLen: number): string {
-  if (str.length >= targetLen) {
-    return str.slice(0, targetLen);
+  if (str.length > targetLen) {
+    return str.slice(0, targetLen - 1) + '…';
   }
   return str + ' '.repeat(targetLen - str.length);
 }
 
+// Helper to center string in target column width
+function centerVis(str: string, targetLen: number): string {
+  if (str.length >= targetLen) return str.slice(0, targetLen);
+  const leftPad = Math.floor((targetLen - str.length) / 2);
+  const rightPad = targetLen - str.length - leftPad;
+  return ' '.repeat(leftPad) + str + ' '.repeat(rightPad);
+}
+
+export interface BroadcastOptions {
+  includeTags?: boolean;
+  includeCounselor?: boolean;
+  onlyAssigned?: boolean;
+}
+
 /**
- * Generate Group Broadcast Message with ASCII Monospace Table
+ * Generate Modern Executive Schedule Cards (Mobile WhatsApp Native)
+ * Fits perfectly on phone screens without horizontal scroll or breaking!
+ */
+export function generateModernCardBroadcastText(
+  dateStr: string,
+  sessions: Session[],
+  students: Student[],
+  counselorName?: string,
+  options: BroadcastOptions = { includeTags: true, includeCounselor: true, onlyAssigned: true }
+): string {
+  const targetSessions = (options.onlyAssigned !== false
+    ? sessions.filter((s) => s.student_id)
+    : sessions
+  ).sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+
+  const dateFormatted = formatTurkishDate(dateStr);
+  const studentMap = new Map(students.map((st) => [st.id, st]));
+  const taggedStudents: { name: string; phone: string }[] = [];
+
+  const cards = targetSessions.map((sess, idx) => {
+    const student = sess.student_id ? studentMap.get(sess.student_id) : undefined;
+    const name = student ? student.full_name : 'Boş Seans (Müsait)';
+    const grade = student ? ` (${student.class_grade})` : '';
+    const topic = sess.topic.trim() || 'Genel Değerlendirme & Takip';
+    const tags = sess.tags && sess.tags.length > 0 ? ` [${sess.tags.join(', ')}]` : '';
+    
+    // Status emoji
+    const statusMark = sess.status === 'Geldi' ? '✅' : sess.status === 'Gelmedi' ? '❌' : '⏳';
+
+    if (student && student.phone) {
+      if (!taggedStudents.some((t) => t.phone === student.phone)) {
+        taggedStudents.push({
+          name: student.full_name,
+          phone: student.phone,
+        });
+      }
+    }
+
+    return `🔹 *${sess.time_slot}* │ *${name}*${grade}\n   🎯 *Konu:* ${topic}${tags}\n   ${statusMark} *Durum:* ${sess.status}`;
+  });
+
+  const cardsContent =
+    cards.length > 0
+      ? cards.join('\n\n')
+      : '_Bu tarih için planlanmış görüşme bulunmamaktadır._';
+
+  let tagsSection = '';
+  if (options.includeTags && taggedStudents.length > 0) {
+    tagsSection = '\n\n👥 *Görüşmeye Çağrılan Öğrenciler:*\n' +
+      taggedStudents
+        .map((t) => `@+${t.phone.replace(/\D/g, '')} (${t.name})`)
+        .join('\n');
+  }
+
+  const counselorLine = options.includeCounselor && counselorName
+    ? `👤 *Danışman:* ${counselorName}\n`
+    : '';
+
+  return `🏛 *PUSULA REHBERLİK SERVİSİ | GÜNLÜK SEANS PROGRAMI*
+📅 *Tarih:* ${dateFormatted}
+${counselorLine}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${cardsContent}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${tagsSection}
+
+📌 *Önemli Bilgilendirme:*
+• Lütfen seans saatinizden 5 dakika önce rehberlik servisinde hazır bulununuz.
+• Katılamayacak veya derste sınavı olan öğrencilerin önceden bilgi vermesi rica olunur.`;
+}
+
+/**
+ * Generate Group Broadcast Message with Clean Mobile-Optimized Monospaced Table (max 34 chars)
  */
 export function generateGroupBroadcastText(
   dateStr: string,
   sessions: Session[],
   students: Student[],
-  counselorName?: string
+  counselorName?: string,
+  options: BroadcastOptions = { includeTags: true, includeCounselor: true, onlyAssigned: true }
 ): string {
-  // Only include sessions that have a student assigned
-  const assignedSessions = sessions
-    .filter((s) => s.student_id)
-    .sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+  const targetSessions = (options.onlyAssigned !== false
+    ? sessions.filter((s) => s.student_id)
+    : sessions
+  ).sort((a, b) => a.time_slot.localeCompare(b.time_slot));
 
   const dateFormatted = formatTurkishDate(dateStr);
-
   const studentMap = new Map(students.map((st) => [st.id, st]));
 
-  // Table columns widths
-  const colTime = 7;
-  const colStudent = 20;
-  const colTopic = 16;
+  // Mobile-safe widths: SAAT (5), ÖĞRENCİ (15), KONU (12) -> Total: 1 + 5 + 1 + 15 + 1 + 12 + 1 = 36 chars!
+  const colTime = 5;
+  const colStudent = 15;
+  const colTopic = 12;
 
-  const borderLine = `+${'-'.repeat(colTime)}+${'-'.repeat(colStudent)}+${'-'.repeat(colTopic)}+`;
-  const headerLine = `| ${padEndVis('SAAT', colTime - 2)} | ${padEndVis('ÖĞRENCİ', colStudent - 2)} | ${padEndVis('KONU', colTopic - 2)} |`;
+  const topBorder = `┌${'─'.repeat(colTime)}┬${'─'.repeat(colStudent)}┬${'─'.repeat(colTopic)}┐`;
+  const headerLine = `│${centerVis('SAAT', colTime)}│${centerVis('ÖĞRENCİ', colStudent)}│${centerVis('KONU', colTopic)}│`;
+  const midBorder = `├${'─'.repeat(colTime)}┼${'─'.repeat(colStudent)}┼${'─'.repeat(colTopic)}┤`;
+  const botBorder = `└${'─'.repeat(colTime)}┴${'─'.repeat(colStudent)}┴${'─'.repeat(colTopic)}┘`;
 
   const rows: string[] = [];
-
   const taggedStudents: { name: string; phone: string }[] = [];
 
-  assignedSessions.forEach((sess) => {
+  targetSessions.forEach((sess) => {
     const student = sess.student_id ? studentMap.get(sess.student_id) : undefined;
     const timeDisplay = sess.time_slot.slice(0, 5);
     const studentNameGrade = student
-      ? `${student.full_name} (${student.class_grade})`
+      ? `${student.full_name} ${student.class_grade}`
       : 'Boş';
-    const topicDisplay = sess.topic.trim() || 'Genel Değerlendirme';
+    const topicDisplay = sess.topic.trim() || 'Rutin Takip';
 
     rows.push(
-      `| ${padEndVis(timeDisplay, colTime - 2)} | ${padEndVis(studentNameGrade, colStudent - 2)} | ${padEndVis(topicDisplay, colTopic - 2)} |`
+      `│${centerVis(timeDisplay, colTime)}│ ${padEndVis(studentNameGrade, colStudent - 2)} │ ${padEndVis(topicDisplay, colTopic - 2)} │`
     );
 
     if (student && student.phone) {
-      // Avoid duplicate tags
       if (!taggedStudents.some((t) => t.phone === student.phone)) {
         taggedStudents.push({
           name: student.full_name,
@@ -62,34 +148,166 @@ export function generateGroupBroadcastText(
     }
   });
 
-  const tableRows = rows.length > 0
-    ? rows.join('\n')
-    : `| ${padEndVis('-', colTime - 2)} | ${padEndVis('Henüz randevu yok', colStudent - 2)} | ${padEndVis('-', colTopic - 2)} |`;
+  const tableRows =
+    rows.length > 0
+      ? rows.join('\n')
+      : `│${centerVis('-', colTime)}│ ${padEndVis('Planlı seans yok', colStudent - 2)} │ ${padEndVis('-', colTopic - 2)} │`;
 
-  const asciiTable = `${borderLine}\n${headerLine}\n${borderLine}\n${tableRows}\n${borderLine}`;
+  const unicodeTable = `${topBorder}\n${headerLine}\n${midBorder}\n${tableRows}\n${botBorder}`;
 
   let tagsSection = '';
-  if (taggedStudents.length > 0) {
-    tagsSection = taggedStudents
-      .map((t) => `@+${t.phone} (${t.name})`)
-      .join('\n');
-  } else {
-    tagsSection = '_Bugün için planlanmış öğrenci bulunmamaktadır._';
+  if (options.includeTags && taggedStudents.length > 0) {
+    tagsSection = '\n\n👥 *Görüşmesi Planlanan Öğrenciler:*\n' +
+      taggedStudents
+        .map((t) => `@+${t.phone.replace(/\D/g, '')} (${t.name})`)
+        .join('\n');
   }
 
-  const broadcastMessage = `🧭 *PUSULA REHBERLİK SERVİSİ GÜNLÜK PROGRAMI*
-🗓️ *Tarih:* ${dateFormatted}
-${counselorName ? `👨‍🏫 *Danışman:* ${counselorName}\n` : ''}
+  const counselorLine = options.includeCounselor && counselorName
+    ? `👤 *Danışman:* ${counselorName}\n`
+    : '';
+
+  return `🏛 *PUSULA REHBERLİK SERVİSİ | GÜNLÜK ÇİZELGE*
+📅 *Tarih:* ${dateFormatted}
+${counselorLine}
 \`\`\`
-${asciiTable}
-\`\`\`
+${unicodeTable}
+\`\`\`${tagsSection}
 
-🔔 *Görüşmesi Olan Öğrencilerimiz:*
-${tagsSection}
+📌 *Hatırlatma:* Seans saatinden 5 dakika önce rehberlik servisine geliniz.`;
+}
 
-⚠️ _Randevunuzdan 5 dakika önce rehberlik biriminde olunuz._`;
+/**
+ * Generate Simple Bullet List Broadcast
+ */
+export function generateSimpleListBroadcastText(
+  dateStr: string,
+  sessions: Session[],
+  students: Student[],
+  counselorName?: string,
+  options: BroadcastOptions = { includeTags: true, includeCounselor: true, onlyAssigned: true }
+): string {
+  const targetSessions = (options.onlyAssigned !== false
+    ? sessions.filter((s) => s.student_id)
+    : sessions
+  ).sort((a, b) => a.time_slot.localeCompare(b.time_slot));
 
-  return broadcastMessage;
+  const dateFormatted = formatTurkishDate(dateStr);
+  const studentMap = new Map(students.map((st) => [st.id, st]));
+
+  const listItems = targetSessions.map((sess) => {
+    const student = sess.student_id ? studentMap.get(sess.student_id) : undefined;
+    const name = student ? `${student.full_name} (${student.class_grade})` : 'Boş';
+    const topic = sess.topic.trim() ? ` — ${sess.topic.trim()}` : '';
+    return `⏰ *${sess.time_slot}*: ${name}${topic}`;
+  });
+
+  const content =
+    listItems.length > 0
+      ? listItems.join('\n')
+      : '_Bugün için planlanmış görüşme bulunmamaktadır._';
+
+  const counselorLine = options.includeCounselor && counselorName
+    ? `👤 *Danışman:* ${counselorName}\n`
+    : '';
+
+  return `🏛 *REHBERLİK SERVİSİ | GÜNLÜK GÖRÜŞME LİSTESİ*
+📅 *Tarih:* ${dateFormatted}
+${counselorLine}
+${content}
+
+📌 *Not:* Randevu saatinizden 5 dakika önce rehberlik servisinde olmanız rica olunur.`;
+}
+
+/**
+ * Generate Full Week WhatsApp Schedule Announcement (Mon - Fri)
+ */
+export function generateWeeklyScheduleBroadcastText(
+  baseDate: string,
+  allSessions: Session[],
+  students: Student[],
+  counselorName?: string,
+  options: BroadcastOptions = { includeCounselor: true }
+): string {
+  const weekDays = getWeekDays(baseDate, false);
+  const studentMap = new Map(students.map((st) => [st.id, st]));
+
+  const startDay = weekDays[0];
+  const endDay = weekDays[weekDays.length - 1];
+  const counselorLine = options.includeCounselor && counselorName
+    ? `👤 *Danışman:* ${counselorName}\n`
+    : '';
+
+  const dayBlocks = weekDays.map((day) => {
+    const daySessions = allSessions
+      .filter((s) => s.date === day.date && s.student_id)
+      .sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+
+    let body = '';
+    if (daySessions.length === 0) {
+      body = '   _Görüşme planlanmadı_';
+    } else {
+      body = daySessions
+        .map((s) => {
+          const st = studentMap.get(s.student_id!);
+          const name = st ? `${st.full_name} (${st.class_grade})` : '';
+          const topic = s.topic ? ` - ${s.topic}` : '';
+          return `   • *${s.time_slot}*: ${name}${topic}`;
+        })
+        .join('\n');
+    }
+
+    return `📅 *${day.dayName}, ${day.dayNumber} ${formatTurkishDate(day.date).split(' ')[1]}*\n${body}`;
+  });
+
+  return `🏛 *PUSULA REHBERLİK SERVİSİ | HAFTALIK SEANS PROGRAMI*
+🗓 *Hafta:* ${startDay.dayNumber} - ${endDay.dayNumber} ${formatTurkishDate(baseDate).split(' ')[1]}
+${counselorLine}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${dayBlocks.join('\n\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📌 *Önemli Bilgilendirme:*
+• Tüm öğrencilerimizin belirtilen seans gün ve saatine riayet etmesi rica olunur.
+• Acil randevu değişiklikleri için rehberlik servisine başvurunuz.`;
+}
+
+/**
+ * Generate Formal Administrative / Parent Announcement
+ */
+export function generateParentNotificationText(
+  dateStr: string,
+  sessions: Session[],
+  students: Student[],
+  counselorName?: string
+): string {
+  const assignedSessions = sessions
+    .filter((s) => s.student_id)
+    .sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+
+  const dateFormatted = formatTurkishDate(dateStr);
+  const studentMap = new Map(students.map((st) => [st.id, st]));
+
+  const studentList = assignedSessions
+    .map((sess) => {
+      const student = sess.student_id ? studentMap.get(sess.student_id) : null;
+      return student
+        ? `• *${sess.time_slot}*: ${student.full_name} (${student.class_grade}) — ${sess.topic || 'Bireysel Görüşme'}`
+        : '';
+    })
+    .filter(Boolean)
+    .join('\n');
+
+  return `Sayın Velilerimiz ve Değerli İdarecilerimiz,
+
+${dateFormatted} tarihi itibarıyla Rehberlik ve Psikolojik Danışma Servisi kapsamında gerçekleştirilecek bireysel takip ve çalışma seansları aşağıda bilgilerinize sunulmuştur:
+
+${studentList || 'Bugün için planlı görüşme bulunmamaktadır.'}
+
+Öğrencilerimizin akademik gelişimleri, motivasyonları ve sınav hazırlıkları (YKS/LGS) titizlikle izlenmektedir.
+
+İyi çalışmalar dileriz.
+*${counselorName || 'Rehberlik ve Psikolojik Danışma Servisi'}*`;
 }
 
 /**
@@ -104,26 +322,26 @@ export function generateIndividualSummaryText(
   const tagsStr = session.tags.length > 0 ? session.tags.join(', ') : 'Rutin Takip';
   const actionItems = session.action_items.trim()
     ? session.action_items.trim()
-    : '• Belirlenen haftalık ders programına uyulacak.\n• Düzenli soru takibi yapılacak.';
+    : '• Belirlenen haftalık ders çalışma rutinine uyulacak.\n• Düzenli soru ve branş denemesi takibi yapılacak.';
 
   const nextDateFormatted = session.next_followup_date
     ? formatTurkishDate(session.next_followup_date)
     : 'Rehberlik birimi tarafından duyurulacaktır.';
 
-  return `🧭 *PUSULA REHBERLİK SERVİSİ | BİREYSEL SEANS KARTI*
-━━━━━━━━━━━━━━━━━━━━━
+  return `🏛 *PUSULA REHBERLİK | BİREYSEL GÖRÜŞME KARTI*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 👤 *Öğrenci:* ${student.full_name} (${student.class_grade})
 📅 *Tarih & Saat:* ${dateFormatted} - ${session.time_slot}
-👨‍🏫 *Rehber Öğretmen:* ${counselorName || 'Rehberlik Servisi'}
-📌 *Görüşülen Konu:* ${session.topic || 'Genel Değerlendirme'}
-🏷️ *Teşhis / Etiketler:* ${tagsStr}
+👨‍🏫 *Danışman:* ${counselorName || 'Rehberlik Servisi'}
+🎯 *Görüşme Konusu:* ${session.topic || 'Genel Değerlendirme'}
+🏷️ *Odak:* ${tagsStr}
 
-🎯 *Haftalık Hedefler & Ödevler:*
+📝 *Alınan Kararlar ve Ödevler:*
 ${actionItems}
 
-🗓️ *Bir Sonraki Randevu:* ${nextDateFormatted}
-━━━━━━━━━━━━━━━━━━━━━
-_Gelişimin ve hedeflerin için disiplini elden bırakma! Başarılar dileriz._`;
+🔄 *Sonraki Takip Randevusu:* ${nextDateFormatted}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+_Verimli ve başarılı bir çalışma dönemi dileriz._`;
 }
 
 /**
@@ -133,14 +351,23 @@ export function generateMissedSessionReminderText(
   student: Student,
   session: Session
 ): string {
-  return `Merhaba ${student.full_name}, bugün saat ${session.time_slot} randevuna katılamadın. Lütfen yeni randevu oluşturmak için rehberlik servisine uğra.`;
+  return `Sayın Veli / Sevgili ${student.full_name}, bugün saat ${session.time_slot} için planlanan rehberlik görüşmesine katılım sağlanamadığı tespit edilmiştir. YKS/LGS hazırlık ve akademik takibinizin aksamaması adına lütfen telafi randevusu için rehberlik servisine başvurunuz.`;
 }
 
 /**
- * Create WhatsApp Web or Mobile Direct Link
+ * Create WhatsApp Direct Link (compatible with desktop, web, and mobile app)
  */
 export function getWhatsAppDirectUrl(phone: string, text: string): string {
   const cleanPhone = phone.replace(/\D/g, '');
   const encodedText = encodeURIComponent(text);
-  return `https://wa.me/${cleanPhone}?text=${encodedText}`;
+  return cleanPhone
+    ? `https://wa.me/${cleanPhone}?text=${encodedText}`
+    : `https://wa.me/?text=${encodedText}`;
+}
+
+/**
+ * Open WhatsApp Web with text
+ */
+export function getWhatsAppWebShareUrl(text: string): string {
+  return `https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 }

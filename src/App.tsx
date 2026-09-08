@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Student, Session } from './types';
+import { Student, Session, User } from './types';
 import { StorageService, getTodayDateString } from './lib/storage';
+import { AuthService } from './lib/auth';
 import { generateGroupBroadcastText } from './lib/whatsapp';
 import { Header } from './components/Header';
 import { RiskRadarBar, RiskFilter } from './components/RiskRadarBar';
 import { DailyScheduler } from './components/DailyScheduler';
 import { StudentCRMDirectory } from './components/StudentCRMDirectory';
 import { GroupBroadcastModal } from './components/GroupBroadcastModal';
+import { FloatingWhatsAppBroadcast } from './components/FloatingWhatsAppBroadcast';
 import { SmartPasteModal } from './components/SmartPasteModal';
 import { CommandPalette } from './components/CommandPalette';
-import { StudentProfileModal } from './components/StudentProfileModal';
 import { StudentHistoryModal } from './components/StudentHistoryModal';
+import { AuthModal } from './components/AuthModal';
+import { UserProfileModal } from './components/UserProfileModal';
 import { ToastContainer, ToastMessage } from './components/Toast';
 
 export default function App() {
@@ -18,17 +21,32 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string>(() => getTodayDateString());
   const [students, setStudents] = useState<Student[]>(() => StorageService.getStudents());
   const [sessions, setSessions] = useState<Session[]>(() => StorageService.getSessions());
-  const [counselorName, setCounselorName] = useState<string>(() => StorageService.getCounselorName());
+
+  // Authentication state
+  const [currentUser, setCurrentUser] = useState<User | null>(() => AuthService.getCurrentUser());
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const [counselorName, setCounselorName] = useState<string>(
+    () => currentUser?.name || StorageService.getCounselorName()
+  );
 
   // Risk filter state
   const [activeRiskFilter, setActiveRiskFilter] = useState<RiskFilter>('none');
 
   // Modals state
   const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
+  const [broadcastDate, setBroadcastDate] = useState<string>(() => getTodayDateString());
   const [isSmartPasteOpen, setIsSmartPasteOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<Student | null>(null);
   const [selectedStudentForHistory, setSelectedStudentForHistory] = useState<Student | null>(null);
+
+  const handleOpenBroadcast = useCallback((date?: string) => {
+    setBroadcastDate(date || selectedDate);
+    setIsBroadcastModalOpen(true);
+  }, [selectedDate]);
 
   // Toast notifications
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -48,6 +66,35 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // Auth Handlers
+  const handleOpenAuth = useCallback((mode: 'signin' | 'signup' = 'signin') => {
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  }, []);
+
+  const handleAuthSuccess = useCallback((user: User) => {
+    setCurrentUser(user);
+    setCounselorName(user.name);
+    StorageService.setCounselorName(user.name);
+    setStudents(StorageService.getStudents());
+    setSessions(StorageService.getSessions());
+  }, []);
+
+  const handleSignOut = useCallback(() => {
+    AuthService.signOut();
+    setCurrentUser(null);
+    showToast(
+      'Oturum Kapatıldı',
+      'Misafir modundasınız. Seans çizelgenizi özelleştirmek için giriş yapabilirsiniz.',
+      'info'
+    );
+  }, [showToast]);
+
+  const handleUpdateUser = useCallback((updatedUser: User) => {
+    setCurrentUser(updatedUser);
+    setCounselorName(updatedUser.name);
+  }, []);
+
   const refreshData = useCallback(() => {
     setStudents(StorageService.getStudents());
     setSessions(StorageService.getSessions());
@@ -61,6 +108,12 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
+      }
+
+      // Cmd/Ctrl + D -> Toggle between Scheduler and Students Directory
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        setActiveTab((prev) => (prev === 'scheduler' ? 'students' : 'scheduler'));
       }
 
       // Cmd/Ctrl + Enter -> Copy WhatsApp Group Broadcast message to clipboard
@@ -81,7 +134,7 @@ export default function App() {
           await navigator.clipboard.writeText(text);
           showToast(
             'Grup İlanı Panoya Kopyalandı (⌘↵)',
-            'WhatsApp için ASCII formatlı günlük seans tablosu hazır.',
+            'WhatsApp için profesyonel günlük seans tablosu hazır.',
             'success'
           );
         } catch {
@@ -118,6 +171,16 @@ export default function App() {
     showToast(
       'Standart Seanslar Oluşturuldu',
       `${date} tarihi için 40 dakikalık periyotlar takvime eklendi.`,
+      'success'
+    );
+  };
+
+  const handleFillStandardWeek = (baseDate: string) => {
+    const updated = StorageService.fillStandardSlotsForWeek(baseDate);
+    setSessions(updated);
+    showToast(
+      'Haftalık Standart Seanslar Hazırlandı',
+      'Pazartesi-Cuma aralığındaki tüm okul günlerine 40 dakikalık periyotlar takvime eklendi.',
       'success'
     );
   };
@@ -188,7 +251,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col selection:bg-indigo-500/30 selection:text-indigo-200">
+    <div className="min-h-screen bg-[#08090d] text-zinc-100 flex flex-col selection:bg-zinc-800 selection:text-zinc-100">
       {/* Linear Style Header */}
       <Header
         activeTab={activeTab}
@@ -198,20 +261,53 @@ export default function App() {
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onShowToast={showToast}
         refreshData={refreshData}
+        currentUser={currentUser}
+        onOpenAuth={handleOpenAuth}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onSignOut={handleSignOut}
       />
 
-      {/* Risk Radar & Analytics Bar */}
-      <RiskRadarBar
-        students={students}
-        sessions={sessions}
-        selectedDate={selectedDate}
-        activeRiskFilter={activeRiskFilter}
-        onSelectRiskFilter={setActiveRiskFilter}
-        onGoToStudentsTab={() => setActiveTab('students')}
-      />
+      {/* Guest Mode Notice Bar (if not logged in) */}
+      {!currentUser && (
+        <div className="bg-gradient-to-r from-emerald-950/40 via-[#0b0e14] to-zinc-950 border-b border-emerald-500/20 px-4 sm:px-6 py-2 text-xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-zinc-300">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="text-[11px] sm:text-xs text-zinc-300">
+              <strong className="text-white">Misafir Modu:</strong> Seansları kendi adınız ve okulunuzla yönetmek, WhatsApp ilanlarında ünvanınızı kullanmak için giriş yapın.
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => handleOpenAuth('signin')}
+              className="px-2.5 py-1 rounded-md bg-zinc-800 hover:bg-zinc-750 text-zinc-200 hover:text-white text-xs font-medium cursor-pointer transition-colors"
+            >
+              Giriş Yap
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOpenAuth('signup')}
+              className="px-2.5 py-1 rounded-md bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold cursor-pointer transition-colors shadow-xs"
+            >
+              Kayıt Ol
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5">
+      {/* Risk Radar & Analytics Bar - ONLY on Students tab */}
+      {activeTab === 'students' && (
+        <RiskRadarBar
+          students={students}
+          sessions={sessions}
+          selectedDate={selectedDate}
+          activeRiskFilter={activeRiskFilter}
+          onSelectRiskFilter={setActiveRiskFilter}
+          onGoToStudentsTab={() => setActiveTab('students')}
+        />
+      )}
+
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4">
         {activeTab === 'scheduler' ? (
           <DailyScheduler
             selectedDate={selectedDate}
@@ -223,7 +319,8 @@ export default function App() {
             onDeleteSession={handleDeleteSession}
             onAddSession={handleAddSession}
             onFillStandardSlots={handleFillStandardSlots}
-            onOpenBroadcast={() => setIsBroadcastModalOpen(true)}
+            onFillStandardWeek={handleFillStandardWeek}
+            onOpenBroadcast={handleOpenBroadcast}
             onShowToast={showToast}
             onOpenStudentProfile={(st) => setSelectedStudentForHistory(st)}
           />
@@ -245,14 +342,24 @@ export default function App() {
       {/* Global Group Broadcast WhatsApp Modal */}
       {isBroadcastModalOpen && (
         <GroupBroadcastModal
-          date={selectedDate}
-          sessions={sessions.filter((s) => s.date === selectedDate)}
+          date={broadcastDate}
+          allSessions={sessions}
           students={students}
           counselorName={counselorName}
           onClose={() => setIsBroadcastModalOpen(false)}
           onShowToast={showToast}
         />
       )}
+
+      {/* Floating WhatsApp Broadcast Action Docked at Bottom-Right */}
+      <FloatingWhatsAppBroadcast
+        selectedDate={selectedDate}
+        sessions={sessions}
+        students={students}
+        counselorName={counselorName}
+        onOpenBroadcast={handleOpenBroadcast}
+        onShowToast={showToast}
+      />
 
       {/* Smart Paste Excel/WhatsApp Modal */}
       {isSmartPasteOpen && (
@@ -306,6 +413,9 @@ export default function App() {
           URL.revokeObjectURL(url);
           showToast('Excel/CSV Dışa Aktarıldı', 'Öğrenci listesi kaydedildi.', 'success');
         }}
+        currentUser={currentUser}
+        onOpenAuth={handleOpenAuth}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
       />
 
       {/* Student History Quick Modal (when triggered from scheduler or command palette) */}
@@ -315,6 +425,28 @@ export default function App() {
           allSessions={sessions}
           counselorName={counselorName}
           onClose={() => setSelectedStudentForHistory(null)}
+        />
+      )}
+
+      {/* Authentication Modal (Sign In / Sign Up / Forgot Password) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        initialMode={authModalMode}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+        onShowToast={showToast}
+      />
+
+      {/* Counselor User Profile & Settings Modal */}
+      {isProfileModalOpen && currentUser && (
+        <UserProfileModal
+          user={currentUser}
+          onClose={() => setIsProfileModalOpen(false)}
+          onUpdateUser={handleUpdateUser}
+          onSignOut={handleSignOut}
+          onShowToast={showToast}
+          studentsCount={students.length}
+          sessionsCount={sessions.length}
         />
       )}
 

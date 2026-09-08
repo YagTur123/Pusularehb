@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Student, Session, User } from './types';
+import { Student, Session, User, ScheduleConfig } from './types';
 import { StorageService, getTodayDateString } from './lib/storage';
 import { AuthService } from './lib/auth';
 import { generateGroupBroadcastText } from './lib/whatsapp';
@@ -185,6 +185,25 @@ export default function App() {
     );
   };
 
+  const handleApplyScheduleConfig = (
+    dates: string[],
+    config: ScheduleConfig,
+    keepAssigned: boolean
+  ) => {
+    const updated = StorageService.applyScheduleConfigToDates(dates, config, keepAssigned);
+    setSessions(updated);
+  };
+
+  const handleShiftTime = (dates: string[], deltaMinutes: number) => {
+    const updated = StorageService.shiftSessionsTime(dates, deltaMinutes);
+    setSessions(updated);
+  };
+
+  const handleAddBreak = (date: string, timeSlot: string, title?: string) => {
+    const updated = StorageService.addBreakSession(date, timeSlot, title);
+    setSessions(updated);
+  };
+
   // Student Handlers
   const handleSaveStudent = (
     studentData: Omit<Student, 'id' | 'created_at'>,
@@ -320,6 +339,9 @@ export default function App() {
             onAddSession={handleAddSession}
             onFillStandardSlots={handleFillStandardSlots}
             onFillStandardWeek={handleFillStandardWeek}
+            onApplyScheduleConfig={handleApplyScheduleConfig}
+            onShiftTime={handleShiftTime}
+            onAddBreak={handleAddBreak}
             onOpenBroadcast={handleOpenBroadcast}
             onShowToast={showToast}
             onOpenStudentProfile={(st) => setSelectedStudentForHistory(st)}

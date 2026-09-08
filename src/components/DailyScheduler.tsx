@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Session, Student, COMMON_TOPICS } from '../types';
+import { Session, Student, COMMON_TOPICS, ScheduleConfig } from '../types';
 import {
   Calendar,
   Zap,
@@ -19,6 +19,8 @@ import {
   Printer,
   LayoutList,
   Table,
+  Coffee,
+  Sliders,
 } from 'lucide-react';
 import {
   getTodayDateString,
@@ -53,6 +55,9 @@ interface DailySchedulerProps {
   onOpenBroadcast: (date?: string) => void;
   onShowToast: (title: string, desc?: string, type?: 'success' | 'info' | 'warning') => void;
   onOpenStudentProfile: (student: Student) => void;
+  onApplyScheduleConfig?: (dates: string[], config: ScheduleConfig, keepAssigned: boolean) => void;
+  onShiftTime?: (dates: string[], deltaMinutes: number) => void;
+  onAddBreak?: (date: string, timeSlot: string, title?: string) => void;
 }
 
 export function DailyScheduler({
@@ -69,6 +74,9 @@ export function DailyScheduler({
   onOpenBroadcast,
   onShowToast,
   onOpenStudentProfile,
+  onApplyScheduleConfig,
+  onShiftTime,
+  onAddBreak,
 }: DailySchedulerProps) {
   const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -499,6 +507,9 @@ export function DailyScheduler({
           onOpenBroadcast={onOpenBroadcast}
           onShowToast={onShowToast}
           onOpenStudentProfile={onOpenStudentProfile}
+          onApplyScheduleConfig={onApplyScheduleConfig}
+          onShiftTime={onShiftTime}
+          onAddBreak={onAddBreak}
         />
       ) : (
         /* Daily Detailed Table */
@@ -583,6 +594,37 @@ export function DailyScheduler({
                 </thead>
                 <tbody className="divide-y divide-white/[0.04] font-sans">
                   {displayedSessions.map((session) => {
+                  if (session.is_break) {
+                    return (
+                      <tr key={session.id} className="bg-amber-950/15 border-b border-dashed border-amber-500/20">
+                        <td className="py-2 px-3 font-mono font-medium text-amber-300 whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/30 text-amber-200 text-[11px] flex items-center gap-1 w-fit">
+                            <Coffee className="w-3 h-3 text-amber-400" />
+                            {session.time_slot}
+                          </span>
+                        </td>
+                        <td colSpan={3} className="py-2 px-3">
+                          <span className="text-xs text-amber-200 font-medium">
+                            {session.break_title || session.topic || 'Teneffüs / Mola'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onDeleteSession(session.id);
+                              onShowToast('Teneffüs Kaldırıldı', 'Mola takvimden silindi.', 'info');
+                            }}
+                            className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition-colors cursor-pointer"
+                            title="Teneffüsü Kaldır"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  }
+
                   const student = session.student_id
                     ? studentMap.get(session.student_id)
                     : undefined;

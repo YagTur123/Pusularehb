@@ -23,6 +23,19 @@ export interface Session {
   status: SessionStatus;
   next_followup_date?: string;
   created_at: string;
+  is_priority?: boolean; // High priority session
+  is_break?: boolean; // Teneffüs / Mola bloğu
+  break_title?: string; // e.g. "10 dk Teneffüs", "Öğle Arası"
+}
+
+export interface ScheduleConfig {
+  sessionDuration: number; // e.g. 40 mins
+  breakDuration: number; // e.g. 10 mins
+  startTime: string; // e.g. "09:00"
+  sessionCount: number; // e.g. 8 sessions
+  includeLunchBreak: boolean;
+  lunchBreakAfter: number; // after 4th session
+  lunchBreakDuration: number; // e.g. 50 mins
 }
 
 export interface ParsedStudentRow {

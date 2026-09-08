@@ -1,10 +1,11 @@
-import { Student, Session } from '../types';
+import { Student, Session, ScheduleConfig } from '../types';
 
 const STORAGE_KEYS = {
   STUDENTS: 'pusula_students_v1',
   SESSIONS: 'pusula_sessions_v1',
   INITIALIZED: 'pusula_initialized_v1',
   COUNSELOR_NAME: 'pusula_counselor_name_v1',
+  SCHEDULE_CONFIG: 'pusula_schedule_config_v1',
 };
 
 export function autoFormatPhone(raw: string): string {
@@ -171,6 +172,88 @@ export function getMonthDays(
   }
 
   return days;
+}
+
+export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
+  sessionDuration: 40,
+  breakDuration: 10,
+  startTime: '09:00',
+  sessionCount: 8,
+  includeLunchBreak: true,
+  lunchBreakAfter: 4,
+  lunchBreakDuration: 50,
+};
+
+export function addMinutesToTime(timeStr: string, minutes: number): string {
+  if (!timeStr) return '09:00';
+  const clean = timeStr.trim();
+  const [hStr, mStr] = clean.split(':');
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (isNaN(h) || isNaN(m)) return timeStr;
+  let totalMins = h * 60 + m + minutes;
+  // keep within positive 24h
+  while (totalMins < 0) totalMins += 1440;
+  totalMins = totalMins % 1440;
+  const newH = Math.floor(totalMins / 60);
+  const newM = totalMins % 60;
+  return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+}
+
+export function shiftTimeSlotString(slotStr: string, deltaMinutes: number): string {
+  if (!slotStr) return slotStr;
+  if (slotStr.includes('-')) {
+    const parts = slotStr.split('-').map((s) => s.trim());
+    if (parts.length >= 2) {
+      const start = addMinutesToTime(parts[0], deltaMinutes);
+      const end = addMinutesToTime(parts[1], deltaMinutes);
+      return `${start} - ${end}`;
+    }
+  }
+  return addMinutesToTime(slotStr.trim(), deltaMinutes);
+}
+
+export function generateSlotsFromScheduleConfig(config: ScheduleConfig): {
+  time_slot: string;
+  is_break?: boolean;
+  break_title?: string;
+}[] {
+  const slots: { time_slot: string; is_break?: boolean; break_title?: string }[] = [];
+  let currentTime = config.startTime;
+
+  for (let i = 1; i <= config.sessionCount; i++) {
+    const sessionEnd = addMinutesToTime(currentTime, config.sessionDuration);
+    // Add lesson/counseling slot
+    slots.push({
+      time_slot: currentTime,
+    });
+
+    if (i < config.sessionCount) {
+      // Check lunch break
+      if (config.includeLunchBreak && i === config.lunchBreakAfter) {
+        const lunchEnd = addMinutesToTime(sessionEnd, config.lunchBreakDuration);
+        slots.push({
+          time_slot: sessionEnd,
+          is_break: true,
+          break_title: `${config.lunchBreakDuration} dk Öğle Arası & Yemek`,
+        });
+        currentTime = lunchEnd;
+      } else if (config.breakDuration > 0) {
+        // Standard recess / break
+        const breakEnd = addMinutesToTime(sessionEnd, config.breakDuration);
+        slots.push({
+          time_slot: sessionEnd,
+          is_break: true,
+          break_title: `${config.breakDuration} dk Teneffüs`,
+        });
+        currentTime = breakEnd;
+      } else {
+        currentTime = sessionEnd;
+      }
+    }
+  }
+
+  return slots;
 }
 
 // Generate default 40-min slots with 10-min breaks
@@ -503,6 +586,165 @@ export const StorageService = {
       students[idx].last_meeting_date = meetingDate;
       this.saveStudents(students);
     }
+  },
+
+  getScheduleConfig(): ScheduleConfig {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.SCHEDULE_CONFIG);
+      if (!data) return DEFAULT_SCHEDULE_CONFIG;
+      return { ...DEFAULT_SCHEDULE_CONFIG, ...JSON.parse(data) };
+    } catch {
+      return DEFAULT_SCHEDULE_CONFIG;
+    }
+  },
+
+  saveScheduleConfig(config: ScheduleConfig) {
+    localStorage.setItem(STORAGE_KEYS.SCHEDULE_CONFIG, JSON.stringify(config));
+  },
+
+  // Shift session times for given dates by deltaMinutes
+  shiftSessionsTime(dates: string[], deltaMinutes: number): Session[] {
+    const dateSet = new Set(dates);
+    const sessions = this.getSessions();
+    const updated = sessions.map((sess) => {
+      if (dateSet.has(sess.date)) {
+        return {
+          ...sess,
+          time_slot: shiftTimeSlotString(sess.time_slot, deltaMinutes),
+        };
+      }
+      return sess;
+    });
+
+    updated.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.time_slot.localeCompare(b.time_slot);
+    });
+
+    this.saveSessions(updated);
+    return updated;
+  },
+
+  // Add an explicit break/recess session
+  addBreakSession(date: string, time_slot: string, title?: string): Session[] {
+    const sessions = this.getSessions();
+    const newBreak: Session = {
+      id: 'break_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      date,
+      time_slot,
+      student_id: null,
+      topic: title || 'Teneffüs',
+      action_items: '',
+      tags: ['Teneffüs'],
+      status: 'Bekliyor',
+      is_break: true,
+      break_title: title || 'Teneffüs / Mola',
+      created_at: new Date().toISOString(),
+    };
+
+    sessions.push(newBreak);
+    sessions.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.time_slot.localeCompare(b.time_slot);
+    });
+
+    this.saveSessions(sessions);
+    return sessions;
+  },
+
+  // Apply custom configured schedule (duration, break, start time) to specified dates
+  applyScheduleConfigToDates(
+    dates: string[],
+    config: ScheduleConfig,
+    keepAssigned = true
+  ): Session[] {
+    this.saveScheduleConfig(config);
+    const dateSet = new Set(dates);
+    const currentSessions = this.getSessions();
+
+    // Map existing assigned sessions per date
+    const existingAssignedMap = new Map<string, Session[]>();
+    if (keepAssigned) {
+      dates.forEach((d) => {
+        const assigned = currentSessions
+          .filter((s) => s.date === d && s.student_id && !s.is_break)
+          .sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+        existingAssignedMap.set(d, assigned);
+      });
+    }
+
+    // Retain sessions on other dates
+    const preservedSessions = currentSessions.filter((s) => !dateSet.has(s.date));
+
+    // Generate slots according to config
+    const generatedSlots = generateSlotsFromScheduleConfig(config);
+    const newSessionsForDates: Session[] = [];
+
+    dates.forEach((date) => {
+      const assignedForThisDay = [...(existingAssignedMap.get(date) || [])];
+      let assignedIndex = 0;
+
+      generatedSlots.forEach((slot) => {
+        if (slot.is_break) {
+          // Break slot
+          newSessionsForDates.push({
+            id: 'break_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            date,
+            time_slot: slot.time_slot,
+            student_id: null,
+            topic: slot.break_title || 'Teneffüs',
+            action_items: '',
+            tags: ['Teneffüs'],
+            status: 'Bekliyor',
+            is_break: true,
+            break_title: slot.break_title,
+            created_at: new Date().toISOString(),
+          });
+        } else {
+          // Regular lesson slot
+          if (assignedIndex < assignedForThisDay.length) {
+            // Re-assign previous student session to this slot
+            const prevSess = assignedForThisDay[assignedIndex++];
+            newSessionsForDates.push({
+              ...prevSess,
+              id: prevSess.id || 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+              date,
+              time_slot: slot.time_slot,
+              is_break: false,
+            });
+          } else {
+            // New empty slot
+            newSessionsForDates.push({
+              id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+              date,
+              time_slot: slot.time_slot,
+              student_id: null,
+              topic: '',
+              action_items: '',
+              tags: [],
+              status: 'Bekliyor',
+              is_break: false,
+              created_at: new Date().toISOString(),
+            });
+          }
+        }
+      });
+
+      // If there were more assigned students than available slots, preserve the remainder
+      while (assignedIndex < assignedForThisDay.length) {
+        const leftover = assignedForThisDay[assignedIndex++];
+        newSessionsForDates.push(leftover);
+      }
+    });
+
+    const finalSessions = [...preservedSessions, ...newSessionsForDates];
+    finalSessions.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.time_slot.localeCompare(b.time_slot);
+    });
+
+    this.saveSessions(finalSessions);
+    return finalSessions;
   },
 
   // Generates 40 min slots with 10 min break

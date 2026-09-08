@@ -1,0 +1,6 @@
+{
+  "name": "Pusula Rehberlik",
+  "description": "Linear ve Raycast esintili ultra-hızlı Rehberlik Danışman CRM ve WhatsApp Otomasyonu",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

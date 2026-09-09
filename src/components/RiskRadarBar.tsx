@@ -60,7 +60,7 @@ export function RiskRadarBar({
   };
 
   return (
-    <div className="bg-[#090a0f] border-b border-white/[0.06] px-4 sm:px-6 py-1.5">
+    <div className="bg-[#141620] border-b border-white/[0.08] px-4 sm:px-6 py-1.5">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
         {/* Left: Triage Filters */}
         <div className="flex flex-wrap items-center gap-2">
@@ -69,13 +69,13 @@ export function RiskRadarBar({
             onClick={() => handleFilterClick('uncontacted_20d')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
               activeRiskFilter === 'uncontacted_20d'
-                ? 'bg-amber-500/15 border-amber-500/50 text-amber-200'
-                : 'bg-zinc-900/90 hover:bg-zinc-850 border-white/[0.06] text-zinc-300'
+                ? 'bg-amber-500/15 border-amber-500/40 text-amber-200'
+                : 'bg-[#1a1d28] hover:bg-[#202433] border-white/[0.08] text-zinc-300'
             }`}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400/80" />
             <span>20+ Gün İletişimsiz</span>
-            <span className="px-1.5 py-0.2 rounded font-mono text-[11px] bg-amber-400/15 text-amber-300 font-semibold">
+            <span className="px-1.5 py-0.2 rounded font-mono text-[11px] bg-amber-400/10 text-amber-300 font-semibold">
               {uncontactedStudents.length}
             </span>
           </button>
@@ -86,11 +86,11 @@ export function RiskRadarBar({
               onClick={() => handleFilterClick('missed_this_week')}
               className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors border cursor-pointer ${
                 activeRiskFilter === 'missed_this_week'
-                  ? 'bg-rose-950/40 border-rose-500/50 text-rose-300'
-                  : 'bg-zinc-900/90 hover:bg-zinc-850 border-white/[0.06] text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-rose-950/40 border-rose-500/40 text-rose-300'
+                  : 'bg-[#1a1d28] hover:bg-[#202433] border-white/[0.08] text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400/80" />
               <span>Gelmeyen</span>
               <span className="font-mono text-rose-400 font-semibold">{missedStudentIds.size}</span>
             </button>
@@ -110,12 +110,12 @@ export function RiskRadarBar({
 
         {/* Right: Günün Seansları Analytics */}
         <div className="flex items-center gap-2 ml-auto text-zinc-400">
-          <div className="flex items-center gap-2 bg-[#0c0d12] px-2.5 py-1 rounded-md border border-white/[0.06] text-[11px]">
+          <div className="flex items-center gap-2 bg-[#181b26] px-2.5 py-1 rounded-md border border-white/[0.08] text-[11px]">
             <CalendarCheck className="w-3.5 h-3.5 text-zinc-400" />
             <span className="text-zinc-300 font-medium">Bugün:</span>
-            <span className="font-mono text-white font-medium">{totalToday} seans</span>
+            <span className="font-mono text-zinc-100 font-medium">{totalToday} seans</span>
             <div className="h-2.5 w-px bg-white/[0.1] mx-0.5" />
-            <span className="flex items-center gap-1 text-emerald-400">
+            <span className="flex items-center gap-1 text-emerald-400/90">
               <CheckCircle2 className="w-3 h-3" />
               <span className="font-mono">{completedToday}</span>
             </span>
@@ -124,7 +124,7 @@ export function RiskRadarBar({
               <span className="font-mono">{pendingToday}</span>
             </span>
             {missedToday > 0 && (
-              <span className="flex items-center gap-1 text-rose-400">
+              <span className="flex items-center gap-1 text-rose-400/90">
                 <UserX className="w-3 h-3" />
                 <span className="font-mono">{missedToday}</span>
               </span>

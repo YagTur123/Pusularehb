@@ -110,13 +110,13 @@ export function ScheduleConfigModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl bg-[#0e1017] border border-white/[0.12] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="w-full max-w-xl bg-[#181a26] border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 border-b border-white/[0.08] flex items-center justify-between bg-[#0b0d13]">
+        <div className="p-4 border-b border-white/[0.08] flex items-center justify-between bg-[#141622]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-300">
               <Sliders className="w-4 h-4" />
             </div>
             <div>
@@ -138,7 +138,7 @@ export function ScheduleConfigModal({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-white/[0.08] bg-[#090a0e] px-4 pt-2 gap-2 text-xs">
+        <div className="flex border-b border-white/[0.08] bg-[#12141e] px-4 pt-2 gap-2 text-xs">
           <button
             type="button"
             onClick={() => setActiveTab('generate')}
@@ -397,14 +397,14 @@ export function ScheduleConfigModal({
                 <button
                   type="button"
                   onClick={handleApplyToDay}
-                  className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-750 text-zinc-200 hover:text-white font-medium text-xs transition-colors cursor-pointer"
+                  className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-medium text-xs transition-colors cursor-pointer border border-white/[0.06]"
                 >
                   Yalnızca Seçili Güne ({selectedDate}) Uygula
                 </button>
                 <button
                   type="button"
                   onClick={handleApplyToWeek}
-                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold text-xs transition-colors cursor-pointer shadow-sm flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
                 >
                   <Zap className="w-3.5 h-3.5" />
                   <span>Tüm Haftaya Uygula (Pzt-Cum)</span>
@@ -513,7 +513,7 @@ export function ScheduleConfigModal({
                   <button
                     type="button"
                     onClick={() => handleQuickShift(customShiftMinutes)}
-                    className="px-2.5 py-1 rounded bg-sky-500 hover:bg-sky-400 text-zinc-950 text-xs font-semibold cursor-pointer"
+                    className="px-2.5 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium cursor-pointer"
                   >
                     +{customShiftMinutes} dk
                   </button>
@@ -524,7 +524,7 @@ export function ScheduleConfigModal({
 
           {activeTab === 'break' && (
             <form onSubmit={handleAddBreakSubmit} className="space-y-4 text-xs">
-              <div className="p-3 bg-amber-950/20 border border-amber-500/20 rounded-xl text-amber-200 leading-relaxed">
+              <div className="p-3 bg-[#1e1c18] border border-amber-500/20 rounded-xl text-amber-200/90 leading-relaxed">
                 Tabloya özel teneffüs, mola, öğle arası veya rehberlik toplantısı bloğu ekleyin.
                 Teneffüsler haftalık çizelgede özel mola kartı olarak görüntülenir.
               </div>
@@ -536,7 +536,7 @@ export function ScheduleConfigModal({
                     type="date"
                     value={breakDate}
                     onChange={(e) => setBreakDate(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-[#090a0f] border border-white/[0.1] rounded-lg text-white font-mono text-xs focus:outline-none"
+                    className="w-full px-3 py-1.5 bg-[#12141e] border border-white/[0.08] rounded-lg text-white font-mono text-xs focus:outline-none"
                   />
                 </div>
 
@@ -546,7 +546,7 @@ export function ScheduleConfigModal({
                     type="time"
                     value={breakTime}
                     onChange={(e) => setBreakTime(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-[#090a0f] border border-white/[0.1] rounded-lg text-white font-mono text-xs focus:outline-none"
+                    className="w-full px-3 py-1.5 bg-[#12141e] border border-white/[0.08] rounded-lg text-white font-mono text-xs focus:outline-none"
                     required
                   />
                 </div>
@@ -559,7 +559,7 @@ export function ScheduleConfigModal({
                   value={breakTitle}
                   onChange={(e) => setBreakTitle(e.target.value)}
                   placeholder="Örn: 15 dk Teneffüs, Öğle Arası & Yemek, Zümre Toplantısı..."
-                  className="w-full px-3 py-2 bg-[#090a0f] border border-white/[0.1] rounded-lg text-white text-xs placeholder-zinc-500 focus:outline-none focus:border-white/25"
+                  className="w-full px-3 py-2 bg-[#12141e] border border-white/[0.08] rounded-lg text-white text-xs placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
                   required
                 />
               </div>
@@ -576,7 +576,7 @@ export function ScheduleConfigModal({
                     key={preset}
                     type="button"
                     onClick={() => setBreakTitle(preset)}
-                    className="px-2.5 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-zinc-200 border border-white/[0.06] text-[11px] transition-colors cursor-pointer"
+                    className="px-2.5 py-1 rounded bg-[#1f1e24] hover:bg-[#282732] text-zinc-300 hover:text-white border border-white/[0.06] text-[11px] transition-colors cursor-pointer"
                   >
                     {preset}
                   </button>
@@ -593,7 +593,7 @@ export function ScheduleConfigModal({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold text-xs transition-colors cursor-pointer shadow-sm flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-medium text-xs transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
                 >
                   <Coffee className="w-3.5 h-3.5" />
                   <span>Teneffüsü Tabloya Ekle</span>

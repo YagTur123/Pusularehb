@@ -83,6 +83,21 @@ export function WeeklySchedulerGrid({
   const [quickEditingSession, setQuickEditingSession] = useState<Session | null>(null);
   const [showOnlyPriority, setShowOnlyPriority] = useState(false);
   const [quickShiftMenuOpen, setQuickShiftMenuOpen] = useState(false);
+  const [quickBarOpen, setQuickBarOpen] = useState(false);
+  const [spotlightCollapsed, setSpotlightCollapsed] = useState(false);
+  const [quickSessionMinutes, setQuickSessionMinutes] = useState<number>(40);
+  const [quickBreakMinutes, setQuickBreakMinutes] = useState<number>(10);
+  const [quickBreakModal, setQuickBreakModal] = useState<{
+    open: boolean;
+    date: string;
+    time: string;
+    title: string;
+  }>({
+    open: false,
+    date: baseDate,
+    time: '10:10',
+    title: '10 dk Teneffüs',
+  });
 
   const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s])), [students]);
   const weekDays = useMemo(() => getWeekDays(baseDate, includeWeekend), [baseDate, includeWeekend]);
@@ -119,6 +134,16 @@ export function WeeklySchedulerGrid({
     const breaks = weekSessions.filter((s) => s.is_break).length;
     const empty = total - filled;
     return { total, filled, attended, missed, priorityCount, breaks, empty };
+  }, [weekSessions, studentMap]);
+
+  // Distinct high-priority sessions for the week's spotlight
+  const prioritySessionsThisWeek = useMemo(() => {
+    return weekSessions
+      .filter((s) => s.student_id && !s.is_break && isHighPriority(s))
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.time_slot.localeCompare(b.time_slot);
+      });
   }, [weekSessions, studentMap]);
 
   // Filter students for slot assignment
@@ -331,11 +356,26 @@ export function WeeklySchedulerGrid({
           <button
             type="button"
             onClick={() => setIsScheduleConfigOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold shadow-sm transition-all cursor-pointer hover:shadow-emerald-500/20 hover:scale-[1.01]"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-700/90 hover:bg-emerald-600 text-white text-xs font-medium border border-emerald-600/40 shadow-xs transition-all cursor-pointer active:scale-[0.98]"
             title="Seans dakikası, teneffüs süresi belirle, tablo saatlerini kaydır ve teneffüs ekle"
           >
             <Sliders className="w-3.5 h-3.5" />
-            <span>Program & Teneffüs Planla</span>
+            <span>Standart Program & Teneffüs Sihirbazı</span>
+          </button>
+
+          {/* Quick Bar Toggle */}
+          <button
+            type="button"
+            onClick={() => setQuickBarOpen(!quickBarOpen)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
+              quickBarOpen
+                ? 'bg-zinc-800 text-zinc-100 border-zinc-700'
+                : 'bg-[#151722] hover:bg-[#1a1d2b] text-zinc-300 hover:text-white border-white/[0.08]'
+            }`}
+            title="Hızlı program dakikaları, ara ve saat kaydırma çubuğunu aç/kapat"
+          >
+            <Zap className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Hızlı Çubuk</span>
           </button>
 
           {/* Quick Shift Dropdown Button */}
@@ -343,17 +383,17 @@ export function WeeklySchedulerGrid({
             <button
               type="button"
               onClick={() => setQuickShiftMenuOpen(!quickShiftMenuOpen)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#0f1118] hover:bg-[#141722] text-zinc-300 hover:text-white border border-white/[0.09] text-xs font-medium transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#151722] hover:bg-[#1a1d2b] text-zinc-300 hover:text-white border border-white/[0.08] text-xs font-medium transition-colors cursor-pointer"
               title="Tüm tablodaki saatleri hızlı kaydır"
             >
-              <Clock className="w-3.5 h-3.5 text-sky-400" />
+              <Clock className="w-3.5 h-3.5 text-zinc-400" />
               <span>±10 dk Kaydır</span>
               <ChevronDown className="w-3 h-3 text-zinc-500" />
             </button>
 
             {quickShiftMenuOpen && (
               <div
-                className="absolute right-0 mt-1.5 w-48 bg-[#0e1017] border border-white/[0.12] rounded-xl shadow-2xl p-1.5 z-40 space-y-1 text-xs animate-in fade-in zoom-in-95 duration-100"
+                className="absolute right-0 mt-1.5 w-48 bg-[#181a26] border border-white/[0.1] rounded-xl shadow-2xl p-1.5 z-40 space-y-1 text-xs animate-in fade-in zoom-in-95 duration-100"
                 onClick={() => setQuickShiftMenuOpen(false)}
               >
                 <div className="px-2 py-1 text-[10px] uppercase font-mono tracking-wider text-zinc-500 border-b border-white/[0.06]">
@@ -362,26 +402,26 @@ export function WeeklySchedulerGrid({
                 <button
                   type="button"
                   onClick={() => handleShiftTime(targetWeekDates, 10)}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/[0.06] text-sky-300 flex items-center justify-between cursor-pointer"
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/[0.06] text-zinc-200 flex items-center justify-between cursor-pointer"
                 >
                   <span>10 Dakika İleri</span>
-                  <span className="font-mono text-[11px]">+10 dk</span>
+                  <span className="font-mono text-[11px] text-zinc-400">+10 dk</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleShiftTime(targetWeekDates, -10)}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/[0.06] text-rose-300 flex items-center justify-between cursor-pointer"
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/[0.06] text-zinc-200 flex items-center justify-between cursor-pointer"
                 >
                   <span>10 Dakika Geri</span>
-                  <span className="font-mono text-[11px]">-10 dk</span>
+                  <span className="font-mono text-[11px] text-zinc-400">-10 dk</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleShiftTime(targetWeekDates, 15)}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/[0.06] text-zinc-300 flex items-center justify-between cursor-pointer"
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/[0.06] text-zinc-200 flex items-center justify-between cursor-pointer"
                 >
                   <span>15 Dakika İleri</span>
-                  <span className="font-mono text-[11px]">+15 dk</span>
+                  <span className="font-mono text-[11px] text-zinc-400">+15 dk</span>
                 </button>
                 <div className="border-t border-white/[0.06] pt-1">
                   <button
@@ -392,7 +432,7 @@ export function WeeklySchedulerGrid({
                     }}
                     className="w-full text-left px-2 py-1 text-[11px] text-zinc-400 hover:text-white"
                   >
-                    Detaylı Ayarları Aç...
+                    Detaylı Sihirbazı Aç...
                   </button>
                 </div>
               </div>
@@ -402,15 +442,19 @@ export function WeeklySchedulerGrid({
           {/* Quick Add Break / Recess Button */}
           <button
             type="button"
-            onClick={() => {
-              handleAddBreak(baseDate, '10:30', '15 dk Teneffüs');
-              onShowToast('Teneffüs Eklendi', `${baseDate} için 10:30 teneffüs bloğu eklendi.`, 'success');
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-950/30 hover:bg-amber-900/40 text-amber-300 hover:text-amber-200 border border-amber-500/25 text-xs font-medium transition-colors cursor-pointer"
-            title="Seçili güne hızlı 15 dk teneffüs bloğu ekle"
+            onClick={() =>
+              setQuickBreakModal({
+                open: true,
+                date: baseDate,
+                time: '10:10',
+                title: '10 dk Teneffüs',
+              })
+            }
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#1c1a16] hover:bg-[#25221d] text-amber-200/90 hover:text-amber-100 border border-amber-500/20 text-xs font-medium transition-colors cursor-pointer"
+            title="Tabloya anında teneffüs / mola bloğu ekle"
           >
-            <Coffee className="w-3.5 h-3.5 text-amber-400" />
-            <span>+ Teneffüs</span>
+            <Coffee className="w-3.5 h-3.5 text-amber-300/80" />
+            <span>+ Teneffüs Ekle</span>
           </button>
 
           {/* Weekend Toggle */}
@@ -430,7 +474,7 @@ export function WeeklySchedulerGrid({
           <button
             type="button"
             onClick={() => onOpenBroadcast(baseDate)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#161c19] hover:bg-[#1d2722] text-emerald-300/90 hover:text-emerald-200 border border-emerald-500/20 text-xs font-medium transition-colors cursor-pointer"
             title="Haftalık veya seçili günün WhatsApp seans ilanını aç"
           >
             <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
@@ -438,6 +482,278 @@ export function WeeklySchedulerGrid({
           </button>
         </div>
       </div>
+
+      {/* INLINE QUICK SCHEDULE & BREAK STRIP (Calm, Non-Neon Styling) */}
+      {quickBarOpen && (
+        <div className="p-3.5 bg-[#161824] border border-white/[0.08] rounded-2xl shadow-lg space-y-2.5 text-xs animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-zinc-400" />
+              <span className="font-semibold text-zinc-100 text-xs">Hızlı Çizelge, Seans Dakikası & Saat Kaydırıcı</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsScheduleConfigOpen(true)}
+              className="text-[11px] text-zinc-400 hover:text-zinc-200 flex items-center gap-1 cursor-pointer font-medium"
+            >
+              <span>Gelişmiş Sihirbazı Aç</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-1 text-xs">
+            {/* Seans Kaç Dakika? */}
+            <div className="space-y-1 bg-[#1a1d2b] p-2.5 rounded-xl border border-white/[0.06]">
+              <span className="text-zinc-400 text-[11px] font-medium block">Program Kaç Dakika?</span>
+              <div className="flex items-center gap-1 flex-wrap">
+                {[30, 40, 45, 50].map((mins) => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => setQuickSessionMinutes(mins)}
+                    className={`px-2 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
+                      quickSessionMinutes === mins
+                        ? 'bg-zinc-700 text-white border border-zinc-600'
+                        : 'bg-zinc-800/80 text-zinc-300 hover:text-white'
+                    }`}
+                  >
+                    {mins} dk {mins === 40 && '★'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Ara Kaç Dakika? */}
+            <div className="space-y-1 bg-[#1a1d2b] p-2.5 rounded-xl border border-white/[0.06]">
+              <span className="text-zinc-400 text-[11px] font-medium block">Ara / Teneffüs Kaç Dakika?</span>
+              <div className="flex items-center gap-1 flex-wrap">
+                {[5, 10, 15, 20].map((mins) => (
+                  <button
+                    key={mins}
+                    type="button"
+                    onClick={() => setQuickBreakMinutes(mins)}
+                    className={`px-2 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
+                      quickBreakMinutes === mins
+                        ? 'bg-zinc-700 text-white border border-zinc-600'
+                        : 'bg-zinc-800/80 text-zinc-300 hover:text-white'
+                    }`}
+                  >
+                    {mins} dk {mins === 10 && '★'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Saatleri Kaydır */}
+            <div className="space-y-1 bg-[#1a1d2b] p-2.5 rounded-xl border border-white/[0.06]">
+              <span className="text-zinc-400 text-[11px] font-medium block">Tablodaki Saatleri Kaydır:</span>
+              <div className="flex items-center gap-1 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => handleShiftTime(targetWeekDates, -15)}
+                  className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono cursor-pointer"
+                  title="Tüm saatleri 15 dk geri kaydır"
+                >
+                  -15 dk
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleShiftTime(targetWeekDates, -10)}
+                  className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono cursor-pointer"
+                  title="Tüm saatleri 10 dk geri kaydır"
+                >
+                  -10 dk
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleShiftTime(targetWeekDates, 10)}
+                  className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono cursor-pointer"
+                  title="Tüm saatleri 10 dk ileri kaydır"
+                >
+                  +10 dk
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleShiftTime(targetWeekDates, 15)}
+                  className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono cursor-pointer"
+                  title="Tüm saatleri 15 dk ileri kaydır"
+                >
+                  +15 dk
+                </button>
+              </div>
+            </div>
+
+            {/* Hızlı Uygula & Mola */}
+            <div className="flex flex-col justify-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const cfg: ScheduleConfig = {
+                    sessionDuration: quickSessionMinutes,
+                    breakDuration: quickBreakMinutes,
+                    startTime: '09:00',
+                    sessionCount: 8,
+                    includeLunchBreak: true,
+                    lunchBreakAfter: 4,
+                    lunchBreakDuration: 50,
+                  };
+                  handleApplyScheduleConfig(targetWeekDates, cfg, true);
+                  onShowToast(
+                    'Haftalık Program Güncellendi',
+                    `${quickSessionMinutes} dk seans, ${quickBreakMinutes} dk mola tüm haftaya uygulandı.`,
+                    'success'
+                  );
+                }}
+                className="w-full px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-medium text-xs transition-colors cursor-pointer flex items-center justify-center gap-1 shadow-xs"
+              >
+                <Zap className="w-3 h-3" />
+                <span>Tüm Haftaya Uygula</span>
+              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const cfg: ScheduleConfig = {
+                      sessionDuration: quickSessionMinutes,
+                      breakDuration: quickBreakMinutes,
+                      startTime: '09:00',
+                      sessionCount: 8,
+                      includeLunchBreak: true,
+                      lunchBreakAfter: 4,
+                      lunchBreakDuration: 50,
+                    };
+                    handleApplyScheduleConfig([baseDate], cfg, true);
+                    onShowToast(
+                      'Günün Programı Güncellendi',
+                      `${quickSessionMinutes} dk seans ve ${quickBreakMinutes} dk mola seçili güne uygulandı.`,
+                      'success'
+                    );
+                  }}
+                  className="flex-1 px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] cursor-pointer"
+                >
+                  Yalnızca Seçili Güne
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setQuickBreakModal({
+                      open: true,
+                      date: baseDate,
+                      time: '10:10',
+                      title: `${quickBreakMinutes} dk Teneffüs`,
+                    })
+                  }
+                  className="px-2.5 py-1 rounded-lg bg-[#221f1a] hover:bg-[#2b2721] text-amber-200/90 text-[11px] cursor-pointer border border-amber-500/20"
+                >
+                  + Mola
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ASYMMETRIC TOP BENTO SPOTLIGHT: Bu Haftanın Öncelikli Seansları (Calm Muted Styling) */}
+      {prioritySessionsThisWeek.length > 0 && !showOnlyPriority && (
+        <div className="p-3.5 bg-[#161824] border border-white/[0.08] rounded-2xl space-y-2.5 shadow-md">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-amber-300">
+                <Star className="w-3.5 h-3.5 fill-amber-300/40 text-amber-300/80" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-zinc-100 flex items-center gap-2">
+                  <span>Bu Haftanın Öncelikli Görüşmeleri Vitrini</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/25">
+                    {prioritySessionsThisWeek.length} Seans
+                  </span>
+                </h3>
+                <p className="text-[10px] text-zinc-400">
+                  Net düşüşü, randevu aksaması veya kritik risk taşıyan öğrencilerin genişletilmiş seans kartları
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSpotlightCollapsed(!spotlightCollapsed)}
+              className="text-[11px] text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors cursor-pointer"
+            >
+              {spotlightCollapsed ? 'Genişlet' : 'Daralt'}
+            </button>
+          </div>
+
+          {!spotlightCollapsed && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 pt-1">
+              {prioritySessionsThisWeek.slice(0, 4).map((pSession) => {
+                const st = pSession.student_id ? studentMap.get(pSession.student_id) : null;
+                if (!st) return null;
+                const dayInfo = weekDays.find((d) => d.date === pSession.date);
+                const reasonFlag =
+                  st.status_flags?.[0] ||
+                  (pSession.status === 'Gelmedi' ? 'Randevuya Gelmedi' : 'Yüksek Öncelik');
+
+                return (
+                  <div
+                    key={pSession.id}
+                    onClick={() => setQuickEditingSession(pSession)}
+                    className="p-3 rounded-xl border border-amber-500/20 bg-[#1c1f2e] hover:border-amber-500/40 hover:shadow-md transition-all cursor-pointer space-y-2 group"
+                  >
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-200/90 font-mono font-medium border border-amber-400/20 text-[10px]">
+                        {dayInfo?.shortDayName} • {pSession.time_slot}
+                      </span>
+                      <span className="text-[10px] font-mono text-zinc-400 bg-white/[0.05] px-1.5 py-0.5 rounded">
+                        {st.class_grade}
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="text-xs font-bold text-zinc-100 group-hover:text-amber-200 transition-colors truncate">
+                        {st.full_name}
+                      </div>
+                      <div className="flex items-center gap-1 mt-1">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-medium truncate">
+                          ⚠️ {reasonFlag}
+                        </span>
+                      </div>
+                      {pSession.topic && (
+                        <p className="text-[11px] text-zinc-400 truncate mt-1">
+                          {pSession.topic}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06] text-[10px]">
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleStatus(pSession, e)}
+                        className={`px-2 py-0.5 rounded font-medium transition-all cursor-pointer ${
+                          pSession.status === 'Geldi'
+                            ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/20'
+                            : pSession.status === 'Gelmedi'
+                            ? 'bg-rose-950/40 text-rose-300 border border-rose-500/20'
+                            : 'bg-zinc-800 text-zinc-300'
+                        }`}
+                      >
+                        {pSession.status}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleSendWhatsAppSummary(pSession, e)}
+                        className="p-1 rounded text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-1"
+                        title="WhatsApp Özeti Gönder"
+                      >
+                        <MessageSquare className="w-3 h-3 text-emerald-400" />
+                        <span>Mesaj</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ASYMMETRIC RESPONSIVE GRID LAYOUT (Clean Day-Lanes with Dynamic Card Sizing) */}
       <div
@@ -467,19 +783,19 @@ export function WeeklySchedulerGrid({
               onClick={() => onSelectDate(day.date)}
               className={`flex flex-col rounded-2xl border transition-all duration-150 overflow-hidden ${
                 day.isToday
-                  ? 'bg-[#0b0d14] border-emerald-500/30 ring-1 ring-emerald-500/20 shadow-md'
+                  ? 'bg-[#181a26] border-zinc-600/50 shadow-md'
                   : isSelected
-                  ? 'bg-[#090b0f] border-sky-500/30 ring-1 ring-sky-500/20'
-                  : 'bg-[#08090d] border-white/[0.06] hover:border-white/[0.12]'
+                  ? 'bg-[#161824] border-zinc-500/40 ring-1 ring-zinc-500/20'
+                  : 'bg-[#141620] border-white/[0.06] hover:border-white/[0.12]'
               }`}
             >
-              {/* Day Column Header */}
+              {/* Day Column Header with Quick Shift & Break controls */}
               <div
                 className={`p-3 border-b transition-colors cursor-pointer select-none ${
                   day.isToday
-                    ? 'bg-emerald-950/20 border-emerald-500/20'
+                    ? 'bg-zinc-800/40 border-zinc-700/50'
                     : isSelected
-                    ? 'bg-sky-950/20 border-sky-500/20'
+                    ? 'bg-zinc-800/30 border-zinc-700/40'
                     : 'bg-white/[0.02] border-white/[0.05]'
                 }`}
               >
@@ -487,7 +803,7 @@ export function WeeklySchedulerGrid({
                   <div className="flex items-baseline gap-1.5">
                     <span
                       className={`text-xs font-bold tracking-tight ${
-                        day.isToday ? 'text-emerald-400' : isSelected ? 'text-sky-300' : 'text-zinc-200'
+                        day.isToday ? 'text-emerald-400' : isSelected ? 'text-zinc-100' : 'text-zinc-200'
                       }`}
                     >
                       {day.dayName}
@@ -497,10 +813,24 @@ export function WeeklySchedulerGrid({
 
                   <div className="flex items-center gap-1">
                     {day.isToday && (
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
                         Bugün
                       </span>
                     )}
+
+                    {/* Quick shift +10 min for this day only */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShiftTime([day.date], 10);
+                        onShowToast('Saatler Kaydırıldı', `${day.dayName} saatleri 10 dk ileri alındı.`, 'info');
+                      }}
+                      className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors cursor-pointer"
+                      title={`${day.dayName} saatlerini +10 dk kaydır`}
+                    >
+                      <Clock className="w-3 h-3 text-zinc-400" />
+                    </button>
 
                     {/* WhatsApp button for this specific day */}
                     <button
@@ -523,15 +853,15 @@ export function WeeklySchedulerGrid({
                     Dolu: <strong className="text-zinc-300 font-semibold">{dayFilled}</strong> / {dayLessons.length}
                   </span>
                   {dayAllSessions.some((s) => isHighPriority(s)) && (
-                    <span className="text-amber-400 flex items-center gap-0.5">
-                      <Star className="w-2.5 h-2.5 fill-amber-400" />
+                    <span className="text-amber-400/90 flex items-center gap-0.5">
+                      <Star className="w-2.5 h-2.5 fill-amber-400/40 text-amber-400/80" />
                       <span>{dayAllSessions.filter((s) => isHighPriority(s)).length}</span>
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Day Sessions List (Asymmetric Vertical Flow) */}
+              {/* Day Sessions List (Asymmetric Vertical Flow with Larger Priority Cards) */}
               <div className="p-2 space-y-2 flex-1 min-h-[140px]">
                 {displayedDaySessions.length === 0 ? (
                   <div className="py-8 text-center px-2 space-y-2">
@@ -549,17 +879,17 @@ export function WeeklySchedulerGrid({
                   </div>
                 ) : (
                   displayedDaySessions.map((session) => {
-                    // Case 1: Teneffüs / Mola (Break) Slot
+                    // Case 1: Teneffüs / Mola (Break) Slot - Slim Intermission Divider
                     if (session.is_break) {
                       return (
                         <div
                           key={session.id}
-                          className="group relative px-2.5 py-1.5 rounded-lg bg-amber-950/20 border border-dashed border-amber-500/20 hover:border-amber-500/40 text-amber-300 text-xs font-mono flex items-center justify-between transition-all"
+                          className="group relative px-2.5 py-1 rounded-full bg-[#1c1a16] border border-dashed border-amber-500/20 hover:border-amber-500/40 text-amber-200/85 text-xs font-mono flex items-center justify-between my-1 transition-all"
                         >
                           <div className="flex items-center gap-1.5 truncate">
-                            <Coffee className="w-3 h-3 text-amber-400 shrink-0" />
+                            <Coffee className="w-3 h-3 text-amber-300/80 shrink-0" />
                             <span className="font-semibold text-[11px]">{session.time_slot}</span>
-                            <span className="text-[10px] text-amber-200/75 truncate">
+                            <span className="text-[10px] text-amber-200/70 truncate">
                               {session.break_title || session.topic || 'Teneffüs'}
                             </span>
                           </div>
@@ -582,8 +912,114 @@ export function WeeklySchedulerGrid({
                     const student = session.student_id ? studentMap.get(session.student_id) : null;
                     const isPriority = isHighPriority(session);
 
-                    // Case 2: Assigned Student Session (Dynamic Asymmetric Sizing)
+                    // Case 2: Assigned Student Session
                     if (student) {
+                      if (isPriority) {
+                        // HIGH-PRIORITY SESSION: Larger Card with Expressive Presence & Zero Clutter (Soft Slate Accent)
+                        return (
+                          <div
+                            key={session.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setQuickEditingSession(session);
+                            }}
+                            className="group relative rounded-xl p-3.5 border border-amber-500/30 bg-[#1c1f2e] hover:border-amber-500/50 transition-all cursor-pointer space-y-2"
+                          >
+                            {/* Top Line: Time Slot + High Priority Badge + Grade */}
+                            <div className="flex items-center justify-between gap-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="px-2 py-0.5 rounded-lg bg-amber-400/15 text-amber-200/90 border border-amber-400/20 font-mono text-xs font-semibold">
+                                  {session.time_slot}
+                                </span>
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                                  <Star className="w-2.5 h-2.5 fill-amber-300/40 text-amber-300/80" />
+                                  Öncelikli
+                                </span>
+                              </div>
+
+                              <span className="text-[11px] font-mono font-medium text-zinc-400 bg-white/[0.05] px-2 py-0.5 rounded-md shrink-0">
+                                {student.class_grade}
+                              </span>
+                            </div>
+
+                            {/* Middle: Prominent Student Name & Flag */}
+                            <div>
+                              <div className="text-sm font-bold text-zinc-100 group-hover:text-amber-200 transition-colors tracking-tight leading-snug">
+                                {student.full_name}
+                              </div>
+
+                              {/* Risk or reason flag without metadata clutter */}
+                              {(student.status_flags?.length || session.status === 'Gelmedi') && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {session.status === 'Gelmedi' ? (
+                                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-rose-950/40 text-rose-300 border border-rose-500/25 font-medium">
+                                      ❌ Son Randevuya Gelmedi
+                                    </span>
+                                  ) : (
+                                    student.status_flags?.slice(0, 2).map((flag) => (
+                                      <span
+                                        key={flag}
+                                        className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/20 font-medium"
+                                      >
+                                        ⚠️ {flag}
+                                      </span>
+                                    ))
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Clear Topic banner */}
+                              {session.topic && (
+                                <div className="mt-1.5 p-2 rounded-lg bg-[#141622] border border-white/[0.06] text-xs text-zinc-300 leading-snug">
+                                  <span className="text-[10px] text-zinc-400 font-mono block mb-0.5">🎯 Görüşme Odağı:</span>
+                                  <span className="font-medium text-zinc-200">{session.topic}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Bottom Action Footer (Decluttered & Direct) */}
+                            <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
+                              <button
+                                type="button"
+                                onClick={(e) => handleToggleStatus(session, e)}
+                                className={`text-xs font-medium px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                                  session.status === 'Geldi'
+                                    ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/20'
+                                    : session.status === 'Gelmedi'
+                                    ? 'bg-rose-950/40 text-rose-300 border border-rose-500/20'
+                                    : 'bg-zinc-800 text-zinc-300 hover:text-white border border-white/[0.06]'
+                                }`}
+                                title="Durumu Değiştir (Bekliyor / Geldi / Gelmedi)"
+                              >
+                                {session.status}
+                              </button>
+
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleTogglePriority(session, e)}
+                                  className="p-1 rounded-lg text-amber-300/80 bg-amber-400/10 hover:bg-amber-400/20 transition-colors cursor-pointer"
+                                  title="Öncelik İşaretini Değiştir"
+                                >
+                                  <Star className="w-3.5 h-3.5 fill-amber-300/40" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleSendWhatsAppSummary(session, e)}
+                                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#18221d] hover:bg-[#1f2e27] text-emerald-300 border border-emerald-500/20 text-[11px] font-medium transition-colors cursor-pointer"
+                                  title="Öğrenciye WhatsApp Görüşme Özeti Gönder"
+                                >
+                                  <MessageSquare className="w-3 h-3 text-emerald-400" />
+                                  <span>WhatsApp</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // STANDARD SESSION: Sleek, compact card
                       return (
                         <div
                           key={session.id}
@@ -591,106 +1027,58 @@ export function WeeklySchedulerGrid({
                             e.stopPropagation();
                             setQuickEditingSession(session);
                           }}
-                          className={`group relative rounded-xl transition-all cursor-pointer ${
-                            isPriority
-                              ? /* HIGH-PRIORITY SESSION: Larger Card with Rich Styling and Zero Clutter */
-                                'p-3.5 border-2 border-amber-500/40 bg-gradient-to-b from-[#1c170f] via-[#11131b] to-[#0c0d12] shadow-md hover:border-amber-400/80 hover:shadow-amber-500/10'
-                              : /* STANDARD SESSION: Sleek, compact card */
-                                session.status === 'Geldi'
-                                ? 'p-2.5 border border-emerald-500/30 bg-emerald-950/15 hover:border-emerald-500/50'
-                                : session.status === 'Gelmedi'
-                                ? 'p-2.5 border border-rose-500/30 bg-rose-950/15 hover:border-rose-500/50'
-                                : 'p-2.5 border border-white/[0.08] bg-[#0e1017] hover:border-white/20'
+                          className={`group relative rounded-xl p-2.5 transition-all cursor-pointer border ${
+                            session.status === 'Geldi'
+                              ? 'border-emerald-500/20 bg-[#161f1a] hover:border-emerald-500/40'
+                              : session.status === 'Gelmedi'
+                              ? 'border-rose-500/20 bg-[#211618] hover:border-rose-500/40'
+                              : 'border-white/[0.08] bg-[#181a26] hover:border-white/20'
                           }`}
                         >
-                          {/* Top Row: Time Slot + Badges */}
-                          <div className="flex items-center justify-between gap-1 mb-1.5">
-                            <div className="flex items-center gap-1.5">
-                              <span
-                                className={`text-[11px] font-mono font-bold px-1.5 py-0.5 rounded ${
-                                  isPriority
-                                    ? 'bg-amber-400/20 text-amber-200 border border-amber-400/30'
-                                    : 'bg-white/[0.06] text-zinc-300'
-                                }`}
-                              >
-                                {session.time_slot}
-                              </span>
-
-                              {isPriority && (
-                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/25 text-amber-300 border border-amber-500/40">
-                                  <Star className="w-2.5 h-2.5 fill-amber-400" />
-                                  Öncelikli
-                                </span>
-                              )}
-                            </div>
-
-                            <span className="text-[10px] font-mono font-medium text-zinc-400 bg-white/[0.04] px-1.5 py-0.5 rounded shrink-0">
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span className="text-[11px] font-mono font-semibold px-1.5 py-0.2 rounded bg-white/[0.05] text-zinc-300">
+                              {session.time_slot}
+                            </span>
+                            <span className="text-[10px] font-mono text-zinc-400 bg-white/[0.04] px-1.5 py-0.2 rounded">
                               {student.class_grade}
                             </span>
                           </div>
-
-                          {/* Middle Row: Student Name & Primary Focus Topic */}
-                          <div className="mb-2">
-                            <div
-                              className={`font-semibold text-zinc-100 group-hover:text-white truncate ${
-                                isPriority ? 'text-xs sm:text-sm font-bold text-amber-100' : 'text-xs'
-                              }`}
-                            >
-                              {student.full_name}
-                            </div>
-
-                            {session.topic && (
-                              <p
-                                className={`text-zinc-400 truncate mt-0.5 ${
-                                  isPriority ? 'text-xs text-zinc-300' : 'text-[11px]'
-                                }`}
-                                title={session.topic}
-                              >
-                                {session.topic}
-                              </p>
-                            )}
+                          <div className="font-semibold text-xs text-zinc-200 group-hover:text-white truncate">
+                            {student.full_name}
                           </div>
-
-                          {/* Bottom Row: Decluttered Actions & Status Toggle */}
-                          <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
+                          {session.topic && (
+                            <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                              {session.topic}
+                            </p>
+                          )}
+                          <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-white/[0.05]">
                             <button
                               type="button"
                               onClick={(e) => handleToggleStatus(session, e)}
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-all cursor-pointer ${
+                              className={`text-[10px] font-medium px-2 py-0.5 rounded transition-all cursor-pointer ${
                                 session.status === 'Geldi'
-                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                  ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/20'
                                   : session.status === 'Gelmedi'
-                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                  : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-white/[0.05]'
+                                  ? 'bg-rose-950/40 text-rose-300 border border-rose-500/20'
+                                  : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
                               }`}
-                              title="Seans Durumunu Değiştir (Bekliyor / Geldi / Gelmedi)"
                             >
                               {session.status}
                             </button>
-
                             <div className="flex items-center gap-1">
-                              {/* Toggle Priority Star */}
                               <button
                                 type="button"
                                 onClick={(e) => handleTogglePriority(session, e)}
-                                className={`p-1 rounded transition-colors cursor-pointer ${
-                                  session.is_priority
-                                    ? 'text-amber-400 bg-amber-400/10'
-                                    : 'text-zinc-500 hover:text-amber-400 hover:bg-zinc-800'
-                                }`}
-                                title={session.is_priority ? 'Önceliği Kaldır' : 'Yüksek Öncelikli Yap'}
+                                className="p-1 rounded text-zinc-500 hover:text-amber-300/80 hover:bg-zinc-800 transition-colors cursor-pointer"
+                                title="Yüksek Öncelikli Yap"
                               >
-                                <Star
-                                  className={`w-3 h-3 ${session.is_priority ? 'fill-amber-400' : ''}`}
-                                />
+                                <Star className="w-3 h-3" />
                               </button>
-
-                              {/* Direct WhatsApp Summary */}
                               <button
                                 type="button"
                                 onClick={(e) => handleSendWhatsAppSummary(session, e)}
                                 className="p-1 rounded text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 transition-colors cursor-pointer"
-                                title="Öğrenciye WhatsApp Özeti Gönder"
+                                title="WhatsApp"
                               >
                                 <MessageSquare className="w-3 h-3" />
                               </button>
@@ -700,13 +1088,13 @@ export function WeeklySchedulerGrid({
                       );
                     }
 
-                    // Case 3: Empty Existing Slot
+                    // Case 3: Empty Existing Slot (Minimal Dashed Strip)
                     return (
                       <div
                         key={session.id}
-                        className="group relative p-2 rounded-xl border border-dashed border-white/[0.07] hover:border-white/20 hover:bg-white/[0.02] transition-all flex items-center justify-between text-xs"
+                        className="group relative p-1.5 px-2 rounded-lg border border-dashed border-white/[0.06] hover:border-white/20 hover:bg-white/[0.02] transition-all flex items-center justify-between text-xs"
                       >
-                        <span className="font-mono text-[11px] text-zinc-400 font-medium">
+                        <span className="font-mono text-[11px] text-zinc-500 font-medium">
                           {session.time_slot}
                         </span>
 
@@ -733,7 +1121,7 @@ export function WeeklySchedulerGrid({
                               e.stopPropagation();
                               onDeleteSession(session.id);
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-rose-400 transition-opacity cursor-pointer"
+                            className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-500 hover:text-rose-400 transition-opacity cursor-pointer"
                             title="Saati Sil"
                           >
                             <X className="w-3 h-3" />
@@ -764,11 +1152,15 @@ export function WeeklySchedulerGrid({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleAddBreak(day.date, '12:20', 'Öğle Arası');
-                    onShowToast('Öğle Arası Eklendi', `${day.dayName} için 12:20 mola eklendi.`, 'success');
+                    setQuickBreakModal({
+                      open: true,
+                      date: day.date,
+                      time: '12:20',
+                      title: 'Öğle Arası',
+                    });
                   }}
-                  className="text-[11px] text-amber-400/70 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
-                  title="Güne teneffüs / mola ekle"
+                  className="text-[11px] text-amber-400/80 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
+                  title="Bu güne teneffüs veya öğle arası ekle"
                 >
                   <Coffee className="w-2.5 h-2.5" />
                   <span>+ Teneffüs</span>
@@ -791,6 +1183,125 @@ export function WeeklySchedulerGrid({
         onShowToast={onShowToast}
       />
 
+      {/* QUICK BREAK / RECESS ADDITION MODAL */}
+      {quickBreakModal.open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4"
+          onClick={() => setQuickBreakModal({ ...quickBreakModal, open: false })}
+        >
+          <div
+            className="w-full max-w-sm bg-[#181a26] border border-white/[0.1] rounded-2xl shadow-2xl p-5 space-y-4 animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-[#221f1a] text-amber-300">
+                  <Coffee className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Teneffüs / Mola Ekle</h3>
+                  <p className="text-[11px] text-zinc-400">Çizelgeye ara veya dinlenme bloğu ekleyin</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickBreakModal({ ...quickBreakModal, open: false })}
+                className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              {/* Gün Seçimi */}
+              <div className="space-y-1">
+                <label className="text-zinc-300 font-medium">Uygulanacak Gün</label>
+                <select
+                  value={quickBreakModal.date}
+                  onChange={(e) => setQuickBreakModal({ ...quickBreakModal, date: e.target.value })}
+                  className="w-full px-3 py-2 bg-[#12141e] border border-white/[0.08] rounded-xl text-xs text-white focus:outline-none focus:border-zinc-500"
+                >
+                  {weekDays.map((d) => (
+                    <option key={d.date} value={d.date}>
+                      {d.dayName} ({d.date}) {d.isToday ? '★ Bugün' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Teneffüs Saati */}
+              <div className="space-y-1">
+                <label className="text-zinc-300 font-medium">Teneffüs Başlangıç Saati</label>
+                <input
+                  type="time"
+                  value={quickBreakModal.time}
+                  onChange={(e) => setQuickBreakModal({ ...quickBreakModal, time: e.target.value })}
+                  className="w-full px-3 py-2 bg-[#12141e] border border-white/[0.08] rounded-xl text-xs text-white font-mono focus:outline-none focus:border-zinc-500"
+                />
+                <div className="flex items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-zinc-500">Sık Saatler:</span>
+                  {['10:10', '11:50', '12:20', '13:40', '15:10'].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setQuickBreakModal({ ...quickBreakModal, time: t })}
+                      className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 hover:text-white"
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Başlık ve Şablonlar */}
+              <div className="space-y-1">
+                <label className="text-zinc-300 font-medium">Mola Başlığı</label>
+                <input
+                  type="text"
+                  value={quickBreakModal.title}
+                  onChange={(e) => setQuickBreakModal({ ...quickBreakModal, title: e.target.value })}
+                  placeholder="Örn: 10 dk Teneffüs"
+                  className="w-full px-3 py-2 bg-[#12141e] border border-white/[0.08] rounded-xl text-xs text-white focus:outline-none focus:border-zinc-500"
+                />
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {['10 dk Teneffüs', '15 dk Teneffüs', '45 dk Öğle Arası', 'Zümre Toplantısı'].map((lbl) => (
+                    <button
+                      key={lbl}
+                      type="button"
+                      onClick={() => setQuickBreakModal({ ...quickBreakModal, title: lbl })}
+                      className="px-2 py-0.5 rounded text-[10px] bg-[#221f1a] hover:bg-[#2b2721] text-amber-200/90 cursor-pointer border border-amber-500/20"
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.08]">
+              <button
+                type="button"
+                onClick={() => setQuickBreakModal({ ...quickBreakModal, open: false })}
+                className="px-3 py-1.5 text-xs text-zinc-400 hover:text-white cursor-pointer"
+              >
+                İptal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleAddBreak(quickBreakModal.date, quickBreakModal.time, quickBreakModal.title);
+                  setQuickBreakModal({ ...quickBreakModal, open: false });
+                  onShowToast('Teneffüs Eklendi', `${quickBreakModal.time} molası takvime eklendi.`, 'success');
+                }}
+                className="px-4 py-1.5 text-xs font-medium bg-amber-600 hover:bg-amber-500 text-white rounded-xl transition-all cursor-pointer shadow-xs"
+              >
+                Teneffüsü Ekle
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Quick Assign Modal */}
       {activeAssignSlot && (
         <div
@@ -798,7 +1309,7 @@ export function WeeklySchedulerGrid({
           onClick={() => setActiveAssignSlot(null)}
         >
           <div
-            className="w-full max-w-md bg-[#0e1017] border border-white/[0.12] rounded-xl shadow-2xl p-4 space-y-3"
+            className="w-full max-w-md bg-[#181a26] border border-white/[0.1] rounded-xl shadow-2xl p-4 space-y-3"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">

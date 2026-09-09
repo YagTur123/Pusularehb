@@ -40,6 +40,7 @@ import { StudentHistoryModal } from './StudentHistoryModal';
 import { DailyLogPrintModal } from './DailyLogPrintModal';
 import { CalendarMonthPicker } from './CalendarMonthPicker';
 import { WeeklySchedulerGrid } from './WeeklySchedulerGrid';
+import { ScheduleConfigModal } from './ScheduleConfigModal';
 
 interface DailySchedulerProps {
   selectedDate: string;
@@ -87,6 +88,7 @@ export function DailyScheduler({
   const [newSlotTime, setNewSlotTime] = useState('17:00');
   const [showAddCustomModal, setShowAddCustomModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [isScheduleConfigOpen, setIsScheduleConfigOpen] = useState(false);
   const [slotFilter, setSlotFilter] = useState<'all' | 'assigned' | 'empty' | 'missed'>('all');
 
   // Suggested topics dropdown state
@@ -235,7 +237,7 @@ export function DailyScheduler({
         {/* Left: View Mode Switcher + Interactive Date Selector + Quick switches */}
         <div className="flex flex-wrap items-center gap-2">
           {/* View Mode Toggle: [Günlük (Liste)] [Haftalık (Çizelge)] */}
-          <div className="flex items-center bg-[#08090b] p-0.5 rounded-md border border-white/[0.06]">
+          <div className="flex items-center bg-[#12141e] p-0.5 rounded-md border border-white/[0.06]">
             <button
               type="button"
               onClick={() => setViewMode('daily')}
@@ -269,7 +271,7 @@ export function DailyScheduler({
             <button
               type="button"
               onClick={() => setShowMonthPicker(!showMonthPicker)}
-              className="flex items-center gap-2 bg-[#0e1015] hover:bg-[#12141a] px-2.5 py-1 rounded-md border border-white/[0.08] cursor-pointer transition-colors group"
+              className="flex items-center gap-2 bg-[#181a26] hover:bg-[#1e2130] px-2.5 py-1 rounded-md border border-white/[0.08] cursor-pointer transition-colors group"
               title="Aylık takvim gezginini aç"
             >
               <Calendar className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-200" />
@@ -300,7 +302,7 @@ export function DailyScheduler({
           </div>
 
           {/* Quick switches: [Dün] [Bugün] [Yarın] */}
-          <div className="flex items-center bg-[#08090b] p-0.5 rounded-md border border-white/[0.06]">
+          <div className="flex items-center bg-[#12141e] p-0.5 rounded-md border border-white/[0.06]">
             <button
               type="button"
               onClick={() => setSelectedDate(yesterdayStr)}
@@ -344,7 +346,7 @@ export function DailyScheduler({
             <button
               type="button"
               onClick={() => onFillStandardWeek(selectedDate)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0e1015] hover:bg-[#12141a] text-zinc-300 hover:text-white border border-white/[0.08] text-xs font-medium transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181a26] hover:bg-[#1e2130] text-zinc-300 hover:text-white border border-white/[0.08] text-xs font-medium transition-colors cursor-pointer"
               title="Bu haftanın tüm okul günlerine standart saatleri oluştur"
             >
               <Zap className="w-3.5 h-3.5 text-zinc-400" />
@@ -354,7 +356,7 @@ export function DailyScheduler({
             <button
               type="button"
               onClick={() => onFillStandardSlots(selectedDate)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0e1015] hover:bg-[#12141a] text-zinc-300 hover:text-white border border-white/[0.08] text-xs font-medium transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181a26] hover:bg-[#1e2130] text-zinc-300 hover:text-white border border-white/[0.08] text-xs font-medium transition-colors cursor-pointer"
               title="Günün 40 dakikalık standart ders seanslarını otomatik oluştur"
             >
               <Zap className="w-3.5 h-3.5 text-zinc-400" />
@@ -366,17 +368,28 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={() => setShowAddCustomModal(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0e1015] hover:bg-[#12141a] border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181a26] hover:bg-[#1e2130] border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Seans</span>
+          </button>
+
+          {/* Program & Teneffüs Customizer Modal Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsScheduleConfigOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#221f1a] hover:bg-[#2c2822] border border-amber-500/25 text-amber-200/90 hover:text-amber-100 text-xs font-medium transition-colors cursor-pointer"
+            title="Seans dakikası, teneffüs süresi belirle, tablo saatlerini kaydır veya teneffüs ekle"
+          >
+            <Sliders className="w-3.5 h-3.5 text-amber-300/80" />
+            <span>Program & Teneffüs Planla</span>
           </button>
 
           {/* Official Printable Daily Log */}
           <button
             type="button"
             onClick={() => setShowPrintModal(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0e1015] hover:bg-[#12141a] border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181a26] hover:bg-[#1e2130] border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
             title="Resmi görüşme defteri ve A4 çıktısı"
           >
             <Printer className="w-3.5 h-3.5 text-zinc-400" />
@@ -387,11 +400,11 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={onOpenBroadcast}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-medium shadow-xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-white/[0.1] text-xs font-medium transition-colors cursor-pointer"
           >
-            <MessageSquare className="w-3.5 h-3.5 text-zinc-900" />
+            <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
             <span>WhatsApp İlanı</span>
-            <kbd className="px-1 py-0.2 rounded bg-zinc-200 text-[10px] font-mono text-zinc-800 border border-zinc-300">
+            <kbd className="px-1 py-0.2 rounded bg-zinc-900 text-[10px] font-mono text-zinc-400 border border-white/[0.08]">
               ⌘↵
             </kbd>
           </button>
@@ -399,7 +412,7 @@ export function DailyScheduler({
       </div>
 
       {/* Interactive Week Navigation Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-[#0a0b10] px-3 py-2 rounded-lg border border-white/[0.06]">
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-[#141622] px-3 py-2 rounded-lg border border-white/[0.06]">
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -513,10 +526,10 @@ export function DailyScheduler({
         />
       ) : (
         /* Daily Detailed Table */
-        <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-[#0a0b0f] shadow-2xl">
+        <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-[#141622] shadow-2xl">
           {dateSessions.length === 0 ? (
             <div className="text-center py-16 px-4">
-              <div className="w-10 h-10 mx-auto rounded-lg bg-[#0e1015] flex items-center justify-center text-zinc-400 mb-3 border border-white/[0.08]">
+              <div className="w-10 h-10 mx-auto rounded-lg bg-[#181a26] flex items-center justify-center text-zinc-400 mb-3 border border-white/[0.08]">
                 <Calendar className="w-5 h-5 text-zinc-400" />
               </div>
               <h3 className="text-xs font-semibold text-white">Bu tarihte planlanmış seans yok</h3>
@@ -524,9 +537,9 @@ export function DailyScheduler({
                 <button
                   type="button"
                   onClick={() => onFillStandardSlots(selectedDate)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-medium transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-white/[0.1] text-xs font-medium transition-colors cursor-pointer"
                 >
-                  <Zap className="w-3.5 h-3.5 text-zinc-800" />
+                  <Zap className="w-3.5 h-3.5 text-zinc-300" />
                   <span>Standart Saatleri Yükle (09:00 - 16:40)</span>
                 </button>
               </div>
@@ -534,7 +547,7 @@ export function DailyScheduler({
           ) : (
           <div>
             {/* Fast Slot Filter Tabs */}
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-[#090a0f] text-xs">
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-white/[0.06] bg-[#12141e] text-xs">
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setSlotFilter('all')}
@@ -1000,6 +1013,17 @@ export function DailyScheduler({
           </div>
         </div>
       )}
+      {/* SCHEDULE CONFIGURATION MODAL (Minutes, Breaks, Shift, Recess) */}
+      <ScheduleConfigModal
+        isOpen={isScheduleConfigOpen}
+        onClose={() => setIsScheduleConfigOpen(false)}
+        selectedDate={selectedDate}
+        weekDays={currentWeekDays}
+        onApplySchedule={onApplyScheduleConfig}
+        onShiftTime={onShiftTime}
+        onAddBreak={onAddBreak}
+        onShowToast={onShowToast}
+      />
     </div>
   );
 }

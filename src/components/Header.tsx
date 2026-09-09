@@ -136,12 +136,12 @@ export function Header({
   };
 
   return (
-    <header className="border-b border-white/[0.08] bg-[#08090a]/95 backdrop-blur-md sticky top-0 z-30">
+    <header className="border-b border-white/[0.08] bg-[#13151f]/95 backdrop-blur-md sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between gap-4">
         {/* Logo & Linear Breadcrumb */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-gradient-to-b from-zinc-800 to-zinc-900 border border-white/10 flex items-center justify-center text-zinc-200 shadow-xs">
+            <div className="w-6 h-6 rounded bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-200 shadow-xs">
               <Compass className="w-3.5 h-3.5 text-zinc-300" />
             </div>
             <div className="flex items-center gap-1.5 text-xs">
@@ -154,7 +154,7 @@ export function Header({
           </div>
 
           {/* Linear Segmented View Tabs */}
-          <nav className="hidden md:flex items-center gap-0.5 bg-[#0e1015] border border-white/[0.06] p-0.5 rounded-md">
+          <nav className="hidden md:flex items-center gap-0.5 bg-[#181a24] border border-white/[0.06] p-0.5 rounded-md">
             <button
               onClick={() => setActiveTab('scheduler')}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs transition-colors cursor-pointer ${
@@ -184,13 +184,13 @@ export function Header({
         <div className="flex-1 max-w-sm hidden lg:block">
           <button
             onClick={onOpenCommandPalette}
-            className="w-full flex items-center justify-between px-2.5 py-1 rounded-md bg-[#0e1015] hover:bg-[#12141a] border border-white/[0.08] text-zinc-400 hover:text-zinc-200 text-xs transition-colors group cursor-pointer"
+            className="w-full flex items-center justify-between px-2.5 py-1 rounded-md bg-[#181a24] hover:bg-[#1d202d] border border-white/[0.08] text-zinc-400 hover:text-zinc-200 text-xs transition-colors group cursor-pointer"
           >
             <span className="flex items-center gap-2">
               <Search className="w-3 h-3 text-zinc-500 group-hover:text-zinc-300" />
               <span className="text-[11px]">Ara veya komut yaz...</span>
             </span>
-            <kbd className="px-1.5 py-0.2 text-[10px] font-mono font-medium rounded bg-zinc-850 border border-zinc-750 text-zinc-400">
+            <kbd className="px-1.5 py-0.2 text-[10px] font-mono font-medium rounded bg-zinc-800 border border-zinc-700 text-zinc-400">
               ⌘K
             </kbd>
           </button>
@@ -201,7 +201,7 @@ export function Header({
           {/* Smart Paste (Excel/WhatsApp) */}
           <button
             onClick={onOpenSmartPaste}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0e1015] hover:bg-zinc-850 border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181a24] hover:bg-zinc-800 border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
             title="Excel veya WhatsApp'tan toplu öğrenci yapıştır"
           >
             <UploadCloud className="w-3.5 h-3.5 text-zinc-400" />
@@ -212,7 +212,7 @@ export function Header({
           <div className="relative" ref={backupMenuRef}>
             <button
               onClick={() => setShowBackupMenu(!showBackupMenu)}
-              className="px-2.5 py-1 rounded-md bg-[#0e1015] hover:bg-zinc-850 border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-2.5 py-1 rounded-md bg-[#181a24] hover:bg-zinc-800 border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
               title="Yedekleme & Dışa Aktarma"
             >
               <Download className="w-3.5 h-3.5 text-zinc-400" />
@@ -220,7 +220,7 @@ export function Header({
             </button>
 
             {showBackupMenu && (
-              <div className="absolute right-0 mt-1 w-44 rounded-lg bg-[#0e1015] border border-white/[0.08] shadow-2xl p-1 z-50 text-xs animate-in fade-in">
+              <div className="absolute right-0 mt-1 w-44 rounded-lg bg-[#181a24] border border-white/[0.08] shadow-2xl p-1 z-50 text-xs animate-in fade-in">
                 <button
                   onClick={handleExportJson}
                   className="w-full text-left px-2 py-1 rounded text-zinc-300 hover:text-white hover:bg-zinc-800 flex items-center gap-2 cursor-pointer"
@@ -251,14 +251,14 @@ export function Header({
             )}
           </div>
 
-          {/* WhatsApp Group Broadcast Trigger (Linear Style) */}
+          {/* WhatsApp Group Broadcast Trigger (Calm Soft Style) */}
           <button
             onClick={onOpenBroadcast}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-medium transition-colors cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-white/[0.08] hover:border-white/[0.15] text-xs font-medium transition-colors cursor-pointer shadow-xs"
           >
-            <MessageSquare className="w-3.5 h-3.5 text-zinc-900" />
+            <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
             <span>WhatsApp İlanı</span>
-            <kbd className="hidden sm:inline-block px-1 py-0.2 rounded bg-zinc-200 text-[10px] font-mono text-zinc-800 border border-zinc-300">
+            <kbd className="hidden sm:inline-block px-1 py-0.2 rounded bg-zinc-700/70 text-[10px] font-mono text-zinc-300 border border-zinc-600/50">
               ⌘↵
             </kbd>
           </button>

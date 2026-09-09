@@ -130,7 +130,7 @@ export function StudentCRMDirectory({
   return (
     <div className="space-y-3">
       {/* Top Filter Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-[#0c0d12] p-2.5 rounded-lg border border-white/[0.07]">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-[#141622] p-2.5 rounded-lg border border-white/[0.07]">
         <div className="flex flex-wrap items-center gap-2 flex-1 max-w-2xl">
           {/* Search Input */}
           <div className="relative flex-1 min-w-[200px]">
@@ -140,7 +140,7 @@ export function StudentCRMDirectory({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Öğrenci, sınıf veya telefon ara..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-md bg-[#08090b] border border-white/[0.08] text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+              className="w-full pl-8 pr-3 py-1.5 rounded-md bg-[#12141e] border border-white/[0.08] text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
             />
           </div>
 
@@ -148,7 +148,7 @@ export function StudentCRMDirectory({
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="px-2.5 py-1.5 rounded-md bg-[#08090b] border border-white/[0.08] text-xs text-zinc-300 focus:outline-none focus:border-zinc-500 cursor-pointer"
+            className="px-2.5 py-1.5 rounded-md bg-[#12141e] border border-white/[0.08] text-xs text-zinc-300 focus:outline-none focus:border-zinc-500 cursor-pointer"
           >
             <option value="all">Tüm Sınıflar</option>
             {classes.map((cls) => (
@@ -162,7 +162,7 @@ export function StudentCRMDirectory({
           <select
             value={selectedTag}
             onChange={(e) => setSelectedTag(e.target.value)}
-            className="px-2.5 py-1.5 rounded-md bg-[#08090b] border border-white/[0.08] text-xs text-zinc-300 focus:outline-none focus:border-zinc-500 max-w-[160px] truncate cursor-pointer"
+            className="px-2.5 py-1.5 rounded-md bg-[#12141e] border border-white/[0.08] text-xs text-zinc-300 focus:outline-none focus:border-zinc-500 max-w-[160px] truncate cursor-pointer"
           >
             <option value="all">Tüm Etiketler</option>
             {DIAGNOSTIC_TAGS.map((tag) => (
@@ -193,7 +193,7 @@ export function StudentCRMDirectory({
           {/* CSV Export Button */}
           <button
             onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#0e1015] hover:bg-[#12141a] border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#181a26] hover:bg-[#1e2130] border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
             title="CSV formatında indir"
           >
             <Download className="w-3.5 h-3.5 text-zinc-400" />
@@ -203,7 +203,7 @@ export function StudentCRMDirectory({
           {/* Add Student Button */}
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-medium shadow-xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-white/[0.1] text-xs font-medium transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Öğrenci Ekle</span>
@@ -212,11 +212,11 @@ export function StudentCRMDirectory({
       </div>
 
       {/* Students Table */}
-      <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-[#0a0b0f] shadow-2xl">
+      <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-[#141622] shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-[#090a0f] border-b border-white/[0.06] text-zinc-400 text-xs">
+              <tr className="bg-[#12141e] border-b border-white/[0.06] text-zinc-400 text-xs">
                 <th className="py-2 px-3 font-normal">Öğrenci & Sınıf</th>
                 <th className="py-2 px-3 font-normal">Telefon</th>
                 <th className="py-2 px-3 font-normal">Son Görüşme</th>

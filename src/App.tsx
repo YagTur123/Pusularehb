@@ -270,7 +270,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#08090d] text-zinc-100 flex flex-col selection:bg-zinc-800 selection:text-zinc-100">
+    <div className="min-h-screen bg-[#121319] text-zinc-200 flex flex-col selection:bg-zinc-800 selection:text-zinc-100">
       {/* Linear Style Header */}
       <Header
         activeTab={activeTab}
@@ -288,11 +288,11 @@ export default function App() {
 
       {/* Guest Mode Notice Bar (if not logged in) */}
       {!currentUser && (
-        <div className="bg-gradient-to-r from-emerald-950/40 via-[#0b0e14] to-zinc-950 border-b border-emerald-500/20 px-4 sm:px-6 py-2 text-xs flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-[#161822] border-b border-white/[0.08] px-4 sm:px-6 py-2 text-xs flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-zinc-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="w-2 h-2 rounded-full bg-emerald-500/80 shrink-0" />
             <span className="text-[11px] sm:text-xs text-zinc-300">
-              <strong className="text-white">Misafir Modu:</strong> Seansları kendi adınız ve okulunuzla yönetmek, WhatsApp ilanlarında ünvanınızı kullanmak için giriş yapın.
+              <strong className="text-zinc-100">Misafir Modu:</strong> Seansları kendi adınız ve okulunuzla yönetmek, WhatsApp ilanlarında ünvanınızı kullanmak için giriş yapın.
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -306,7 +306,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => handleOpenAuth('signup')}
-              className="px-2.5 py-1 rounded-md bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold cursor-pointer transition-colors shadow-xs"
+              className="px-2.5 py-1 rounded-md bg-emerald-700/90 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer transition-colors"
             >
               Kayıt Ol
             </button>

@@ -34,7 +34,9 @@ export function generateModernCardBroadcastText(
   counselorName?: string,
   options: BroadcastOptions = { includeTags: true, includeCounselor: true, onlyAssigned: true }
 ): string {
-  const targetSessions = (options.onlyAssigned !== false
+  const hasAssigned = sessions.some((s) => s.student_id);
+  const shouldFilterAssigned = options.onlyAssigned !== false && hasAssigned;
+  const targetSessions = (shouldFilterAssigned
     ? sessions.filter((s) => s.student_id)
     : sessions
   ).sort((a, b) => a.time_slot.localeCompare(b.time_slot));
@@ -105,7 +107,9 @@ export function generateGroupBroadcastText(
   counselorName?: string,
   options: BroadcastOptions = { includeTags: true, includeCounselor: true, onlyAssigned: true }
 ): string {
-  const targetSessions = (options.onlyAssigned !== false
+  const hasAssigned = sessions.some((s) => s.student_id);
+  const shouldFilterAssigned = options.onlyAssigned !== false && hasAssigned;
+  const targetSessions = (shouldFilterAssigned
     ? sessions.filter((s) => s.student_id)
     : sessions
   ).sort((a, b) => a.time_slot.localeCompare(b.time_slot));
@@ -370,4 +374,42 @@ export function getWhatsAppDirectUrl(phone: string, text: string): string {
  */
 export function getWhatsAppWebShareUrl(text: string): string {
   return `https://web.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+}
+
+/**
+ * Universal WhatsApp share link (works on desktop, mobile, tablet)
+ */
+export function getWhatsAppUniversalUrl(text: string): string {
+  return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+}
+
+/**
+ * Robust clipboard copy with textarea execCommand fallback for iframes
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fallback below
+  }
+
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.top = '-9999px';
+    textArea.style.left = '-9999px';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return successful;
+  } catch {
+    return false;
+  }
 }

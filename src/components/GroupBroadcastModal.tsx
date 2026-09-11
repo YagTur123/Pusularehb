@@ -26,6 +26,8 @@ import {
   generateWeeklyScheduleBroadcastText,
   getWhatsAppWebShareUrl,
   getWhatsAppDirectUrl,
+  getWhatsAppUniversalUrl,
+  copyToClipboard,
 } from '../lib/whatsapp';
 import { formatTurkishDate, shiftDateString, getWeekDays } from '../lib/storage';
 
@@ -101,8 +103,8 @@ export function GroupBroadcastModal({
   }, [messageText]);
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(messageText);
+    const success = await copyToClipboard(messageText);
+    if (success) {
       setIsCopied(true);
       onShowToast(
         'WhatsApp İlanı Kopyalandı!',
@@ -111,8 +113,8 @@ export function GroupBroadcastModal({
           : `${formatTurkishDate(selectedDate)} seans programı panoya kopyalandı.`,
         'success'
       );
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch {
+      setTimeout(() => setIsCopied(false), 2500);
+    } else {
       onShowToast('Kopyalama Başarısız', 'Lütfen metni seçerek manuel kopyalayınız.', 'warning');
     }
   };
@@ -369,27 +371,45 @@ export function GroupBroadcastModal({
               Kapat
             </button>
 
-            {/* WhatsApp App / wa.me link */}
-            <button
-              type="button"
-              onClick={handleOpenWhatsAppApp}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#12141d] hover:bg-[#191b26] text-zinc-300 hover:text-white border border-white/[0.08] transition-colors cursor-pointer"
-              title="Mobil veya Masaüstü WhatsApp uygulamasında paylaş"
+            {/* WhatsApp App / Universal Share link */}
+            <a
+              href={getWhatsAppUniversalUrl(messageText)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                copyToClipboard(messageText);
+                onShowToast(
+                  'WhatsApp Açılıyor (İlan Kopyalandı)',
+                  'İlan metni aynı zamanda panoya kopyalandı.',
+                  'success'
+                );
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#141622] hover:bg-[#1e2130] text-zinc-300 hover:text-white border border-white/[0.08] transition-colors cursor-pointer"
+              title="Mobil veya Masaüstü WhatsApp ile doğrudan paylaş"
             >
-              <Smartphone className="w-3.5 h-3.5 text-zinc-400" />
-              <span>WhatsApp Uygulaması</span>
-            </button>
+              <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+              <span>WhatsApp İle Paylaş</span>
+            </a>
 
             {/* WhatsApp Web link */}
-            <button
-              type="button"
-              onClick={handleOpenWhatsAppWeb}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-950/30 hover:bg-emerald-900/40 text-emerald-300 border border-emerald-500/30 transition-colors cursor-pointer"
-              title="WhatsApp Web üzerinde yeni sekmede hazırla"
+            <a
+              href={getWhatsAppWebShareUrl(messageText)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                copyToClipboard(messageText);
+                onShowToast(
+                  'WhatsApp Web Açılıyor (İlan Kopyalandı)',
+                  'İlan metni aynı zamanda panoya kopyalandı.',
+                  'success'
+                );
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition-colors cursor-pointer"
+              title="WhatsApp Web üzerinde yeni sekmede aç"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>WhatsApp Web</span>
-            </button>
+            </a>
 
             {/* Main One-Click Copy Button */}
             <button

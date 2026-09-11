@@ -14,6 +14,8 @@ import {
   LogIn,
   UserPlus,
   UserCheck,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { getTodayDateString } from '../lib/storage';
 
@@ -32,6 +34,8 @@ interface CommandPaletteProps {
   currentUser?: User | null;
   onOpenAuth?: (mode: 'signin' | 'signup') => void;
   onOpenProfile?: () => void;
+  theme?: 'light' | 'dark';
+  onToggleTheme?: () => void;
 }
 
 interface CommandItem {
@@ -58,6 +62,8 @@ export function CommandPalette({
   currentUser,
   onOpenAuth,
   onOpenProfile,
+  theme = 'light',
+  onToggleTheme,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -164,6 +170,20 @@ export function CommandPalette({
         onAddStudent();
       },
     });
+
+    if (onToggleTheme) {
+      list.push({
+        id: 'act_toggle_theme',
+        category: 'İşlemler',
+        title: theme === 'light' ? '🌙 Koyu Temaya Geç (Gece Modu)' : '☀️ Açık Beyaz Temaya Geç (Gündüz Modu)',
+        subtitle: theme === 'light' ? 'Göz dinlendirici koyu arayüze geçiş yap' : 'Aydınlık beyaz çalışma moduna geçiş yap',
+        icon: theme === 'light' ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-400" />,
+        action: () => {
+          onClose();
+          onToggleTheme();
+        },
+      });
+    }
 
     list.push({
       id: 'act_today',

@@ -41,6 +41,7 @@ import { DailyLogPrintModal } from './DailyLogPrintModal';
 import { CalendarMonthPicker } from './CalendarMonthPicker';
 import { WeeklySchedulerGrid } from './WeeklySchedulerGrid';
 import { ScheduleConfigModal } from './ScheduleConfigModal';
+import { CalendarBottomWhatsAppBar } from './CalendarBottomWhatsAppBar';
 
 interface DailySchedulerProps {
   selectedDate: string;
@@ -233,18 +234,18 @@ export function DailyScheduler({
   return (
     <div className="space-y-3">
       {/* Top Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-[#0c0d12] p-2.5 rounded-lg border border-white/[0.07]">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-[#0c0d12] p-2.5 rounded-lg border border-slate-200 dark:border-white/[0.07] shadow-xs">
         {/* Left: View Mode Switcher + Interactive Date Selector + Quick switches */}
         <div className="flex flex-wrap items-center gap-2">
           {/* View Mode Toggle: [Günlük (Liste)] [Haftalık (Çizelge)] */}
-          <div className="flex items-center bg-[#12141e] p-0.5 rounded-md border border-white/[0.06]">
+          <div className="flex items-center bg-slate-100 dark:bg-[#12141e] p-0.5 rounded-md border border-slate-200 dark:border-white/[0.06]">
             <button
               type="button"
               onClick={() => setViewMode('daily')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded transition-colors cursor-pointer ${
                 viewMode === 'daily'
-                  ? 'bg-zinc-800 text-white shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-slate-900 text-white dark:bg-zinc-800 dark:text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-950 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
               title="Günlük detaylı seans listesi"
             >
@@ -254,10 +255,10 @@ export function DailyScheduler({
             <button
               type="button"
               onClick={() => setViewMode('weekly')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded transition-colors cursor-pointer ${
                 viewMode === 'weekly'
-                  ? 'bg-zinc-800 text-white shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-slate-900 text-white dark:bg-zinc-800 dark:text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-950 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
               title="Haftalık ders ve seans çizelgesi matrisi"
             >
@@ -271,14 +272,14 @@ export function DailyScheduler({
             <button
               type="button"
               onClick={() => setShowMonthPicker(!showMonthPicker)}
-              className="flex items-center gap-2 bg-[#181a26] hover:bg-[#1e2130] px-2.5 py-1 rounded-md border border-white/[0.08] cursor-pointer transition-colors group"
+              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-[#181a26] dark:hover:bg-[#1e2130] px-2.5 py-1 rounded-md border border-slate-300 dark:border-white/[0.08] cursor-pointer transition-colors group shadow-2xs"
               title="Aylık takvim gezginini aç"
             >
-              <Calendar className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-200" />
-              <span className="text-xs font-medium text-zinc-200">
+              <Calendar className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-zinc-200" />
+              <span className="text-xs font-bold text-slate-900 dark:text-zinc-200">
                 {formatTurkishDate(selectedDate)}
               </span>
-              <ChevronDown className="w-3 h-3 text-zinc-500 group-hover:text-zinc-300" />
+              <ChevronDown className="w-3 h-3 text-slate-500 dark:text-zinc-500 group-hover:text-slate-800 dark:group-hover:text-zinc-300" />
             </button>
 
             {showMonthPicker && (
@@ -300,43 +301,6 @@ export function DailyScheduler({
               </>
             )}
           </div>
-
-          {/* Quick switches: [Dün] [Bugün] [Yarın] */}
-          <div className="flex items-center bg-[#12141e] p-0.5 rounded-md border border-white/[0.06]">
-            <button
-              type="button"
-              onClick={() => setSelectedDate(yesterdayStr)}
-              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer ${
-                selectedDate === yesterdayStr
-                  ? 'bg-zinc-800 text-white shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              Dün
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedDate(todayStr)}
-              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer ${
-                selectedDate === todayStr
-                  ? 'bg-zinc-700 text-white shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              Bugün
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedDate(tomorrowStr)}
-              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer ${
-                selectedDate === tomorrowStr
-                  ? 'bg-zinc-800 text-white shadow-xs'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              Yarın
-            </button>
-          </div>
         </div>
 
         {/* Action Buttons */}
@@ -346,20 +310,20 @@ export function DailyScheduler({
             <button
               type="button"
               onClick={() => onFillStandardWeek(selectedDate)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181a26] hover:bg-[#1e2130] text-zinc-300 hover:text-white border border-white/[0.08] text-xs font-medium transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-800 hover:text-slate-950 border border-slate-300 dark:bg-[#181a26] dark:hover:bg-[#1e2130] dark:text-zinc-300 dark:hover:text-white dark:border-white/[0.08] text-xs font-semibold transition-colors cursor-pointer"
               title="Bu haftanın tüm okul günlerine standart saatleri oluştur"
             >
-              <Zap className="w-3.5 h-3.5 text-zinc-400" />
+              <Zap className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400" />
               <span>Haftalık Saatleri Aç</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={() => onFillStandardSlots(selectedDate)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181a26] hover:bg-[#1e2130] text-zinc-300 hover:text-white border border-white/[0.08] text-xs font-medium transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-800 hover:text-slate-950 border border-slate-300 dark:bg-[#181a26] dark:hover:bg-[#1e2130] dark:text-zinc-300 dark:hover:text-white dark:border-white/[0.08] text-xs font-semibold transition-colors cursor-pointer"
               title="Günün 40 dakikalık standart ders seanslarını otomatik oluştur"
             >
-              <Zap className="w-3.5 h-3.5 text-zinc-400" />
+              <Zap className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400" />
               <span>Standart Saatler</span>
             </button>
           )}
@@ -368,7 +332,7 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={() => setShowAddCustomModal(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181a26] hover:bg-[#1e2130] border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 border border-slate-300 dark:bg-[#181a26] dark:hover:bg-[#1e2130] dark:border-white/[0.08] text-slate-800 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white text-xs font-semibold transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Seans</span>
@@ -378,10 +342,10 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={() => setIsScheduleConfigOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#221f1a] hover:bg-[#2c2822] border border-amber-500/25 text-amber-200/90 hover:text-amber-100 text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-300 dark:bg-[#221f1a] dark:hover:bg-[#2c2822] dark:border-amber-500/25 text-amber-950 hover:text-amber-900 dark:text-amber-200/90 dark:hover:text-amber-100 text-xs font-semibold transition-colors cursor-pointer"
             title="Seans dakikası, teneffüs süresi belirle, tablo saatlerini kaydır veya teneffüs ekle"
           >
-            <Sliders className="w-3.5 h-3.5 text-amber-300/80" />
+            <Sliders className="w-3.5 h-3.5 text-amber-600 dark:text-amber-300/80" />
             <span>Program & Teneffüs Planla</span>
           </button>
 
@@ -389,35 +353,22 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={() => setShowPrintModal(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181a26] hover:bg-[#1e2130] border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 border border-slate-300 dark:bg-[#181a26] dark:hover:bg-[#1e2130] dark:border-white/[0.08] text-slate-800 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white text-xs font-semibold transition-colors cursor-pointer"
             title="Resmi görüşme defteri ve A4 çıktısı"
           >
-            <Printer className="w-3.5 h-3.5 text-zinc-400" />
+            <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400" />
             <span>Defter</span>
-          </button>
-
-          {/* WhatsApp Broadcast Shortcut */}
-          <button
-            type="button"
-            onClick={onOpenBroadcast}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-white/[0.1] text-xs font-medium transition-colors cursor-pointer"
-          >
-            <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-            <span>WhatsApp İlanı</span>
-            <kbd className="px-1 py-0.2 rounded bg-zinc-900 text-[10px] font-mono text-zinc-400 border border-white/[0.08]">
-              ⌘↵
-            </kbd>
           </button>
         </div>
       </div>
 
       {/* Interactive Week Navigation Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-[#141622] px-3 py-2 rounded-lg border border-white/[0.06]">
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-[#141622] px-3 py-2 rounded-lg border border-slate-200 dark:border-white/[0.06] shadow-xs">
         <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => setSelectedDate(shiftDateString(selectedDate, -7))}
-            className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
             title="Önceki Hafta (7 gün önce)"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -431,49 +382,40 @@ export function DailyScheduler({
               const dayFilled = daySessions.filter((s) => s.student_id).length;
 
               return (
-                <div
+                <button
                   key={day.date}
-                  className="flex items-center group/day rounded-md overflow-hidden"
+                  type="button"
+                  onClick={() => setSelectedDate(day.date)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-slate-900 text-white font-semibold shadow-xs border border-slate-900 dark:bg-zinc-800 dark:text-white dark:border-white/20'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-800 hover:text-slate-950 border border-slate-200 dark:bg-white/[0.03] dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-900 dark:border-transparent'
+                  }`}
+                  title={`${day.shortDayName} gününü seç`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setSelectedDate(day.date)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 text-xs transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-zinc-800 text-white font-medium shadow-xs border-y border-l border-white/20'
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 border-y border-l border-transparent'
+                  <span className="font-bold">{day.shortDayName}</span>
+                  <span
+                    className={`text-[11px] font-mono ${
+                      isSelected ? 'text-slate-200 dark:text-zinc-300' : 'text-slate-600 dark:text-zinc-400'
                     }`}
-                    title={`${day.shortDayName} gününü seç`}
                   >
-                    <span className="font-semibold">{day.shortDayName}</span>
-                    <span className="text-[11px] font-mono text-zinc-300">{day.dayNumber}</span>
-                    {day.isToday && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Bugün" />
-                    )}
-                    {dayTotal > 0 && (
-                      <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-white/[0.06] text-zinc-400">
-                        {dayFilled}/{dayTotal}
-                      </span>
-                    )}
-                  </button>
-
-                  {/* WhatsApp button right beside each day */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenBroadcast(day.date);
-                    }}
-                    className={`px-1.5 py-1 text-[10px] transition-colors cursor-pointer flex items-center justify-center ${
-                      isSelected
-                        ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 border-y border-r border-white/20'
-                        : 'bg-zinc-900/60 text-zinc-500 hover:text-emerald-400 hover:bg-emerald-950/40 border-y border-r border-transparent'
-                    }`}
-                    title={`${day.shortDayName} (${day.dayNumber}) WhatsApp Seans İlanı`}
-                  >
-                    <MessageSquare className="w-3 h-3 text-emerald-400" />
-                  </button>
-                </div>
+                    {day.dayNumber}
+                  </span>
+                  {day.isToday && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Bugün" />
+                  )}
+                  {dayTotal > 0 && (
+                    <span
+                      className={`text-[10px] font-mono px-1 py-0.5 rounded ${
+                        isSelected
+                          ? 'bg-white/20 text-white'
+                          : 'bg-slate-200 text-slate-800 dark:bg-white/[0.06] dark:text-zinc-400'
+                      }`}
+                    >
+                      {dayFilled}/{dayTotal}
+                    </span>
+                  )}
+                </button>
               );
             })}
           </div>
@@ -481,7 +423,7 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={() => setSelectedDate(shiftDateString(selectedDate, 7))}
-            className="p-1.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
             title="Sonraki Hafta (7 gün sonra)"
           >
             <ChevronRight className="w-4 h-4" />
@@ -492,12 +434,12 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={() => setSelectedDate(todayStr)}
-            className="text-zinc-400 hover:text-white hover:underline cursor-pointer"
+            className="text-slate-700 hover:text-slate-950 font-medium hover:underline cursor-pointer dark:text-zinc-400 dark:hover:text-white"
           >
             Bugüne Dön
           </button>
-          <span className="text-zinc-700">|</span>
-          <span className="text-zinc-400 font-mono text-[11px]">
+          <span className="text-slate-300 dark:text-zinc-700">|</span>
+          <span className="text-slate-700 dark:text-zinc-400 font-mono text-[11px] font-medium">
             {currentWeekDays[0]?.dayNumber} - {currentWeekDays[currentWeekDays.length - 1]?.dayNumber}{' '}
             {formatTurkishDate(selectedDate).split(' ')[1]}
           </span>
@@ -933,6 +875,20 @@ export function DailyScheduler({
               </tbody>
             </table>
           </div>
+
+          {/* Sticky Bottom WhatsApp Broadcast Toolbar */}
+          {/* "Takvimin en altına buton olarak koy, sayfa hareket edince onlar da hareket etsin." */}
+          <CalendarBottomWhatsAppBar
+            days={currentWeekDays}
+            selectedDate={selectedDate}
+            sessions={sessions}
+            students={students}
+            counselorName={counselorName}
+            onOpenBroadcast={onOpenBroadcast}
+            onSelectDate={setSelectedDate}
+            onShowToast={onShowToast}
+            viewMode="daily"
+          />
         </div>
         )}
       </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Student, Session, User, ScheduleConfig } from './types';
 import { StorageService, getTodayDateString } from './lib/storage';
 import { AuthService } from './lib/auth';
-import { generateGroupBroadcastText } from './lib/whatsapp';
+import { generateGroupBroadcastText, copyToClipboard } from './lib/whatsapp';
 import { Header } from './components/Header';
 import { RiskRadarBar, RiskFilter } from './components/RiskRadarBar';
 import { DailyScheduler } from './components/DailyScheduler';
@@ -35,19 +35,6 @@ export default function App() {
   // Risk filter state
   const [activeRiskFilter, setActiveRiskFilter] = useState<RiskFilter>('none');
 
-  // Modals state
-  const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
-  const [broadcastDate, setBroadcastDate] = useState<string>(() => getTodayDateString());
-  const [isSmartPasteOpen, setIsSmartPasteOpen] = useState(false);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<Student | null>(null);
-  const [selectedStudentForHistory, setSelectedStudentForHistory] = useState<Student | null>(null);
-
-  const handleOpenBroadcast = useCallback((date?: string) => {
-    setBroadcastDate(date || selectedDate);
-    setIsBroadcastModalOpen(true);
-  }, [selectedDate]);
-
   // Toast notifications
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -65,6 +52,41 @@ export default function App() {
   const dismissToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
+
+  // Theme state ('light' by default per user request: "Beyaz tema yap ama karanlık tema ekle")
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('pusula_theme');
+    return saved === 'dark' ? 'dark' : 'light';
+  });
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('pusula_theme', theme);
+  }, [theme]);
+
+  // Modals state
+  const [isBroadcastModalOpen, setIsBroadcastModalOpen] = useState(false);
+  const [broadcastDate, setBroadcastDate] = useState<string>(() => getTodayDateString());
+  const [isSmartPasteOpen, setIsSmartPasteOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [selectedStudentForProfile, setSelectedStudentForProfile] = useState<Student | null>(null);
+  const [selectedStudentForHistory, setSelectedStudentForHistory] = useState<Student | null>(null);
+
+  const handleOpenBroadcast = useCallback((date?: string) => {
+    setBroadcastDate(date || selectedDate);
+    setIsBroadcastModalOpen(true);
+  }, [selectedDate]);
 
   // Auth Handlers
   const handleOpenAuth = useCallback((mode: 'signin' | 'signup' = 'signin') => {
@@ -130,14 +152,14 @@ export default function App() {
           counselor
         );
 
-        try {
-          await navigator.clipboard.writeText(text);
+        const success = await copyToClipboard(text);
+        if (success) {
           showToast(
             'Grup İlanı Panoya Kopyalandı (⌘↵)',
             'WhatsApp için profesyonel günlük seans tablosu hazır.',
             'success'
           );
-        } catch {
+        } else {
           setIsBroadcastModalOpen(true);
         }
       }
@@ -270,7 +292,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#121319] text-zinc-200 flex flex-col selection:bg-zinc-800 selection:text-zinc-100">
+    <div className={`min-h-screen ${theme === 'dark' ? 'dark bg-[#121319] text-zinc-200' : 'light bg-slate-50 text-slate-900'} flex flex-col selection:bg-emerald-500/20`}>
       {/* Linear Style Header */}
       <Header
         activeTab={activeTab}
@@ -284,29 +306,31 @@ export default function App() {
         onOpenAuth={handleOpenAuth}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onSignOut={handleSignOut}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Guest Mode Notice Bar (if not logged in) */}
       {!currentUser && (
-        <div className="bg-[#161822] border-b border-white/[0.08] px-4 sm:px-6 py-2 text-xs flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-zinc-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-500/80 shrink-0" />
-            <span className="text-[11px] sm:text-xs text-zinc-300">
-              <strong className="text-zinc-100">Misafir Modu:</strong> Seansları kendi adınız ve okulunuzla yönetmek, WhatsApp ilanlarında ünvanınızı kullanmak için giriş yapın.
+        <div className="bg-slate-100 dark:bg-[#161822] border-b border-slate-200 dark:border-white/[0.08] px-4 sm:px-6 py-2 text-xs flex flex-wrap items-center justify-between gap-3 transition-colors">
+          <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-300">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <span className="text-[11px] sm:text-xs">
+              <strong className="text-slate-900 dark:text-zinc-100 font-semibold">Misafir Modu:</strong> Seansları kendi adınız ve okulunuzla yönetmek, WhatsApp ilanlarında ünvanınızı kullanmak için giriş yapın.
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => handleOpenAuth('signin')}
-              className="px-2.5 py-1 rounded-md bg-zinc-800 hover:bg-zinc-750 text-zinc-200 hover:text-white text-xs font-medium cursor-pointer transition-colors"
+              className="px-2.5 py-1 rounded-md bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-750 dark:text-zinc-200 dark:hover:text-white dark:border-transparent text-xs font-medium cursor-pointer transition-colors shadow-2xs"
             >
               Giriş Yap
             </button>
             <button
               type="button"
               onClick={() => handleOpenAuth('signup')}
-              className="px-2.5 py-1 rounded-md bg-emerald-700/90 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer transition-colors"
+              className="px-2.5 py-1 rounded-md bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer transition-colors shadow-2xs"
             >
               Kayıt Ol
             </button>
@@ -438,6 +462,8 @@ export default function App() {
         currentUser={currentUser}
         onOpenAuth={handleOpenAuth}
         onOpenProfile={() => setIsProfileModalOpen(true)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Student History Quick Modal (when triggered from scheduler or command palette) */}

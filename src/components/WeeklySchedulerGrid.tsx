@@ -34,6 +34,7 @@ import {
   getWhatsAppDirectUrl,
 } from '../lib/whatsapp';
 import { ScheduleConfigModal } from './ScheduleConfigModal';
+import { CalendarBottomWhatsAppBar } from './CalendarBottomWhatsAppBar';
 
 interface WeeklySchedulerGridProps {
   baseDate: string;
@@ -300,26 +301,26 @@ export function WeeklySchedulerGrid({
   return (
     <div className="space-y-4">
       {/* Top Header & Schedule Control Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0a0c10] p-3 rounded-2xl border border-white/[0.08] shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#0a0c10] p-3 rounded-2xl border border-slate-200 dark:border-white/[0.08] shadow-sm">
         {/* Left: Summary Metrics & Visual Filter */}
         <div className="flex flex-wrap items-center gap-2.5 text-xs">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-            <span className="text-zinc-400">Haftalık Seans:</span>
-            <span className="font-bold text-white font-mono">{weekStats.total}</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06]">
+            <span className="text-slate-600 dark:text-zinc-400 font-medium">Haftalık Seans:</span>
+            <span className="font-bold text-slate-900 dark:text-white font-mono">{weekStats.total}</span>
           </div>
 
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-950/30 border border-emerald-500/25 text-emerald-300">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-500/25 text-emerald-900 dark:text-emerald-300 font-medium">
             <span>Dolu:</span>
             <span className="font-semibold font-mono">{weekStats.filled}</span>
           </div>
 
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/[0.03] border border-white/[0.06] text-zinc-300">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.06] text-slate-800 dark:text-zinc-300 font-medium">
             <span>Tamamlanan:</span>
-            <span className="font-semibold font-mono text-white">{weekStats.attended}</span>
+            <span className="font-semibold font-mono text-slate-900 dark:text-white">{weekStats.attended}</span>
           </div>
 
           {weekStats.missed > 0 && (
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-rose-950/30 border border-rose-500/25 text-rose-300">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-500/25 text-rose-900 dark:text-rose-300 font-medium">
               <span>Gelmeyen:</span>
               <span className="font-semibold font-mono">{weekStats.missed}</span>
             </div>
@@ -803,17 +804,17 @@ export function WeeklySchedulerGrid({
                   <div className="flex items-baseline gap-1.5">
                     <span
                       className={`text-xs font-bold tracking-tight ${
-                        day.isToday ? 'text-emerald-400' : isSelected ? 'text-zinc-100' : 'text-zinc-200'
+                        day.isToday ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-zinc-100'
                       }`}
                     >
                       {day.dayName}
                     </span>
-                    <span className="text-[11px] font-mono text-zinc-400">{day.dayNumber}</span>
+                    <span className="text-[11px] font-mono text-slate-600 dark:text-zinc-400">{day.dayNumber}</span>
                   </div>
 
                   <div className="flex items-center gap-1">
                     {day.isToday && (
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/25">
                         Bugün
                       </span>
                     )}
@@ -826,23 +827,10 @@ export function WeeklySchedulerGrid({
                         handleShiftTime([day.date], 10);
                         onShowToast('Saatler Kaydırıldı', `${day.dayName} saatleri 10 dk ileri alındı.`, 'info');
                       }}
-                      className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors cursor-pointer"
+                      className="p-1 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-200 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                       title={`${day.dayName} saatlerini +10 dk kaydır`}
                     >
-                      <Clock className="w-3 h-3 text-zinc-400" />
-                    </button>
-
-                    {/* WhatsApp button for this specific day */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenBroadcast(day.date);
-                      }}
-                      className="p-1 rounded-md text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors cursor-pointer"
-                      title={`${day.shortDayName} (${day.dayNumber}) WhatsApp İlanını Aç`}
-                    >
-                      <MessageSquare className="w-3 h-3" />
+                      <Clock className="w-3 h-3 text-slate-500 dark:text-zinc-400" />
                     </button>
                   </div>
                 </div>
@@ -1170,6 +1158,20 @@ export function WeeklySchedulerGrid({
           );
         })}
       </div>
+
+      {/* STICKY BOTTOM WHATSAPP BROADCAST TOOLBAR */}
+      {/* "Takvimin en altına buton olarak koy, sayfa hareket edince onlar da hareket etsin." */}
+      <CalendarBottomWhatsAppBar
+        days={weekDays}
+        selectedDate={baseDate}
+        sessions={sessions}
+        students={students}
+        counselorName={counselorName}
+        onOpenBroadcast={onOpenBroadcast}
+        onSelectDate={onSelectDate}
+        onShowToast={onShowToast}
+        viewMode="weekly"
+      />
 
       {/* SCHEDULE CONFIGURATION MODAL (Minutes, Breaks, Shift, Recess) */}
       <ScheduleConfigModal

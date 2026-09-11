@@ -130,17 +130,17 @@ export function StudentCRMDirectory({
   return (
     <div className="space-y-3">
       {/* Top Filter Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-[#141622] p-2.5 rounded-lg border border-white/[0.07]">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-[#141622] p-2.5 rounded-lg border border-slate-200 dark:border-white/[0.07] shadow-xs transition-colors">
         <div className="flex flex-wrap items-center gap-2 flex-1 max-w-2xl">
           {/* Search Input */}
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Öğrenci, sınıf veya telefon ara..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-md bg-[#12141e] border border-white/[0.08] text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+              className="w-full pl-8 pr-3 py-1.5 rounded-md bg-slate-50 dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-slate-500 dark:focus:border-zinc-500"
             />
           </div>
 
@@ -148,7 +148,7 @@ export function StudentCRMDirectory({
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="px-2.5 py-1.5 rounded-md bg-[#12141e] border border-white/[0.08] text-xs text-zinc-300 focus:outline-none focus:border-zinc-500 cursor-pointer"
+            className="px-2.5 py-1.5 rounded-md bg-slate-50 dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-xs text-slate-900 dark:text-zinc-300 focus:outline-none focus:border-slate-500 dark:focus:border-zinc-500 cursor-pointer font-medium"
           >
             <option value="all">Tüm Sınıflar</option>
             {classes.map((cls) => (
@@ -162,7 +162,7 @@ export function StudentCRMDirectory({
           <select
             value={selectedTag}
             onChange={(e) => setSelectedTag(e.target.value)}
-            className="px-2.5 py-1.5 rounded-md bg-[#12141e] border border-white/[0.08] text-xs text-zinc-300 focus:outline-none focus:border-zinc-500 max-w-[160px] truncate cursor-pointer"
+            className="px-2.5 py-1.5 rounded-md bg-slate-50 dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-xs text-slate-900 dark:text-zinc-300 focus:outline-none focus:border-slate-500 dark:focus:border-zinc-500 max-w-[160px] truncate cursor-pointer font-medium"
           >
             <option value="all">Tüm Etiketler</option>
             {DIAGNOSTIC_TAGS.map((tag) => (
@@ -174,13 +174,14 @@ export function StudentCRMDirectory({
 
           {/* Active Risk Radar indication badge */}
           {activeRiskFilter !== 'none' && (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30 text-amber-950 dark:text-amber-300 text-xs font-semibold shadow-2xs">
               <span>
-                {activeRiskFilter === 'uncontacted_20d' ? '20+ Gün' : 'Gelmeyenler'}
+                {activeRiskFilter === 'uncontacted_20d' ? '20+ Gün İletişimsiz' : 'Gelmeyenler'}
               </span>
               <button
                 onClick={onClearRiskFilter}
-                className="text-amber-400 hover:text-white font-bold ml-0.5 cursor-pointer"
+                className="text-amber-800 dark:text-amber-400 hover:text-black dark:hover:text-white font-bold ml-1 cursor-pointer"
+                title="Filtreyi kaldır"
               >
                 &times;
               </button>
@@ -193,17 +194,17 @@ export function StudentCRMDirectory({
           {/* CSV Export Button */}
           <button
             onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#181a26] hover:bg-[#1e2130] border border-white/[0.08] text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#181a26] dark:hover:bg-[#1e2130] border border-slate-300 dark:border-white/[0.08] text-slate-800 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white text-xs font-medium transition-colors cursor-pointer shadow-2xs"
             title="CSV formatında indir"
           >
-            <Download className="w-3.5 h-3.5 text-zinc-400" />
+            <Download className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400" />
             <span>CSV İndir</span>
           </button>
 
           {/* Add Student Button */}
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-white/[0.1] text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white dark:text-zinc-100 border border-slate-900 dark:border-white/[0.1] text-xs font-medium transition-colors cursor-pointer shadow-xs"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Öğrenci Ekle</span>
@@ -212,22 +213,22 @@ export function StudentCRMDirectory({
       </div>
 
       {/* Students Table */}
-      <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-[#141622] shadow-2xl">
+      <div className="border border-slate-200 dark:border-white/[0.08] rounded-xl overflow-hidden bg-white dark:bg-[#141622] shadow-sm dark:shadow-2xl transition-colors">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-[#12141e] border-b border-white/[0.06] text-zinc-400 text-xs">
-                <th className="py-2 px-3 font-normal">Öğrenci & Sınıf</th>
-                <th className="py-2 px-3 font-normal">Telefon</th>
-                <th className="py-2 px-3 font-normal">Son Görüşme</th>
-                <th className="py-2 px-3 font-normal">Hedef & Etiket</th>
-                <th className="py-2 px-3 text-right font-normal">İşlem</th>
+              <tr className="bg-slate-50 dark:bg-[#12141e] border-b border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-zinc-400 text-xs font-semibold">
+                <th className="py-2.5 px-3 font-semibold text-slate-900 dark:text-zinc-200">Öğrenci & Sınıf</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-900 dark:text-zinc-200">Telefon</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-900 dark:text-zinc-200">Son Görüşme</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-900 dark:text-zinc-200">Hedef & Etiket</th>
+                <th className="py-2.5 px-3 text-right font-semibold text-slate-900 dark:text-zinc-200">İşlem</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.04] font-sans">
+            <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04] font-sans">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-zinc-500">
+                  <td colSpan={5} className="py-12 text-center text-slate-500 dark:text-zinc-500">
                     Öğrenci kaydı bulunamadı.
                   </td>
                 </tr>
@@ -241,23 +242,23 @@ export function StudentCRMDirectory({
                   return (
                     <tr
                       key={student.id}
-                      className="group hover:bg-white/[0.02] transition-colors"
+                      className="group hover:bg-slate-50/90 dark:hover:bg-white/[0.02] transition-colors"
                     >
                       {/* Name & Grade */}
                       <td className="py-2.5 px-3">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setHistoryStudent(student)}
-                            className="font-medium text-zinc-200 hover:text-white text-left hover:underline cursor-pointer"
+                            className="font-semibold text-slate-900 hover:text-emerald-700 dark:text-zinc-200 dark:hover:text-white text-left hover:underline cursor-pointer"
                           >
                             {student.full_name}
                           </button>
-                          <span className="text-[10px] font-mono text-zinc-400 shrink-0">
+                          <span className="text-[11px] font-mono text-slate-600 dark:text-zinc-400 shrink-0 font-medium">
                             {student.class_grade}
                           </span>
                           {isUncontacted20d && (
                             <span
-                              className="w-1.5 h-1.5 rounded-full bg-amber-400"
+                              className="w-2 h-2 rounded-full bg-amber-500 shrink-0 shadow-2xs"
                               title="20+ gündür görüşülmedi"
                             />
                           )}
@@ -265,9 +266,9 @@ export function StudentCRMDirectory({
                       </td>
 
                       {/* Phone */}
-                      <td className="py-2.5 px-3 font-mono text-zinc-300 whitespace-nowrap">
+                      <td className="py-2.5 px-3 font-mono text-slate-800 dark:text-zinc-300 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
-                          <Phone className="w-3 h-3 text-zinc-500" />
+                          <Phone className="w-3 h-3 text-slate-400 dark:text-zinc-500" />
                           <span>{displayPhone(student.phone)}</span>
                         </div>
                       </td>
@@ -276,13 +277,13 @@ export function StudentCRMDirectory({
                       <td className="py-2.5 px-3 whitespace-nowrap">
                         {student.last_meeting_date ? (
                           <div className="flex items-center gap-1.5">
-                            <Clock className={`w-3.5 h-3.5 ${isUncontacted20d ? 'text-amber-400' : 'text-zinc-500'}`} />
-                            <span className={isUncontacted20d ? 'text-amber-300 font-medium' : 'text-zinc-300'}>
+                            <Clock className={`w-3.5 h-3.5 ${isUncontacted20d ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-zinc-500'}`} />
+                            <span className={isUncontacted20d ? 'text-amber-800 dark:text-amber-300 font-semibold' : 'text-slate-700 dark:text-zinc-300'}>
                               {formatTurkishDate(student.last_meeting_date)}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-zinc-500 text-[11px] flex items-center gap-1">
+                          <span className="text-slate-400 dark:text-zinc-500 text-[11px] flex items-center gap-1">
                             Hiç görüşülmedi
                           </span>
                         )}
@@ -292,18 +293,18 @@ export function StudentCRMDirectory({
                       <td className="py-2.5 px-3">
                         <div className="space-y-1">
                           {student.target_goal && (
-                            <div className="text-[11px] text-zinc-300 font-normal truncate max-w-xs">
+                            <div className="text-[11px] text-slate-800 dark:text-zinc-300 font-normal truncate max-w-xs">
                               {student.target_goal}
                             </div>
                           )}
 
                           {student.status_flags && student.status_flags.length > 0 && (
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700/60">
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700/60 font-medium">
                                 {student.status_flags[0]}
                               </span>
                               {student.status_flags.length > 1 && (
-                                <span className="text-[11px] text-zinc-400 font-normal">
+                                <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-normal">
                                   {student.status_flags.slice(1).join(', ')}
                                 </span>
                               )}
@@ -318,16 +319,16 @@ export function StudentCRMDirectory({
                           {/* Quick Schedule */}
                           <button
                             onClick={() => onQuickScheduleStudent(student)}
-                            className="p-1.5 rounded-md bg-[#0e1015] hover:bg-zinc-800 border border-white/[0.08] text-zinc-300 hover:text-white text-xs transition-colors cursor-pointer"
+                            className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#0e1015] dark:hover:bg-zinc-800 border border-slate-300 dark:border-white/[0.08] text-slate-700 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white text-xs transition-colors cursor-pointer shadow-2xs"
                             title="Bugüne seans planla"
                           >
-                            <Calendar className="w-3.5 h-3.5" />
+                            <Calendar className="w-3.5 h-3.5 text-slate-700 dark:text-zinc-300" />
                           </button>
 
                           {/* WhatsApp Direct Chat */}
                           <button
                             onClick={() => handleOpenDirectChat(student)}
-                            className="p-1.5 rounded-md bg-[#0e1015] hover:bg-zinc-800 border border-white/[0.08] text-emerald-400 hover:text-emerald-300 text-xs transition-colors cursor-pointer"
+                            className="p-1.5 rounded-md bg-emerald-50 hover:bg-emerald-100 dark:bg-[#0e1015] dark:hover:bg-zinc-800 border border-emerald-300 dark:border-white/[0.08] text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 text-xs transition-colors cursor-pointer shadow-2xs"
                             title="WhatsApp mesajı"
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
@@ -336,19 +337,19 @@ export function StudentCRMDirectory({
                           {/* Past Meeting History */}
                           <button
                             onClick={() => setHistoryStudent(student)}
-                            className="p-1.5 rounded-md bg-[#0e1015] hover:bg-zinc-800 border border-white/[0.08] text-zinc-400 hover:text-white text-xs transition-colors cursor-pointer"
+                            className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#0e1015] dark:hover:bg-zinc-800 border border-slate-300 dark:border-white/[0.08] text-slate-700 hover:text-slate-950 dark:text-zinc-400 dark:hover:text-white text-xs transition-colors cursor-pointer shadow-2xs"
                             title="Geçmiş seanslar"
                           >
-                            <History className="w-3.5 h-3.5" />
+                            <History className="w-3.5 h-3.5 text-slate-700 dark:text-zinc-400" />
                           </button>
 
                           {/* Edit Profile */}
                           <button
                             onClick={() => setEditingStudent(student)}
-                            className="p-1.5 rounded-md bg-[#0e1015] hover:bg-zinc-800 border border-white/[0.08] text-zinc-400 hover:text-white text-xs transition-colors cursor-pointer"
+                            className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#0e1015] dark:hover:bg-zinc-800 border border-slate-300 dark:border-white/[0.08] text-slate-700 hover:text-slate-950 dark:text-zinc-400 dark:hover:text-white text-xs transition-colors cursor-pointer shadow-2xs"
                             title="Düzenle"
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
+                            <Edit2 className="w-3.5 h-3.5 text-slate-700 dark:text-zinc-400" />
                           </button>
 
                           {/* Delete Student */}
@@ -359,7 +360,7 @@ export function StudentCRMDirectory({
                                 onShowToast('Öğrenci Silindi', student.full_name, 'info');
                               }
                             }}
-                            className="p-1.5 rounded-md text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                             title="Sil"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

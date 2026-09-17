@@ -66,14 +66,14 @@ export function CalendarMonthPicker({
 
   return (
     <div 
-      className="absolute top-full left-0 mt-2 z-50 w-72 bg-[#0c0d13] border border-white/[0.12] rounded-xl shadow-2xl p-3.5 backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
+      className="absolute top-full left-0 mt-2 z-50 w-72 bg-white dark:bg-[#0c0d13] border border-slate-200 dark:border-white/[0.12] rounded-xl shadow-2xl p-3.5 backdrop-blur-md animate-in fade-in zoom-in-95 duration-100 text-slate-800 dark:text-zinc-200"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200 dark:border-white/[0.06]">
         <div className="flex items-center gap-1.5">
-          <CalendarIcon className="w-4 h-4 text-zinc-400" />
-          <span className="text-xs font-semibold text-white">
+          <CalendarIcon className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
+          <span className="text-xs font-semibold text-slate-900 dark:text-white">
             {TURKISH_MONTHS[viewMonth]} {viewYear}
           </span>
         </div>
@@ -81,7 +81,7 @@ export function CalendarMonthPicker({
           <button
             type="button"
             onClick={handlePrevMonth}
-            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
             title="Önceki Ay"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -89,7 +89,7 @@ export function CalendarMonthPicker({
           <button
             type="button"
             onClick={handleNextMonth}
-            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
             title="Sonraki Ay"
           >
             <ChevronRight className="w-4 h-4" />
@@ -97,7 +97,7 @@ export function CalendarMonthPicker({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors ml-1 cursor-pointer"
+            className="p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-white transition-colors ml-1 cursor-pointer"
             title="Kapat"
           >
             <X className="w-3.5 h-3.5" />
@@ -110,7 +110,7 @@ export function CalendarMonthPicker({
         {WEEKDAY_HEADERS.map((day, idx) => (
           <span 
             key={day} 
-            className={`text-[11px] font-mono font-medium ${idx >= 5 ? 'text-zinc-500' : 'text-zinc-400'}`}
+            className={`text-[11px] font-mono font-medium ${idx >= 5 ? 'text-slate-400 dark:text-zinc-500' : 'text-slate-600 dark:text-zinc-400'}`}
           >
             {day}
           </span>
@@ -133,12 +133,12 @@ export function CalendarMonthPicker({
               }}
               className={`relative flex flex-col items-center justify-center h-8 rounded text-xs transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-white text-zinc-950 font-bold shadow-sm'
+                  ? 'bg-emerald-600 text-white dark:bg-white dark:text-zinc-950 font-bold shadow-xs'
                   : d.isToday
-                  ? 'bg-zinc-800 text-white font-semibold border border-zinc-500/50'
+                  ? 'bg-slate-200 text-slate-900 dark:bg-zinc-800 dark:text-white font-semibold border border-slate-300 dark:border-zinc-500/50'
                   : d.isCurrentMonth
-                  ? 'text-zinc-200 hover:bg-zinc-800/80 hover:text-white'
-                  : 'text-zinc-600 hover:bg-zinc-900 hover:text-zinc-400'
+                  ? 'text-slate-700 hover:bg-slate-100 hover:text-slate-950 dark:text-zinc-200 dark:hover:bg-zinc-800/80 dark:hover:text-white'
+                  : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600 dark:text-zinc-600 dark:hover:bg-zinc-900 dark:hover:text-zinc-400'
               }`}
             >
               <span>{d.dayNumber}</span>
@@ -147,10 +147,10 @@ export function CalendarMonthPicker({
                 <span
                   className={`absolute bottom-0.5 w-1 h-1 rounded-full ${
                     isSelected
-                      ? 'bg-zinc-950'
+                      ? 'bg-white dark:bg-zinc-950'
                       : d.isToday
-                      ? 'bg-emerald-400'
-                      : 'bg-zinc-400'
+                      ? 'bg-emerald-600 dark:bg-emerald-400'
+                      : 'bg-emerald-500 dark:bg-zinc-400'
                   }`}
                   title={`${sessionCount} seans`}
                 />
@@ -161,11 +161,11 @@ export function CalendarMonthPicker({
       </div>
 
       {/* Footer / Quick jump */}
-      <div className="mt-3 pt-2 border-t border-white/[0.06] flex items-center justify-between text-xs">
+      <div className="mt-3 pt-2 border-t border-slate-200 dark:border-white/[0.06] flex items-center justify-between text-xs">
         <button
           type="button"
           onClick={handleGoToday}
-          className="text-xs text-zinc-400 hover:text-white font-medium hover:underline cursor-pointer"
+          className="text-xs text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white font-medium hover:underline cursor-pointer"
         >
           Bugüne Git
         </button>
@@ -177,7 +177,7 @@ export function CalendarMonthPicker({
               onOpenBroadcast(selectedDate);
               onClose();
             }}
-            className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1 text-[11px] text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium transition-colors cursor-pointer"
             title="Seçili günün WhatsApp ilanını aç"
           >
             <MessageSquare className="w-3 h-3" />
@@ -185,7 +185,7 @@ export function CalendarMonthPicker({
           </button>
         )}
 
-        <span className="text-[11px] text-zinc-500 font-mono">
+        <span className="text-[11px] text-slate-500 dark:text-zinc-500 font-mono">
           {sessionsByDate.get(selectedDate) || 0} seans
         </span>
       </div>

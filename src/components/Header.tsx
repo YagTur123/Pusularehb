@@ -280,13 +280,13 @@ export function Header({
           )}
 
           {/* Authentication & Counselor Profile */}
-          <div className="relative pl-2 border-l border-white/[0.08]" ref={userMenuRef}>
+          <div className="relative pl-2 border-l border-slate-200 dark:border-white/[0.08]" ref={userMenuRef}>
             {currentUser ? (
               <div>
                 <button
                   type="button"
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-white/[0.05] border border-transparent hover:border-white/[0.08] transition-all cursor-pointer group"
+                  className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.05] border border-transparent hover:border-slate-200 dark:hover:border-white/[0.08] transition-all cursor-pointer group"
                   title={`${currentUser.name} - ${currentUser.role}`}
                 >
                   <div
@@ -297,14 +297,14 @@ export function Header({
                     {currentUser.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="hidden sm:block text-left">
-                    <span className="block text-xs font-medium text-zinc-200 group-hover:text-white max-w-[130px] truncate leading-tight">
+                    <span className="block text-xs font-semibold text-slate-900 group-hover:text-slate-950 dark:text-zinc-200 dark:group-hover:text-white max-w-[130px] truncate leading-tight">
                       {currentUser.name}
                     </span>
-                    <span className="block text-[10px] text-zinc-500 max-w-[130px] truncate leading-tight">
+                    <span className="block text-[10px] text-slate-500 dark:text-zinc-400 max-w-[130px] truncate leading-tight">
                       {currentUser.role.split(' ')[0]}
                     </span>
                   </div>
-                  <ChevronDown className="w-3 h-3 text-zinc-500 group-hover:text-zinc-300 transition-transform" />
+                  <ChevronDown className="w-3 h-3 text-slate-500 group-hover:text-slate-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-transform" />
                 </button>
 
                 {/* User Dropdown Menu */}
@@ -409,11 +409,13 @@ export function Header({
       </div>
 
       {/* Mobile Sub-Navigation Bar */}
-      <div className="md:hidden flex items-center justify-around border-t border-white/[0.06] bg-[#08090a] px-2 py-1">
+      <div className="md:hidden flex items-center justify-around border-t border-slate-200 dark:border-white/[0.06] bg-slate-100 dark:bg-[#08090a] px-2 py-1">
         <button
           onClick={() => setActiveTab('scheduler')}
-          className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-medium rounded ${
-            activeTab === 'scheduler' ? 'bg-zinc-800 text-white' : 'text-zinc-400'
+          className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-medium rounded transition-colors cursor-pointer ${
+            activeTab === 'scheduler'
+              ? 'bg-white text-slate-900 shadow-2xs dark:bg-zinc-800 dark:text-white'
+              : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
           }`}
         >
           <Calendar className="w-3.5 h-3.5" />
@@ -421,8 +423,10 @@ export function Header({
         </button>
         <button
           onClick={() => setActiveTab('students')}
-          className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-medium rounded ${
-            activeTab === 'students' ? 'bg-zinc-800 text-white' : 'text-zinc-400'
+          className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-medium rounded transition-colors cursor-pointer ${
+            activeTab === 'students'
+              ? 'bg-white text-slate-900 shadow-2xs dark:bg-zinc-800 dark:text-white'
+              : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
           }`}
         >
           <Users className="w-3.5 h-3.5" />

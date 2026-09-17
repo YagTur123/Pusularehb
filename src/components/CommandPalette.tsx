@@ -281,11 +281,11 @@ export function CommandPalette({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-100">
-      <div className="bg-[#181a26] border border-white/[0.1] rounded-xl shadow-2xl max-w-xl w-full overflow-hidden text-zinc-200">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/40 dark:bg-black/70 backdrop-blur-xs animate-in fade-in duration-100">
+      <div className="bg-white dark:bg-[#181a26] border border-slate-200 dark:border-white/[0.1] rounded-xl shadow-2xl max-w-xl w-full overflow-hidden text-slate-800 dark:text-zinc-200">
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3.5 border-b border-white/[0.08] bg-[#141622]">
-          <Search className="w-4 h-4 text-zinc-500 mr-3 shrink-0" />
+        <div className="flex items-center px-4 py-3.5 border-b border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-[#141622]">
+          <Search className="w-4 h-4 text-slate-400 dark:text-zinc-500 mr-3 shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -296,17 +296,17 @@ export function CommandPalette({
             }}
             onKeyDown={handleKeyDown}
             placeholder="Bir komut yazın veya öğrenci arayın..."
-            className="w-full bg-transparent text-sm text-white placeholder-zinc-500 focus:outline-none"
+            className="w-full bg-transparent text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none"
           />
-          <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[10px] font-mono text-zinc-400">
+          <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 text-[10px] font-mono text-slate-600 dark:text-zinc-400">
             ESC
           </kbd>
         </div>
 
         {/* Results List */}
-        <div className="max-h-80 overflow-y-auto p-1.5 divide-y divide-white/[0.04]">
+        <div className="max-h-80 overflow-y-auto p-1.5 divide-y divide-slate-100 dark:divide-white/[0.04]">
           {items.length === 0 ? (
-            <div className="py-8 text-center text-xs text-zinc-500">
+            <div className="py-8 text-center text-xs text-slate-400 dark:text-zinc-500">
               Sonuç bulunamadı.
             </div>
           ) : (
@@ -319,17 +319,19 @@ export function CommandPalette({
                   onClick={item.action}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={`w-full text-left px-3 py-2 rounded-lg flex items-center justify-between text-xs transition-colors cursor-pointer ${
-                    isSelected ? 'bg-white/[0.08] text-white' : 'text-zinc-300 hover:bg-white/[0.04]'
+                    isSelected
+                      ? 'bg-slate-100 dark:bg-white/[0.08] text-slate-900 dark:text-white'
+                      : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.04]'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={isSelected ? 'text-white' : 'text-zinc-400'}>{item.icon}</div>
+                    <div className={isSelected ? 'text-emerald-600 dark:text-white' : 'text-slate-500 dark:text-zinc-400'}>{item.icon}</div>
                     <div className="min-w-0">
                       <p className="font-semibold truncate">{item.title}</p>
                       {item.subtitle && (
                         <p
                           className={`text-[11px] truncate ${
-                            isSelected ? 'text-zinc-300' : 'text-zinc-400'
+                            isSelected ? 'text-slate-600 dark:text-zinc-300' : 'text-slate-500 dark:text-zinc-400'
                           }`}
                         >
                           {item.subtitle}
@@ -342,13 +344,13 @@ export function CommandPalette({
                     <span
                       className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
                         isSelected
-                          ? 'bg-zinc-800 border-zinc-600 text-zinc-200'
-                          : 'bg-[#12141e] border-white/[0.06] text-zinc-500'
+                          ? 'bg-slate-200 border-slate-300 text-slate-800 dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-200'
+                          : 'bg-slate-50 border-slate-200 text-slate-500 dark:bg-[#12141e] dark:border-white/[0.06] dark:text-zinc-500'
                       }`}
                     >
                       {item.category}
                     </span>
-                    {isSelected && <ArrowRight className="w-3.5 h-3.5 text-zinc-300" />}
+                    {isSelected && <ArrowRight className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300" />}
                   </div>
                 </button>
               );
@@ -357,7 +359,7 @@ export function CommandPalette({
         </div>
 
         {/* Footer info */}
-        <div className="px-4 py-2 border-t border-white/[0.08] bg-[#141622] text-[11px] text-zinc-500 flex items-center justify-between">
+        <div className="px-4 py-2 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-[#141622] text-[11px] text-slate-500 dark:text-zinc-500 flex items-center justify-between">
           <span>Seçmek için &uarr; &darr; tuşlarını, çalıştırmak için Enter'ı kullanın</span>
           <span className="font-mono">{items.length} kayıt</span>
         </div>

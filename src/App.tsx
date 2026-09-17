@@ -8,7 +8,6 @@ import { RiskRadarBar, RiskFilter } from './components/RiskRadarBar';
 import { DailyScheduler } from './components/DailyScheduler';
 import { StudentCRMDirectory } from './components/StudentCRMDirectory';
 import { GroupBroadcastModal } from './components/GroupBroadcastModal';
-import { FloatingWhatsAppBroadcast } from './components/FloatingWhatsAppBroadcast';
 import { SmartPasteModal } from './components/SmartPasteModal';
 import { CommandPalette } from './components/CommandPalette';
 import { StudentHistoryModal } from './components/StudentHistoryModal';
@@ -396,16 +395,6 @@ export default function App() {
           onShowToast={showToast}
         />
       )}
-
-      {/* Floating WhatsApp Broadcast Action Docked at Bottom-Right */}
-      <FloatingWhatsAppBroadcast
-        selectedDate={selectedDate}
-        sessions={sessions}
-        students={students}
-        counselorName={counselorName}
-        onOpenBroadcast={handleOpenBroadcast}
-        onShowToast={showToast}
-      />
 
       {/* Smart Paste Excel/WhatsApp Modal */}
       {isSmartPasteOpen && (

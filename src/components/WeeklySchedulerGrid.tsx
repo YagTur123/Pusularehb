@@ -14,6 +14,7 @@ import {
   Search,
   Star,
   Coffee,
+  Utensils,
   Sliders,
   ArrowRight,
   ArrowLeft,
@@ -34,7 +35,6 @@ import {
   getWhatsAppDirectUrl,
 } from '../lib/whatsapp';
 import { ScheduleConfigModal } from './ScheduleConfigModal';
-import { CalendarBottomWhatsAppBar } from './CalendarBottomWhatsAppBar';
 
 interface WeeklySchedulerGridProps {
   baseDate: string;
@@ -869,16 +869,25 @@ export function WeeklySchedulerGrid({
                   displayedDaySessions.map((session) => {
                     // Case 1: Teneffüs / Mola (Break) Slot - Slim Intermission Divider
                     if (session.is_break) {
+                      const isLunch = session.break_title?.toLowerCase().includes('öğle') || session.topic?.toLowerCase().includes('öğle');
                       return (
                         <div
                           key={session.id}
-                          className="group relative px-2.5 py-1 rounded-full bg-[#1c1a16] border border-dashed border-amber-500/20 hover:border-amber-500/40 text-amber-200/85 text-xs font-mono flex items-center justify-between my-1 transition-all"
+                          className={`group relative px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center justify-between my-1 transition-all ${
+                            isLunch
+                              ? 'bg-amber-100 dark:bg-[#251f15] border border-amber-300 dark:border-amber-500/40 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
+                              : 'bg-slate-100/90 dark:bg-[#161822] border border-dashed border-slate-300 dark:border-white/[0.1] text-slate-700 dark:text-zinc-300'
+                          }`}
                         >
                           <div className="flex items-center gap-1.5 truncate">
-                            <Coffee className="w-3 h-3 text-amber-300/80 shrink-0" />
-                            <span className="font-semibold text-[11px]">{session.time_slot}</span>
-                            <span className="text-[10px] text-amber-200/70 truncate">
-                              {session.break_title || session.topic || 'Teneffüs'}
+                            {isLunch ? (
+                              <Utensils className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400 shrink-0" />
+                            ) : (
+                              <Coffee className="w-3 h-3 text-slate-500 dark:text-zinc-400 shrink-0" />
+                            )}
+                            <span className="font-bold text-[11px]">{session.time_slot}</span>
+                            <span className={`text-[10px] truncate ${isLunch ? 'font-bold text-amber-900 dark:text-amber-300' : 'text-slate-600 dark:text-zinc-400'}`}>
+                              {session.break_title || session.topic || (isLunch ? 'Öğle Arası' : 'Teneffüs')}
                             </span>
                           </div>
                           <button
@@ -886,10 +895,10 @@ export function WeeklySchedulerGrid({
                             onClick={(e) => {
                               e.stopPropagation();
                               onDeleteSession(session.id);
-                              onShowToast('Teneffüs Silindi', 'Mola takvimden kaldırıldı.', 'info');
+                              onShowToast(isLunch ? 'Öğle Arası Silindi' : 'Teneffüs Silindi', 'Mola takvimden kaldırıldı.', 'info');
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-rose-400 transition-opacity cursor-pointer"
-                            title="Teneffüsü Kaldır"
+                            className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-500 transition-opacity cursor-pointer"
+                            title={isLunch ? 'Öğle Arasını Kaldır' : 'Teneffüsü Kaldır'}
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -1158,20 +1167,6 @@ export function WeeklySchedulerGrid({
           );
         })}
       </div>
-
-      {/* STICKY BOTTOM WHATSAPP BROADCAST TOOLBAR */}
-      {/* "Takvimin en altına buton olarak koy, sayfa hareket edince onlar da hareket etsin." */}
-      <CalendarBottomWhatsAppBar
-        days={weekDays}
-        selectedDate={baseDate}
-        sessions={sessions}
-        students={students}
-        counselorName={counselorName}
-        onOpenBroadcast={onOpenBroadcast}
-        onSelectDate={onSelectDate}
-        onShowToast={onShowToast}
-        viewMode="weekly"
-      />
 
       {/* SCHEDULE CONFIGURATION MODAL (Minutes, Breaks, Shift, Recess) */}
       <ScheduleConfigModal

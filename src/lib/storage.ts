@@ -72,6 +72,22 @@ export function formatTurkishDate(dateStr: string): string {
   }
 }
 
+export function formatTurkishDateWithoutDay(dateStr: string): string {
+  try {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    const day = date.getDate();
+    const months = [
+      'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+    ];
+    const monthName = months[date.getMonth()];
+    return `${day} ${monthName} ${y}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 export interface WeekDayInfo {
   date: string; // YYYY-MM-DD
   dayName: string; // Pazartesi, Salı...
@@ -394,6 +410,32 @@ function getInitialSessions(): Session[] {
       created_at: new Date().toISOString(),
     },
     {
+      id: 'sess_break_recess_1',
+      date: today,
+      time_slot: '11:50',
+      student_id: null,
+      topic: '15 dk Teneffüs',
+      action_items: '',
+      tags: ['Teneffüs'],
+      status: 'Bekliyor',
+      is_break: true,
+      break_title: '15 dk Teneffüs',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'sess_break_lunch_1',
+      date: today,
+      time_slot: '12:10',
+      student_id: null,
+      topic: 'Öğle Arası',
+      action_items: '',
+      tags: ['Öğle Arası'],
+      status: 'Bekliyor',
+      is_break: true,
+      break_title: '50 dk Öğle Arası & Yemek',
+      created_at: new Date().toISOString(),
+    },
+    {
       id: 'sess_4',
       date: today,
       time_slot: '13:30',
@@ -490,7 +532,44 @@ export const StorageService = {
         this.saveSessions(initial);
         return initial;
       }
-      return JSON.parse(data);
+      const parsed: Session[] = JSON.parse(data);
+      // If user has existing sessions but no breaks at all, seed today's break and lunch break
+      const hasAnyBreak = parsed.some((s) => s.is_break);
+      if (!hasAnyBreak && parsed.length > 0) {
+        const today = getTodayDateString();
+        parsed.push({
+          id: 'sess_break_recess_1',
+          date: today,
+          time_slot: '11:50',
+          student_id: null,
+          topic: '15 dk Teneffüs',
+          action_items: '',
+          tags: ['Teneffüs'],
+          status: 'Bekliyor',
+          is_break: true,
+          break_title: '15 dk Teneffüs',
+          created_at: new Date().toISOString(),
+        });
+        parsed.push({
+          id: 'sess_break_lunch_1',
+          date: today,
+          time_slot: '12:10',
+          student_id: null,
+          topic: 'Öğle Arası',
+          action_items: '',
+          tags: ['Öğle Arası'],
+          status: 'Bekliyor',
+          is_break: true,
+          break_title: '50 dk Öğle Arası & Yemek',
+          created_at: new Date().toISOString(),
+        });
+        parsed.sort((a, b) => {
+          if (a.date !== b.date) return a.date.localeCompare(b.date);
+          return a.time_slot.localeCompare(b.time_slot);
+        });
+        this.saveSessions(parsed);
+      }
+      return parsed;
     } catch {
       return getInitialSessions();
     }
@@ -747,57 +826,66 @@ export const StorageService = {
     return finalSessions;
   },
 
-  // Generates 40 min slots with 10 min break
+  // Generates 40 min slots with 10 min break and lunch break
   fillStandardSlotsForDate(date: string): Session[] {
     const existing = this.getSessions();
     const existingForDate = existing.filter((s) => s.date === date);
 
-    const standardSlots = generateDefaultTimeSlots();
+    const config = this.getScheduleConfig();
+    const generatedSlots = generateSlotsFromScheduleConfig(config);
     const newSessions: Session[] = [...existing];
 
-    standardSlots.forEach((slot) => {
-      const alreadyHas = existingForDate.some((s) => s.time_slot === slot);
+    generatedSlots.forEach((slot) => {
+      const alreadyHas = existingForDate.some((s) => s.time_slot === slot.time_slot);
       if (!alreadyHas) {
         newSessions.push({
-          id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          id: (slot.is_break ? 'break_' : 'sess_') + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
           date,
-          time_slot: slot,
+          time_slot: slot.time_slot,
           student_id: null,
-          topic: '',
+          topic: slot.break_title || '',
           action_items: '',
-          tags: [],
+          tags: slot.is_break ? [slot.break_title || 'Teneffüs'] : [],
           status: 'Bekliyor',
+          is_break: slot.is_break || false,
+          break_title: slot.break_title,
           created_at: new Date().toISOString(),
         });
       }
     });
 
     // Sort by time_slot
-    newSessions.sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+    newSessions.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.time_slot.localeCompare(b.time_slot);
+    });
     this.saveSessions(newSessions);
     return newSessions;
   },
 
-  // Populates standard slots for all weekdays (Mon-Fri) of the week
+  // Populates standard slots for all weekdays (Mon-Fri) of the week with breaks & lunch
   fillStandardSlotsForWeek(baseDate: string): Session[] {
     const weekDays = getWeekDays(baseDate, false);
     let allSessions = this.getSessions();
-    const standardSlots = generateDefaultTimeSlots();
+    const config = this.getScheduleConfig();
+    const generatedSlots = generateSlotsFromScheduleConfig(config);
 
     weekDays.forEach((w) => {
       const existingForDay = allSessions.filter((s) => s.date === w.date);
-      standardSlots.forEach((slot) => {
-        const alreadyHas = existingForDay.some((s) => s.time_slot === slot);
+      generatedSlots.forEach((slot) => {
+        const alreadyHas = existingForDay.some((s) => s.time_slot === slot.time_slot);
         if (!alreadyHas) {
           allSessions.push({
-            id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            id: (slot.is_break ? 'break_' : 'sess_') + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
             date: w.date,
-            time_slot: slot,
+            time_slot: slot.time_slot,
             student_id: null,
-            topic: '',
+            topic: slot.break_title || '',
             action_items: '',
-            tags: [],
+            tags: slot.is_break ? [slot.break_title || 'Teneffüs'] : [],
             status: 'Bekliyor',
+            is_break: slot.is_break || false,
+            break_title: slot.break_title,
             created_at: new Date().toISOString(),
           });
         }

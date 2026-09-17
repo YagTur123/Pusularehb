@@ -33,19 +33,19 @@ export function DailyLogPrintModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl max-w-4xl w-full my-8 flex flex-col overflow-hidden text-zinc-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/80 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-2xl max-w-4xl w-full my-8 flex flex-col overflow-hidden text-slate-800 dark:text-zinc-200">
         {/* Modal Controls (Hidden in Print) */}
-        <div className="print:hidden flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-950">
+        <div className="print:hidden flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-zinc-800 text-zinc-300 border border-zinc-700/60">
+            <div className="p-2 rounded-lg bg-emerald-50 dark:bg-zinc-800 text-emerald-700 dark:text-zinc-300 border border-emerald-200 dark:border-zinc-700/60">
               <FileText className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
                 Resmi Görüşme Defteri Çıktısı (A4 Formatı)
               </h3>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-slate-500 dark:text-zinc-400">
                 MEB Rehberlik Servisi standartlarına uygun günlük görüşme çizelgesi
               </p>
             </div>
@@ -61,7 +61,7 @@ export function DailyLogPrintModal({
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -69,7 +69,7 @@ export function DailyLogPrintModal({
         </div>
 
         {/* Printable Document Container */}
-        <div className="p-6 md:p-10 bg-zinc-950 overflow-y-auto max-h-[calc(85vh-70px)] print:max-h-none print:p-0 print:bg-white">
+        <div className="p-6 md:p-10 bg-slate-100/70 dark:bg-zinc-950 overflow-y-auto max-h-[calc(85vh-70px)] print:max-h-none print:p-0 print:bg-white">
           <div
             id="counseling-print-sheet"
             className="bg-white text-zinc-900 p-8 rounded-lg shadow-sm border border-zinc-300 max-w-3xl mx-auto print:border-none print:p-0 print:shadow-none print:max-w-none text-[12px] font-sans leading-normal"

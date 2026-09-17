@@ -384,6 +384,69 @@ export function getWhatsAppUniversalUrl(text: string): string {
 }
 
 /**
+ * Generate Official Output Broadcast Message with Tagged Phone Numbers
+ * Specifically designed to accompany the official interview schedule screenshot/image
+ */
+export function generateOfficialTaggedBroadcastText(
+  dateStr: string,
+  sessions: Session[],
+  students: Student[],
+  counselorName?: string
+): string {
+  const targetSessions = sessions
+    .filter((s) => s.student_id)
+    .sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+
+  const dateFormatted = formatTurkishDate(dateStr);
+  const studentMap = new Map(students.map((st) => [st.id, st]));
+  const taggedStudents: { name: string; grade: string; time: string; phone: string }[] = [];
+
+  targetSessions.forEach((sess) => {
+    const student = sess.student_id ? studentMap.get(sess.student_id) : undefined;
+    if (student && student.phone) {
+      const cleanPhone = student.phone.replace(/\D/g, '');
+      const formattedPhone = cleanPhone.startsWith('90')
+        ? cleanPhone
+        : cleanPhone.startsWith('0')
+        ? '9' + cleanPhone
+        : '90' + cleanPhone;
+
+      if (!taggedStudents.some((t) => t.phone === formattedPhone && t.time === sess.time_slot)) {
+        taggedStudents.push({
+          name: student.full_name,
+          grade: student.class_grade,
+          time: sess.time_slot,
+          phone: formattedPhone,
+        });
+      }
+    }
+  });
+
+  const counselorLine = counselorName ? `👤 *Danışman:* ${counselorName}\n` : '';
+
+  let tagsBlock = '';
+  if (taggedStudents.length > 0) {
+    tagsBlock =
+      '👥 *Görüşmeye Çağrılan Öğrenci & Veliler (Etiketler):*\n' +
+      taggedStudents
+        .map((t) => `@+${t.phone} (${t.time} — ${t.name}, ${t.grade})`)
+        .join('\n');
+  } else {
+    tagsBlock = '_Bugün için randevulu öğrenci bulunmamaktadır._';
+  }
+
+  return `🏛 *T.C. MİLLÎ EĞİTİM BAKANLIĞI*
+*REHBERLİK VE PSİKOLOJİK DANIŞMA SERVİSİ*
+📄 *GÜNLÜK RESMİ GÖRÜŞME ÇİZELGESİ*
+📅 *Tarih:* ${dateFormatted}
+${counselorLine}📸 *Resmi Çizelge:* Yukarıdaki ekran görüntüsünde / belgede yer almaktadır.
+
+${tagsBlock}
+
+📌 *Hatırlatma:* Görüşme saatinizden 5 dakika önce rehberlik servisinde hazır bulunmanız rica olunur.`;
+}
+
+/**
  * Robust clipboard copy with textarea execCommand fallback for iframes
  */
 export async function copyToClipboard(text: string): Promise<boolean> {

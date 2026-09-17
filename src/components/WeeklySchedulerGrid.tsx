@@ -20,6 +20,10 @@ import {
   ArrowLeft,
   ChevronDown,
   Filter,
+  GripVertical,
+  Copy,
+  Calendar as CalendarIcon,
+  ChevronUp,
 } from 'lucide-react';
 import {
   getWeekDays,
@@ -28,6 +32,9 @@ import {
   formatTurkishDate,
   StorageService,
   WeekDayInfo,
+  shiftTimeSlotString,
+  addMinutesToTime,
+  shiftDateString,
 } from '../lib/storage';
 import {
   generateIndividualSummaryText,
@@ -86,8 +93,16 @@ export function WeeklySchedulerGrid({
   const [quickShiftMenuOpen, setQuickShiftMenuOpen] = useState(false);
   const [quickBarOpen, setQuickBarOpen] = useState(false);
   const [spotlightCollapsed, setSpotlightCollapsed] = useState(false);
-  const [quickSessionMinutes, setQuickSessionMinutes] = useState<number>(40);
-  const [quickBreakMinutes, setQuickBreakMinutes] = useState<number>(10);
+  const [quickSessionMinutes, setQuickSessionMinutes] = useState<number>(15);
+  const [quickBreakMinutes, setQuickBreakMinutes] = useState<number>(5);
+  
+  // Interactive Table Drag & Drop State
+  const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null);
+  const [dragOverDayDate, setDragOverDayDate] = useState<string | null>(null);
+  const [dragOverSlotId, setDragOverSlotId] = useState<string | null>(null);
+  const [showDayAddPopover, setShowDayAddPopover] = useState<string | null>(null);
+  const [customSlotInputTime, setCustomSlotInputTime] = useState<string>('09:00');
+
   const [quickBreakModal, setQuickBreakModal] = useState<{
     open: boolean;
     date: string;
@@ -97,7 +112,7 @@ export function WeeklySchedulerGrid({
     open: false,
     date: baseDate,
     time: '10:10',
-    title: '10 dk Teneffüs',
+    title: '5 dk Teneffüs',
   });
 
   const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s])), [students]);
@@ -218,6 +233,102 @@ export function WeeklySchedulerGrid({
       is_break: false,
     });
     onShowToast('Yeni Seans Saati Açıldı', `${time_slot} saati için boş seans oluşturuldu.`, 'info');
+  };
+
+  // Direct fast nudge for individual session (+/- 15 or 5 minutes)
+  const handleFastNudgeSession = (session: Session, deltaMinutes: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const newTime = shiftTimeSlotString(session.time_slot, deltaMinutes);
+    const updated: Session = { ...session, time_slot: newTime };
+    onUpdateSession(updated);
+    const student = session.student_id ? studentMap.get(session.student_id) : null;
+    onShowToast(
+      'Saat Güncellendi',
+      `${student ? student.full_name : 'Seans'}: ${session.time_slot} → ${newTime}`,
+      'info'
+    );
+  };
+
+  // Duplicate session to next 15-min interval
+  const handleDuplicateSession = (session: Session, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const newTime = shiftTimeSlotString(session.time_slot, 15);
+    onAddSession({
+      date: session.date,
+      time_slot: newTime,
+      student_id: session.student_id,
+      topic: session.topic ? `${session.topic} (Kopya)` : '',
+      action_items: session.action_items,
+      tags: [...session.tags],
+      status: 'Bekliyor',
+      is_priority: session.is_priority,
+      is_break: session.is_break,
+      break_title: session.break_title,
+    });
+    onShowToast('Seans Kopyalandı', `${newTime} saatine yeni seans oluşturuldu.`, 'success');
+  };
+
+  // Drag & Drop handlers
+  const handleCardDragStart = (session: Session, e: React.DragEvent) => {
+    e.dataTransfer.setData('text/plain', session.id);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedSessionId(session.id);
+  };
+
+  const handleCardDragEnd = () => {
+    setDraggedSessionId(null);
+    setDragOverDayDate(null);
+    setDragOverSlotId(null);
+  };
+
+  const handleDayDrop = (targetDate: string, targetDayName: string, e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const sessionId = e.dataTransfer.getData('text/plain') || draggedSessionId;
+    setDraggedSessionId(null);
+    setDragOverDayDate(null);
+    setDragOverSlotId(null);
+    if (!sessionId) return;
+    const sess = sessions.find((s) => s.id === sessionId);
+    if (!sess) return;
+    if (sess.date === targetDate) return;
+
+    onUpdateSession({ ...sess, date: targetDate });
+    const student = sess.student_id ? studentMap.get(sess.student_id) : null;
+    onShowToast(
+      'Seans Taşındı',
+      `${student ? student.full_name : 'Seans'} ${targetDayName} gününe aktarıldı.`,
+      'success'
+    );
+  };
+
+  const handleSlotDrop = (targetSession: Session, e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const sourceId = e.dataTransfer.getData('text/plain') || draggedSessionId;
+    setDraggedSessionId(null);
+    setDragOverDayDate(null);
+    setDragOverSlotId(null);
+    if (!sourceId || sourceId === targetSession.id) return;
+    const sourceSess = sessions.find((s) => s.id === sourceId);
+    if (!sourceSess) return;
+
+    // Swap times and dates between source and target!
+    const targetDate = targetSession.date;
+    const targetTime = targetSession.time_slot;
+    const sourceDate = sourceSess.date;
+    const sourceTime = sourceSess.time_slot;
+
+    onUpdateSession({ ...sourceSess, date: targetDate, time_slot: targetTime });
+    onUpdateSession({ ...targetSession, date: sourceDate, time_slot: sourceTime });
+
+    const stSource = sourceSess.student_id ? studentMap.get(sourceSess.student_id) : null;
+    const stTarget = targetSession.student_id ? studentMap.get(targetSession.student_id) : null;
+    onShowToast(
+      'Seanslar Takas Edildi',
+      `${stSource ? stSource.full_name : sourceTime} ⟷ ${stTarget ? stTarget.full_name : targetTime} karşılıklı yer değiştirdi.`,
+      'success'
+    );
   };
 
   const handleTogglePriority = (session: Session, e?: React.MouseEvent) => {
@@ -505,20 +616,20 @@ export function WeeklySchedulerGrid({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-1 text-xs">
             {/* Seans Kaç Dakika? */}
             <div className="space-y-1 bg-[#1a1d2b] p-2.5 rounded-xl border border-white/[0.06]">
-              <span className="text-zinc-400 text-[11px] font-medium block">Program Kaç Dakika?</span>
+              <span className="text-zinc-400 text-[11px] font-medium block">Rehberlik Seansı Kaç Dakika?</span>
               <div className="flex items-center gap-1 flex-wrap">
-                {[30, 40, 45, 50].map((mins) => (
+                {[15, 20, 25, 30, 40].map((mins) => (
                   <button
                     key={mins}
                     type="button"
                     onClick={() => setQuickSessionMinutes(mins)}
                     className={`px-2 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
                       quickSessionMinutes === mins
-                        ? 'bg-zinc-700 text-white border border-zinc-600'
+                        ? 'bg-emerald-600 text-white border border-emerald-500 font-bold'
                         : 'bg-zinc-800/80 text-zinc-300 hover:text-white'
                     }`}
                   >
-                    {mins} dk {mins === 40 && '★'}
+                    {mins} dk {mins === 15 && '★'}
                   </button>
                 ))}
               </div>
@@ -526,20 +637,20 @@ export function WeeklySchedulerGrid({
 
             {/* Ara Kaç Dakika? */}
             <div className="space-y-1 bg-[#1a1d2b] p-2.5 rounded-xl border border-white/[0.06]">
-              <span className="text-zinc-400 text-[11px] font-medium block">Ara / Teneffüs Kaç Dakika?</span>
+              <span className="text-zinc-400 text-[11px] font-medium block">Geçiş / Mola Kaç Dakika?</span>
               <div className="flex items-center gap-1 flex-wrap">
-                {[5, 10, 15, 20].map((mins) => (
+                {[0, 5, 10, 15].map((mins) => (
                   <button
                     key={mins}
                     type="button"
                     onClick={() => setQuickBreakMinutes(mins)}
                     className={`px-2 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
                       quickBreakMinutes === mins
-                        ? 'bg-zinc-700 text-white border border-zinc-600'
+                        ? 'bg-amber-600 text-white border border-amber-500 font-bold'
                         : 'bg-zinc-800/80 text-zinc-300 hover:text-white'
                     }`}
                   >
-                    {mins} dk {mins === 10 && '★'}
+                    {mins === 0 ? '0 dk (Peş Peşe)' : `${mins} dk ${mins === 5 ? '★' : ''}`}
                   </button>
                 ))}
               </div>
@@ -559,19 +670,19 @@ export function WeeklySchedulerGrid({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleShiftTime(targetWeekDates, -10)}
+                  onClick={() => handleShiftTime(targetWeekDates, -5)}
                   className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono cursor-pointer"
-                  title="Tüm saatleri 10 dk geri kaydır"
+                  title="Tüm saatleri 5 dk geri kaydır"
                 >
-                  -10 dk
+                  -5 dk
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleShiftTime(targetWeekDates, 10)}
+                  onClick={() => handleShiftTime(targetWeekDates, 5)}
                   className="px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono cursor-pointer"
-                  title="Tüm saatleri 10 dk ileri kaydır"
+                  title="Tüm saatleri 5 dk ileri kaydır"
                 >
-                  +10 dk
+                  +5 dk
                 </button>
                 <button
                   type="button"
@@ -593,10 +704,10 @@ export function WeeklySchedulerGrid({
                     sessionDuration: quickSessionMinutes,
                     breakDuration: quickBreakMinutes,
                     startTime: '09:00',
-                    sessionCount: 8,
+                    sessionCount: quickSessionMinutes <= 20 ? 16 : 8,
                     includeLunchBreak: true,
-                    lunchBreakAfter: 4,
-                    lunchBreakDuration: 50,
+                    lunchBreakAfter: quickSessionMinutes <= 20 ? 8 : 4,
+                    lunchBreakDuration: 45,
                   };
                   handleApplyScheduleConfig(targetWeekDates, cfg, true);
                   onShowToast(
@@ -618,10 +729,10 @@ export function WeeklySchedulerGrid({
                       sessionDuration: quickSessionMinutes,
                       breakDuration: quickBreakMinutes,
                       startTime: '09:00',
-                      sessionCount: 8,
+                      sessionCount: quickSessionMinutes <= 20 ? 16 : 8,
                       includeLunchBreak: true,
-                      lunchBreakAfter: 4,
-                      lunchBreakDuration: 50,
+                      lunchBreakAfter: quickSessionMinutes <= 20 ? 8 : 4,
+                      lunchBreakDuration: 45,
                     };
                     handleApplyScheduleConfig([baseDate], cfg, true);
                     onShowToast(
@@ -782,8 +893,20 @@ export function WeeklySchedulerGrid({
             <div
               key={day.date}
               onClick={() => onSelectDate(day.date)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (dragOverDayDate !== day.date) setDragOverDayDate(day.date);
+              }}
+              onDragLeave={(e) => {
+                if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                if (dragOverDayDate === day.date) setDragOverDayDate(null);
+              }}
+              onDrop={(e) => handleDayDrop(day.date, day.dayName, e)}
               className={`flex flex-col rounded-2xl border transition-all duration-150 overflow-hidden ${
-                day.isToday
+                dragOverDayDate === day.date
+                  ? 'bg-[#182333] border-emerald-500 ring-2 ring-emerald-500/50 shadow-xl'
+                  : day.isToday
                   ? 'bg-[#181a26] border-zinc-600/50 shadow-md'
                   : isSelected
                   ? 'bg-[#161824] border-zinc-500/40 ring-1 ring-zinc-500/20'
@@ -800,7 +923,7 @@ export function WeeklySchedulerGrid({
                     : 'bg-white/[0.02] border-white/[0.05]'
                 }`}
               >
-                <div className="flex items-center justify-between gap-1.5 mb-1">
+                <div className="flex items-center justify-between gap-1 mb-1">
                   <div className="flex items-baseline gap-1.5">
                     <span
                       className={`text-xs font-bold tracking-tight ${
@@ -819,26 +942,40 @@ export function WeeklySchedulerGrid({
                       </span>
                     )}
 
-                    {/* Quick shift +10 min for this day only */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleShiftTime([day.date], 10);
-                        onShowToast('Saatler Kaydırıldı', `${day.dayName} saatleri 10 dk ileri alındı.`, 'info');
-                      }}
-                      className="p-1 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-200 dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                      title={`${day.dayName} saatlerini +10 dk kaydır`}
-                    >
-                      <Clock className="w-3 h-3 text-slate-500 dark:text-zinc-400" />
-                    </button>
+                    {/* Quick shift -15 / +15 min for this day */}
+                    <div className="flex items-center gap-0.5 bg-white/[0.04] p-0.5 rounded-md border border-white/[0.06]">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShiftTime([day.date], -15);
+                          onShowToast('Saatler Kaydırıldı', `${day.dayName} saatleri 15 dk geri alındı.`, 'info');
+                        }}
+                        className="px-1 py-0.5 rounded text-[9px] font-mono text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                        title={`${day.dayName} tüm seansları 15 dk geri kaydır`}
+                      >
+                        -15
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShiftTime([day.date], 15);
+                          onShowToast('Saatler Kaydırıldı', `${day.dayName} saatleri 15 dk ileri alındı.`, 'info');
+                        }}
+                        className="px-1 py-0.5 rounded text-[9px] font-mono text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                        title={`${day.dayName} tüm seansları 15 dk ileri kaydır`}
+                      >
+                        +15
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 {/* Progress / Slot Count */}
                 <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono">
                   <span>
-                    Dolu: <strong className="text-zinc-300 font-semibold">{dayFilled}</strong> / {dayLessons.length}
+                    Seans: <strong className="text-zinc-300 font-semibold">{dayFilled}</strong> / {dayLessons.length}
                   </span>
                   {dayAllSessions.some((s) => isHighPriority(s)) && (
                     <span className="text-amber-400/90 flex items-center gap-0.5">
@@ -862,7 +999,7 @@ export function WeeklySchedulerGrid({
                       }}
                       className="text-[10px] px-2 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white border border-white/[0.08] transition-colors cursor-pointer"
                     >
-                      Standart Saatleri Aç
+                      Standart Saatleri Aç (15 dk)
                     </button>
                   </div>
                 ) : (
@@ -887,56 +1024,127 @@ export function WeeklySchedulerGrid({
                             )}
                             <span className="font-bold text-[11px]">{session.time_slot}</span>
                             <span className={`text-[10px] truncate ${isLunch ? 'font-bold text-amber-900 dark:text-amber-300' : 'text-slate-600 dark:text-zinc-400'}`}>
-                              {session.break_title || session.topic || (isLunch ? 'Öğle Arası' : 'Teneffüs')}
+                              {session.break_title || session.topic || (isLunch ? 'Öğle Arası' : 'Mola')}
                             </span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteSession(session.id);
-                              onShowToast(isLunch ? 'Öğle Arası Silindi' : 'Teneffüs Silindi', 'Mola takvimden kaldırıldı.', 'info');
-                            }}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-500 transition-opacity cursor-pointer"
-                            title={isLunch ? 'Öğle Arasını Kaldır' : 'Teneffüsü Kaldır'}
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={(e) => handleFastNudgeSession(session, -15, e)}
+                              className="opacity-0 group-hover:opacity-100 px-1 py-0.2 rounded text-[9px] bg-white/[0.08] hover:bg-white/[0.15] text-zinc-300 transition-opacity"
+                              title="15 dk geri kaydır"
+                            >
+                              -15
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleFastNudgeSession(session, 15, e)}
+                              className="opacity-0 group-hover:opacity-100 px-1 py-0.2 rounded text-[9px] bg-white/[0.08] hover:bg-white/[0.15] text-zinc-300 transition-opacity"
+                              title="15 dk ileri kaydır"
+                            >
+                              +15
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteSession(session.id);
+                                onShowToast(isLunch ? 'Öğle Arası Silindi' : 'Mola Silindi', 'Mola takvimden kaldırıldı.', 'info');
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-500 transition-opacity cursor-pointer"
+                              title={isLunch ? 'Öğle Arasını Kaldır' : 'Molayı Kaldır'}
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       );
                     }
 
                     const student = session.student_id ? studentMap.get(session.student_id) : null;
                     const isPriority = isHighPriority(session);
+                    const isDragOverThis = dragOverSlotId === session.id;
 
                     // Case 2: Assigned Student Session
                     if (student) {
                       if (isPriority) {
-                        // HIGH-PRIORITY SESSION: Larger Card with Expressive Presence & Zero Clutter (Soft Slate Accent)
+                        // HIGH-PRIORITY SESSION: Larger Card with Expressive Presence & Drag-Drop
                         return (
                           <div
                             key={session.id}
+                            draggable={true}
+                            onDragStart={(e) => handleCardDragStart(session, e)}
+                            onDragEnd={handleCardDragEnd}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (dragOverSlotId !== session.id) setDragOverSlotId(session.id);
+                            }}
+                            onDragLeave={(e) => {
+                              e.stopPropagation();
+                              if (dragOverSlotId === session.id) setDragOverSlotId(null);
+                            }}
+                            onDrop={(e) => handleSlotDrop(session, e)}
                             onClick={(e) => {
                               e.stopPropagation();
                               setQuickEditingSession(session);
                             }}
-                            className="group relative rounded-xl p-3.5 border border-amber-500/30 bg-[#1c1f2e] hover:border-amber-500/50 transition-all cursor-pointer space-y-2"
+                            className={`group relative rounded-xl p-3 border transition-all cursor-pointer space-y-2 ${
+                              isDragOverThis
+                                ? 'border-emerald-400 bg-emerald-950/40 ring-2 ring-emerald-400 scale-[1.02] shadow-xl'
+                                : 'border-amber-500/30 bg-[#1c1f2e] hover:border-amber-500/50 hover:shadow-md'
+                            }`}
                           >
-                            {/* Top Line: Time Slot + High Priority Badge + Grade */}
-                            <div className="flex items-center justify-between gap-1.5">
-                              <div className="flex items-center gap-1.5">
-                                <span className="px-2 py-0.5 rounded-lg bg-amber-400/15 text-amber-200/90 border border-amber-400/20 font-mono text-xs font-semibold">
+                            {/* Top Line: Grip Handle + Time Slot + Fast Nudge + Star Badge + Grade */}
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <GripVertical
+                                  className="w-3.5 h-3.5 text-zinc-500 hover:text-amber-300 cursor-grab active:cursor-grabbing shrink-0"
+                                  title="Sürükle ve Bırak (Başka Güne veya Saate Taşı)"
+                                />
+                                <span className="px-1.5 py-0.5 rounded-md bg-amber-400/15 text-amber-200/90 border border-amber-400/20 font-mono text-xs font-semibold">
                                   {session.time_slot}
                                 </span>
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                                
+                                {/* Quick Time Adjustment Buttons (-15 / +15 dk) */}
+                                <div className="flex items-center gap-0.5 opacity-70 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleFastNudgeSession(session, -15, e)}
+                                    className="px-1 py-0.2 rounded text-[9px] font-mono bg-white/[0.06] hover:bg-white/[0.15] text-zinc-300 transition-colors"
+                                    title="15 dakika geri al"
+                                  >
+                                    -15
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleFastNudgeSession(session, 15, e)}
+                                    className="px-1 py-0.2 rounded text-[9px] font-mono bg-white/[0.06] hover:bg-white/[0.15] text-zinc-300 transition-colors"
+                                    title="15 dakika ileri al"
+                                  >
+                                    +15
+                                  </button>
+                                </div>
+
+                                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/25">
                                   <Star className="w-2.5 h-2.5 fill-amber-300/40 text-amber-300/80" />
                                   Öncelikli
                                 </span>
                               </div>
 
-                              <span className="text-[11px] font-mono font-medium text-zinc-400 bg-white/[0.05] px-2 py-0.5 rounded-md shrink-0">
-                                {student.class_grade}
-                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDuplicateSession(session, e)}
+                                  className="opacity-0 group-hover:opacity-100 p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.08] transition-all"
+                                  title="Seansı Kopyala (+15 dk)"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                                <span className="text-[10px] font-mono font-medium text-zinc-400 bg-white/[0.05] px-1.5 py-0.5 rounded shrink-0">
+                                  {student.class_grade}
+                                </span>
+                              </div>
                             </div>
 
                             {/* Middle: Prominent Student Name & Flag */}
@@ -945,18 +1153,18 @@ export function WeeklySchedulerGrid({
                                 {student.full_name}
                               </div>
 
-                              {/* Risk or reason flag without metadata clutter */}
+                              {/* Risk or reason flag */}
                               {(student.status_flags?.length || session.status === 'Gelmedi') && (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {session.status === 'Gelmedi' ? (
-                                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-rose-950/40 text-rose-300 border border-rose-500/25 font-medium">
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-rose-950/40 text-rose-300 border border-rose-500/25 font-medium">
                                       ❌ Son Randevuya Gelmedi
                                     </span>
                                   ) : (
                                     student.status_flags?.slice(0, 2).map((flag) => (
                                       <span
                                         key={flag}
-                                        className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/20 font-medium"
+                                        className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/20 font-medium"
                                       >
                                         ⚠️ {flag}
                                       </span>
@@ -967,14 +1175,14 @@ export function WeeklySchedulerGrid({
 
                               {/* Clear Topic banner */}
                               {session.topic && (
-                                <div className="mt-1.5 p-2 rounded-lg bg-[#141622] border border-white/[0.06] text-xs text-zinc-300 leading-snug">
+                                <div className="mt-1.5 p-1.5 rounded-lg bg-[#141622] border border-white/[0.06] text-xs text-zinc-300 leading-snug">
                                   <span className="text-[10px] text-zinc-400 font-mono block mb-0.5">🎯 Görüşme Odağı:</span>
                                   <span className="font-medium text-zinc-200">{session.topic}</span>
                                 </div>
                               )}
                             </div>
 
-                            {/* Bottom Action Footer (Decluttered & Direct) */}
+                            {/* Bottom Action Footer */}
                             <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
                               <button
                                 type="button"
@@ -991,7 +1199,7 @@ export function WeeklySchedulerGrid({
                                 {session.status}
                               </button>
 
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1">
                                 <button
                                   type="button"
                                   onClick={(e) => handleTogglePriority(session, e)}
@@ -1016,16 +1224,31 @@ export function WeeklySchedulerGrid({
                         );
                       }
 
-                      // STANDARD SESSION: Sleek, compact card
+                      // STANDARD SESSION: Sleek, compact card with Drag & Drop and Instant Time Adjusters
                       return (
                         <div
                           key={session.id}
+                          draggable={true}
+                          onDragStart={(e) => handleCardDragStart(session, e)}
+                          onDragEnd={handleCardDragEnd}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (dragOverSlotId !== session.id) setDragOverSlotId(session.id);
+                          }}
+                          onDragLeave={(e) => {
+                            e.stopPropagation();
+                            if (dragOverSlotId === session.id) setDragOverSlotId(null);
+                          }}
+                          onDrop={(e) => handleSlotDrop(session, e)}
                           onClick={(e) => {
                             e.stopPropagation();
                             setQuickEditingSession(session);
                           }}
                           className={`group relative rounded-xl p-2.5 transition-all cursor-pointer border ${
-                            session.status === 'Geldi'
+                            isDragOverThis
+                              ? 'border-emerald-400 bg-emerald-950/40 ring-2 ring-emerald-400 scale-[1.02] shadow-xl'
+                              : session.status === 'Geldi'
                               ? 'border-emerald-500/20 bg-[#161f1a] hover:border-emerald-500/40'
                               : session.status === 'Gelmedi'
                               ? 'border-rose-500/20 bg-[#211618] hover:border-rose-500/40'
@@ -1033,12 +1256,48 @@ export function WeeklySchedulerGrid({
                           }`}
                         >
                           <div className="flex items-center justify-between gap-1 mb-1">
-                            <span className="text-[11px] font-mono font-semibold px-1.5 py-0.2 rounded bg-white/[0.05] text-zinc-300">
-                              {session.time_slot}
-                            </span>
-                            <span className="text-[10px] font-mono text-zinc-400 bg-white/[0.04] px-1.5 py-0.2 rounded">
-                              {student.class_grade}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <GripVertical
+                                className="w-3 h-3 text-zinc-500 hover:text-zinc-300 cursor-grab active:cursor-grabbing shrink-0"
+                                title="Sürükle ve Bırak (Başka Güne veya Saate Taşı)"
+                              />
+                              <span className="text-[11px] font-mono font-semibold px-1.5 py-0.2 rounded bg-white/[0.05] text-zinc-300">
+                                {session.time_slot}
+                              </span>
+                              {/* Quick Time Nudge */}
+                              <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleFastNudgeSession(session, -15, e)}
+                                  className="px-1 py-0.2 rounded text-[9px] font-mono bg-white/[0.06] hover:bg-white/[0.15] text-zinc-300"
+                                  title="15 dk geri kaydır"
+                                >
+                                  -15
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleFastNudgeSession(session, 15, e)}
+                                  className="px-1 py-0.2 rounded text-[9px] font-mono bg-white/[0.06] hover:bg-white/[0.15] text-zinc-300"
+                                  title="15 dk ileri kaydır"
+                                >
+                                  +15
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => handleDuplicateSession(session, e)}
+                                className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-zinc-400 hover:text-white"
+                                title="Kopyala (+15 dk)"
+                              >
+                                <Copy className="w-2.5 h-2.5" />
+                              </button>
+                              <span className="text-[10px] font-mono text-zinc-400 bg-white/[0.04] px-1.5 py-0.2 rounded">
+                                {student.class_grade}
+                              </span>
+                            </div>
                           </div>
                           <div className="font-semibold text-xs text-zinc-200 group-hover:text-white truncate">
                             {student.full_name}
@@ -1085,15 +1344,50 @@ export function WeeklySchedulerGrid({
                       );
                     }
 
-                    // Case 3: Empty Existing Slot (Minimal Dashed Strip)
+                    // Case 3: Empty Existing Slot (Minimal Dashed Strip with Drop Target)
                     return (
                       <div
                         key={session.id}
-                        className="group relative p-1.5 px-2 rounded-lg border border-dashed border-white/[0.06] hover:border-white/20 hover:bg-white/[0.02] transition-all flex items-center justify-between text-xs"
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (dragOverSlotId !== session.id) setDragOverSlotId(session.id);
+                        }}
+                        onDragLeave={(e) => {
+                          e.stopPropagation();
+                          if (dragOverSlotId === session.id) setDragOverSlotId(null);
+                        }}
+                        onDrop={(e) => handleSlotDrop(session, e)}
+                        className={`group relative p-1.5 px-2 rounded-lg border border-dashed transition-all flex items-center justify-between text-xs ${
+                          isDragOverThis
+                            ? 'border-emerald-400 bg-emerald-950/40 ring-2 ring-emerald-400'
+                            : 'border-white/[0.06] hover:border-white/20 hover:bg-white/[0.02]'
+                        }`}
                       >
-                        <span className="font-mono text-[11px] text-zinc-500 font-medium">
-                          {session.time_slot}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="font-mono text-[11px] text-zinc-500 font-medium">
+                            {session.time_slot}
+                          </span>
+                          {/* Nudge empty slot */}
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={(e) => handleFastNudgeSession(session, -15, e)}
+                              className="px-1 py-0.2 rounded text-[8px] font-mono bg-white/[0.06] hover:bg-white/[0.15] text-zinc-400"
+                              title="15 dk geri al"
+                            >
+                              -15
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleFastNudgeSession(session, 15, e)}
+                              className="px-1 py-0.2 rounded text-[8px] font-mono bg-white/[0.06] hover:bg-white/[0.15] text-zinc-400"
+                              title="15 dk ileri al"
+                            >
+                              +15
+                            </button>
+                          </div>
+                        </div>
 
                         <div className="flex items-center gap-1">
                           <button
@@ -1130,39 +1424,99 @@ export function WeeklySchedulerGrid({
                 )}
               </div>
 
-              {/* Day Bottom Actions */}
-              <div className="p-2 border-t border-white/[0.04] flex items-center justify-between bg-white/[0.01]">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const nextTime = '16:00';
-                    handleCreateEmptySlot(day.date, nextTime);
-                  }}
-                  className="text-[11px] text-zinc-500 hover:text-zinc-300 flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Saat Aç</span>
-                </button>
+              {/* Day Bottom Actions with Smart Next Slot Calculation */}
+              {(() => {
+                const lastSession = displayedDaySessions[displayedDaySessions.length - 1];
+                const smartNextTime = lastSession ? addMinutesToTime(lastSession.time_slot, 15) : '09:00';
+                const isDayPopoverOpen = showDayAddPopover === day.date;
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setQuickBreakModal({
-                      open: true,
-                      date: day.date,
-                      time: '12:20',
-                      title: 'Öğle Arası',
-                    });
-                  }}
-                  className="text-[11px] text-amber-400/80 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
-                  title="Bu güne teneffüs veya öğle arası ekle"
-                >
-                  <Coffee className="w-2.5 h-2.5" />
-                  <span>+ Teneffüs</span>
-                </button>
-              </div>
+                return (
+                  <div className="p-2 border-t border-white/[0.04] flex items-center justify-between bg-white/[0.01] gap-1 relative">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCreateEmptySlot(day.date, smartNextTime);
+                      }}
+                      className="text-[11px] text-zinc-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer transition-colors"
+                      title={`${smartNextTime} saatine 15 dakikalık yeni seans ekle`}
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>+15 dk ({smartNextTime})</span>
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowDayAddPopover(isDayPopoverOpen ? null : day.date);
+                          setCustomSlotInputTime(smartNextTime);
+                        }}
+                        className="p-1 rounded text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04] transition-colors text-[10px]"
+                        title="Özel bir saat belirle"
+                      >
+                        <Clock className="w-3 h-3" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setQuickBreakModal({
+                            open: true,
+                            date: day.date,
+                            time: smartNextTime,
+                            title: '5 dk Teneffüs',
+                          });
+                        }}
+                        className="text-[11px] text-amber-400/80 hover:text-amber-300 flex items-center gap-1 cursor-pointer transition-colors"
+                        title="Bu güne teneffüs veya öğle arası ekle"
+                      >
+                        <Coffee className="w-2.5 h-2.5" />
+                        <span>Mola</span>
+                      </button>
+                    </div>
+
+                    {/* Popover for custom slot time */}
+                    {isDayPopoverOpen && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute bottom-10 left-2 right-2 p-2 rounded-xl bg-[#1a1d2b] border border-white/[0.1] shadow-xl z-20 space-y-1.5 animate-in fade-in zoom-in-95 duration-100"
+                      >
+                        <div className="flex items-center justify-between text-[11px] text-zinc-300">
+                          <span className="font-medium">Özel Seans Saati:</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowDayAddPopover(null)}
+                            className="p-0.5 text-zinc-500 hover:text-white"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="time"
+                            value={customSlotInputTime}
+                            onChange={(e) => setCustomSlotInputTime(e.target.value)}
+                            className="flex-1 px-2 py-1 bg-[#0d0f17] border border-white/[0.1] rounded text-xs font-mono text-white focus:outline-none focus:border-emerald-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleCreateEmptySlot(day.date, customSlotInputTime);
+                              setShowDayAddPopover(null);
+                            }}
+                            className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium cursor-pointer"
+                          >
+                            Ekle
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
@@ -1443,6 +1797,139 @@ export function WeeklySchedulerGrid({
                 </div>
               </div>
             )}
+
+            {/* Interactive Date & Time Adjustment (Table Playing / Rescheduling) */}
+            <div className="p-3 bg-[#0d0f18] rounded-xl border border-white/[0.08] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-zinc-200 flex items-center gap-1.5">
+                  <CalendarIcon className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Görüşme Günü & Saati Düzenle</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDuplicateSession(quickEditingSession);
+                    setQuickEditingSession(null);
+                  }}
+                  className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 bg-white/[0.04] hover:bg-white/[0.08] px-2 py-0.5 rounded transition-colors"
+                  title="Bu seansı 15 dk sonraya kopyalar"
+                >
+                  <Copy className="w-3 h-3 text-zinc-400" />
+                  <span>Kopyasını Oluştur</span>
+                </button>
+              </div>
+
+              {/* Day Selection Pills */}
+              <div className="space-y-1">
+                <span className="text-[10px] text-zinc-400 block font-medium">Haftanın Hangi Gününe Taşınsın?</span>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {weekDays.map((d) => (
+                    <button
+                      key={d.date}
+                      type="button"
+                      onClick={() =>
+                        setQuickEditingSession({
+                          ...quickEditingSession,
+                          date: d.date,
+                        })
+                      }
+                      className={`px-2 py-1 rounded-md text-xs font-mono font-medium transition-all ${
+                        quickEditingSession.date === d.date
+                          ? 'bg-emerald-600 text-white border border-emerald-500 font-bold shadow-xs'
+                          : 'bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300'
+                      }`}
+                    >
+                      {d.shortDayName} ({d.dayNumber})
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQuickEditingSession({
+                        ...quickEditingSession,
+                        date: shiftDateString(quickEditingSession.date, 1),
+                      })
+                    }
+                    className="px-2 py-1 rounded-md text-[11px] bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors"
+                    title="Seansı 1 gün sonraya kaydırır"
+                  >
+                    +1 Gün (Yarına)
+                  </button>
+                </div>
+              </div>
+
+              {/* Time Slot & Quick Nudge Buttons */}
+              <div className="space-y-1 pt-1 border-t border-white/[0.04]">
+                <span className="text-[10px] text-zinc-400 block font-medium">Seans Başlangıç Saati:</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <input
+                    type="time"
+                    value={quickEditingSession.time_slot}
+                    onChange={(e) =>
+                      setQuickEditingSession({
+                        ...quickEditingSession,
+                        time_slot: e.target.value,
+                      })
+                    }
+                    className="px-2.5 py-1 bg-[#05060a] border border-white/[0.12] rounded-md text-xs font-mono text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setQuickEditingSession({
+                          ...quickEditingSession,
+                          time_slot: shiftTimeSlotString(quickEditingSession.time_slot, -15),
+                        })
+                      }
+                      className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono"
+                      title="15 dakika geri al"
+                    >
+                      -15 dk
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setQuickEditingSession({
+                          ...quickEditingSession,
+                          time_slot: shiftTimeSlotString(quickEditingSession.time_slot, -5),
+                        })
+                      }
+                      className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono"
+                      title="5 dakika geri al"
+                    >
+                      -5 dk
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setQuickEditingSession({
+                          ...quickEditingSession,
+                          time_slot: shiftTimeSlotString(quickEditingSession.time_slot, 5),
+                        })
+                      }
+                      className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono"
+                      title="5 dakika ileri al"
+                    >
+                      +5 dk
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setQuickEditingSession({
+                          ...quickEditingSession,
+                          time_slot: shiftTimeSlotString(quickEditingSession.time_slot, 15),
+                        })
+                      }
+                      className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono"
+                      title="15 dakika ileri al"
+                    >
+                      +15 dk
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Priority Toggle in Modal */}
             <div className="flex items-center justify-between p-2.5 bg-amber-950/15 border border-amber-500/20 rounded-lg">

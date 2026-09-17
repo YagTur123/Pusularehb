@@ -186,37 +186,37 @@ export function ScheduleConfigModal({
               {/* Session Duration */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-700 dark:text-zinc-200 flex items-center justify-between">
-                  <span>Seans Kaç Dakika Olsun?</span>
+                  <span>Rehberlik Seansı Kaç Dakika Olsun?</span>
                   <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
                     {config.sessionDuration} Dakika
                   </span>
                 </label>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  {[30, 40, 45, 50, 60].map((mins) => (
+                  {[15, 20, 25, 30, 40].map((mins) => (
                     <button
                       key={mins}
                       type="button"
                       onClick={() => setConfig({ ...config, sessionDuration: mins })}
                       className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
                         config.sessionDuration === mins
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 shadow-2xs'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 shadow-2xs font-bold'
                           : 'bg-slate-50 border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:bg-zinc-900 dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-850'
                       }`}
                     >
-                      {mins} dk {mins === 40 && '(Standart MEB)'}
+                      {mins} dk {mins === 15 && '★ (Standart Rehberlik)'}
                     </button>
                   ))}
                   <div className="flex items-center gap-1 ml-auto">
                     <span className="text-[11px] text-slate-500 dark:text-zinc-500">Özel:</span>
                     <input
                       type="number"
-                      min={10}
+                      min={5}
                       max={120}
                       value={config.sessionDuration}
                       onChange={(e) =>
                         setConfig({
                           ...config,
-                          sessionDuration: Math.max(10, parseInt(e.target.value, 10) || 40),
+                          sessionDuration: Math.max(5, parseInt(e.target.value, 10) || 15),
                         })
                       }
                       className="w-16 px-2 py-1 bg-slate-50 dark:bg-[#090a0f] border border-slate-300 dark:border-white/[0.1] rounded text-slate-900 dark:text-white text-center font-mono text-xs focus:outline-none focus:border-emerald-500"
@@ -228,24 +228,24 @@ export function ScheduleConfigModal({
               {/* Break Duration */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-700 dark:text-zinc-200 flex items-center justify-between">
-                  <span>Teneffüs / Ara Kaç Dakika Olsun?</span>
+                  <span>Teneffüs / Geçiş Arası Kaç Dakika Olsun?</span>
                   <span className="font-mono text-amber-600 dark:text-amber-400 font-semibold">
                     {config.breakDuration} Dakika
                   </span>
                 </label>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  {[5, 10, 15, 20].map((mins) => (
+                  {[0, 5, 10, 15].map((mins) => (
                     <button
                       key={mins}
                       type="button"
                       onClick={() => setConfig({ ...config, breakDuration: mins })}
                       className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
                         config.breakDuration === mins
-                          ? 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 shadow-2xs'
+                          ? 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 shadow-2xs font-bold'
                           : 'bg-slate-50 border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:bg-zinc-900 dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-850'
                       }`}
                     >
-                      {mins} dk {mins === 10 && '(Standart Ara)'}
+                      {mins === 0 ? '0 dk (Peş Peşe)' : `${mins} dk ${mins === 5 ? '(Standart Geçiş)' : ''}`}
                     </button>
                   ))}
                   <div className="flex items-center gap-1 ml-auto">
@@ -284,16 +284,18 @@ export function ScheduleConfigModal({
                   <select
                     value={config.sessionCount}
                     onChange={(e) =>
-                      setConfig({ ...config, sessionCount: parseInt(e.target.value, 10) || 8 })
+                      setConfig({ ...config, sessionCount: parseInt(e.target.value, 10) || 16 })
                     }
                     className="w-full px-3 py-1.5 bg-slate-50 dark:bg-[#090a0f] border border-slate-300 dark:border-white/[0.1] rounded-lg text-slate-900 dark:text-white font-mono text-xs focus:outline-none focus:border-emerald-500"
                   >
-                    <option value={5}>5 Seans</option>
-                    <option value={6}>6 Seans</option>
-                    <option value={7}>7 Seans</option>
-                    <option value={8}>8 Seans (Tam Gün)</option>
-                    <option value={9}>9 Seans</option>
-                    <option value={10}>10 Seans</option>
+                    <option value={8}>8 Seans (~2.5 Saat)</option>
+                    <option value={10}>10 Seans (~3.5 Saat)</option>
+                    <option value={12}>12 Seans (~4 Saat)</option>
+                    <option value={14}>14 Seans (~4.5 Saat)</option>
+                    <option value={16}>16 Seans (Standart Tam Gün)</option>
+                    <option value={18}>18 Seans (~6 Saat)</option>
+                    <option value={20}>20 Seans (~7 Saat)</option>
+                    <option value={24}>24 Seans (Yoğun Gün)</option>
                   </select>
                 </div>
               </div>
@@ -323,14 +325,16 @@ export function ScheduleConfigModal({
                         onChange={(e) =>
                           setConfig({
                             ...config,
-                            lunchBreakAfter: parseInt(e.target.value, 10) || 4,
+                            lunchBreakAfter: parseInt(e.target.value, 10) || 8,
                           })
                         }
                         className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-[#090a0f] border border-slate-300 dark:border-white/[0.1] rounded text-slate-900 dark:text-white font-mono text-xs"
                       >
-                        <option value={3}>3. Seanstan sonra</option>
-                        <option value={4}>4. Seanstan sonra (12:20 civarı)</option>
-                        <option value={5}>5. Seanstan sonra</option>
+                        <option value={6}>6. Seanstan sonra (~11:00)</option>
+                        <option value={7}>7. Seanstan sonra (~11:20)</option>
+                        <option value={8}>8. Seanstan sonra (~11:40 - 12:00 civarı)</option>
+                        <option value={9}>9. Seanstan sonra (~12:15)</option>
+                        <option value={10}>10. Seanstan sonra (~12:40)</option>
                       </select>
                     </div>
 
@@ -341,13 +345,15 @@ export function ScheduleConfigModal({
                         onChange={(e) =>
                           setConfig({
                             ...config,
-                            lunchBreakDuration: parseInt(e.target.value, 10) || 50,
+                            lunchBreakDuration: parseInt(e.target.value, 10) || 45,
                           })
                         }
                         className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-[#090a0f] border border-slate-300 dark:border-white/[0.1] rounded text-slate-900 dark:text-white font-mono text-xs"
                       >
+                        <option value={30}>30 Dakika</option>
                         <option value={40}>40 Dakika</option>
-                        <option value={50}>50 Dakika (Standart)</option>
+                        <option value={45}>45 Dakika (Standart)</option>
+                        <option value={50}>50 Dakika</option>
                         <option value={60}>60 Dakika (1 Saat)</option>
                       </select>
                     </div>

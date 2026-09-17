@@ -191,13 +191,13 @@ export function getMonthDays(
 }
 
 export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
-  sessionDuration: 40,
-  breakDuration: 10,
+  sessionDuration: 15,
+  breakDuration: 5,
   startTime: '09:00',
-  sessionCount: 8,
+  sessionCount: 16,
   includeLunchBreak: true,
-  lunchBreakAfter: 4,
-  lunchBreakDuration: 50,
+  lunchBreakAfter: 8,
+  lunchBreakDuration: 45,
 };
 
 export function addMinutesToTime(timeStr: string, minutes: number): string {
@@ -239,7 +239,7 @@ export function generateSlotsFromScheduleConfig(config: ScheduleConfig): {
 
   for (let i = 1; i <= config.sessionCount; i++) {
     const sessionEnd = addMinutesToTime(currentTime, config.sessionDuration);
-    // Add lesson/counseling slot
+    // Add guidance counseling slot
     slots.push({
       time_slot: currentTime,
     });
@@ -260,7 +260,7 @@ export function generateSlotsFromScheduleConfig(config: ScheduleConfig): {
         slots.push({
           time_slot: sessionEnd,
           is_break: true,
-          break_title: `${config.breakDuration} dk Teneffüs`,
+          break_title: `${config.breakDuration} dk Teneffüs / Geçiş`,
         });
         currentTime = breakEnd;
       } else {
@@ -272,18 +272,27 @@ export function generateSlotsFromScheduleConfig(config: ScheduleConfig): {
   return slots;
 }
 
-// Generate default 40-min slots with 10-min breaks
+// Generate default 15-min guidance session slots
 export function generateDefaultTimeSlots(): string[] {
   return [
     '09:00',
-    '09:50',
+    '09:20',
+    '09:40',
+    '10:00',
+    '10:20',
     '10:40',
-    '11:30',
-    '12:20', // Öğle arası öncesi son seans
-    '13:30', // Öğle arası sonrası
+    '11:00',
+    '11:20',
+    '11:40',
+    '13:00',
+    '13:20',
+    '13:40',
+    '14:00',
     '14:20',
-    '15:10',
-    '16:00',
+    '14:40',
+    '15:00',
+    '15:20',
+    '15:40',
   ];
 }
 
@@ -671,7 +680,16 @@ export const StorageService = {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.SCHEDULE_CONFIG);
       if (!data) return DEFAULT_SCHEDULE_CONFIG;
-      return { ...DEFAULT_SCHEDULE_CONFIG, ...JSON.parse(data) };
+      const parsed = JSON.parse(data);
+      // Upgrade legacy 40-min lesson duration to 15-min guidance session default
+      if (parsed.sessionDuration === 40) {
+        parsed.sessionDuration = 15;
+        parsed.breakDuration = 5;
+        parsed.sessionCount = 16;
+        parsed.lunchBreakAfter = 8;
+        this.saveScheduleConfig({ ...DEFAULT_SCHEDULE_CONFIG, ...parsed });
+      }
+      return { ...DEFAULT_SCHEDULE_CONFIG, ...parsed };
     } catch {
       return DEFAULT_SCHEDULE_CONFIG;
     }

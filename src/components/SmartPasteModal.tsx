@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Student, ParsedStudentRow } from '../types';
 import { parseBulkStudentText } from '../lib/parser';
 import { StorageService } from '../lib/storage';
-import { X, UploadCloud, CheckCircle2, AlertTriangle, FileSpreadsheet, Plus } from 'lucide-react';
+import { X, UploadCloud, CheckCircle2, AlertTriangle, FileSpreadsheet, Plus, FileText } from 'lucide-react';
 
 interface SmartPasteModalProps {
   onClose: () => void;
@@ -21,6 +21,24 @@ export function SmartPasteModal({
   onShowToast,
 }: SmartPasteModalProps) {
   const [inputText, setInputText] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (text) {
+        setInputText((prev) => (prev.trim() ? prev + '\n' + text : text));
+        onShowToast('Dosya Okundu', `${file.name} listeye aktarıldı.`, 'success');
+      }
+    };
+    reader.onerror = () => {
+      onShowToast('Hata', 'Dosya okunamadı.', 'warning');
+    };
+    reader.readAsText(file);
+  };
 
   const parsedRows: ParsedStudentRow[] = useMemo(() => {
     return parseBulkStudentText(inputText);
@@ -97,12 +115,53 @@ export function SmartPasteModal({
 
         {/* Content */}
         <div className="p-6 flex-1 overflow-y-auto space-y-4">
+          {/* File Upload Dropzone (Supports Drag & Drop and Click Selection) */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) handleFileUpload(file);
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-3.5 text-center cursor-pointer transition-all ${
+              isDragging
+                ? 'border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/40 scale-[0.99]'
+                : 'border-slate-300 dark:border-slate-700/80 hover:border-indigo-400 dark:hover:border-indigo-500/60 bg-slate-50/60 dark:bg-slate-950/40'
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.txt,.tsv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileUpload(file);
+              }}
+            />
+            <div className="flex items-center justify-center gap-2 text-indigo-600 dark:text-indigo-400 mb-1">
+              <UploadCloud className="w-5 h-5" />
+              <span className="text-xs font-semibold">
+                Excel / e-Okul CSV veya Metin Dosyası Sürükleyin ya da Seçin
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              .csv, .tsv veya .txt dosyalarını doğrudan bırakabilirsiniz (Otomatik regex analizi yapılır)
+            </p>
+          </div>
+
           {/* Input Area */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                <span>Metin veya Excel Verisini Buraya Yapıştırın:</span>
+                <span>veya Metin / Excel Sütunlarını Buraya Yapıştırın:</span>
               </label>
               <button
                 type="button"
@@ -113,10 +172,10 @@ export function SmartPasteModal({
               </button>
             </div>
             <textarea
-              rows={5}
+              rows={4}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Excel'den kopyaladığınız satırları veya WhatsApp öğrenci listesini doğrudan buraya yapıştırın (Cmd+V)..."
+              placeholder="e-Okul veya Excel'den kopyaladığınız satırları (Ad Soyad, Sınıf, Telefon) doğrudan buraya yapıştırın (Ctrl+V / Cmd+V)..."
               className="w-full p-3 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-indigo-500 selection:bg-indigo-100 dark:selection:bg-indigo-950 resize-y"
             />
           </div>

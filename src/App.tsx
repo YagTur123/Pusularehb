@@ -164,6 +164,12 @@ export default function App() {
     setStudents(StorageService.getStudents());
   };
 
+  const handleUpdateMultipleSessions = (updatedList: Session[]) => {
+    StorageService.updateMultipleSessions(updatedList);
+    setSessions(StorageService.getSessions());
+    setStudents(StorageService.getStudents());
+  };
+
   const handleDeleteSession = (id: string) => {
     StorageService.deleteSession(id);
     setSessions(StorageService.getSessions());
@@ -347,6 +353,7 @@ export default function App() {
             students={students}
             counselorName={counselorName}
             onUpdateSession={handleUpdateSession}
+            onUpdateMultipleSessions={handleUpdateMultipleSessions}
             onDeleteSession={handleDeleteSession}
             onAddSession={handleAddSession}
             onFillStandardSlots={handleFillStandardSlots}
@@ -369,6 +376,7 @@ export default function App() {
             onDeleteStudent={handleDeleteStudent}
             onShowToast={showToast}
             onQuickScheduleStudent={handleQuickScheduleStudent}
+            onOpenSmartPaste={() => setIsSmartPasteOpen(true)}
           />
         )}
       </main>

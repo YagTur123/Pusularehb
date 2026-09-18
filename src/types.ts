@@ -12,6 +12,21 @@ export interface Student {
   created_at: string;
 }
 
+export interface SessionFeedback {
+  status: 'Geldi' | 'Gelmedi';
+  submitted_at: string; // ISO timestamp
+  // If 'Geldi'
+  rating?: number; // 1 to 5
+  efficiency?: 'Çok Verimli' | 'Verimli' | 'Orta' | 'Düşük Verim';
+  notes?: string;
+  next_step?: string;
+  // If 'Gelmedi'
+  reason?: 'Mazeretli' | 'Hastalık' | 'Unuttu' | 'İletişim Kurulamadı' | 'Diğer';
+  parent_notified?: boolean;
+  makeup_session_planned?: boolean;
+  makeup_date?: string;
+}
+
 export interface Session {
   id: string;
   date: string; // YYYY-MM-DD
@@ -26,6 +41,8 @@ export interface Session {
   is_priority?: boolean; // High priority session
   is_break?: boolean; // Teneffüs / Mola bloğu
   break_title?: string; // e.g. "10 dk Teneffüs", "Öğle Arası"
+  break_duration?: number; // Teneffüs / mola süresi (dakika)
+  feedback?: SessionFeedback;
 }
 
 export interface ScheduleConfig {

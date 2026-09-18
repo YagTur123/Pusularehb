@@ -662,6 +662,20 @@ export const StorageService = {
     }
   },
 
+  updateMultipleSessions(updatedList: Session[]) {
+    const sessions = this.getSessions();
+    const updateMap = new Map(updatedList.map((s) => [s.id, s]));
+    const result = sessions.map((s) => updateMap.get(s.id) || s);
+    this.saveSessions(result);
+
+    for (const session of updatedList) {
+      if (session.status === 'Geldi' && session.student_id) {
+        this.updateStudentLastMeeting(session.student_id, session.date);
+      }
+    }
+    return result;
+  },
+
   deleteSession(id: string) {
     const sessions = this.getSessions().filter((s) => s.id !== id);
     this.saveSessions(sessions);

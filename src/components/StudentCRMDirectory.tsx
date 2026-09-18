@@ -15,6 +15,8 @@ import {
   Target,
   ExternalLink,
   Download,
+  UploadCloud,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { displayPhone, formatTurkishDate, StorageService } from '../lib/storage';
 import { getWhatsAppDirectUrl } from '../lib/whatsapp';
@@ -32,6 +34,7 @@ interface StudentCRMDirectoryProps {
   onDeleteStudent: (id: string) => void;
   onShowToast: (title: string, desc?: string, type?: 'success' | 'info' | 'warning') => void;
   onQuickScheduleStudent: (student: Student) => void;
+  onOpenSmartPaste?: () => void;
 }
 
 export function StudentCRMDirectory({
@@ -44,6 +47,7 @@ export function StudentCRMDirectory({
   onDeleteStudent,
   onShowToast,
   onQuickScheduleStudent,
+  onOpenSmartPaste,
 }: StudentCRMDirectoryProps) {
   const [search, setSearch] = useState('');
   const [selectedClass, setSelectedClass] = useState<string>('all');
@@ -191,8 +195,23 @@ export function StudentCRMDirectory({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-1.5">
+          {/* Bulk Import Button */}
+          {onOpenSmartPaste && (
+            <button
+              type="button"
+              onClick={onOpenSmartPaste}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+              title="e-Okul veya Excel'den toplu öğrenci aktarımı yap"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Toplu İçe Aktar (e-Okul / Excel)</span>
+              <span className="sm:hidden">İçe Aktar</span>
+            </button>
+          )}
+
           {/* CSV Export Button */}
           <button
+            type="button"
             onClick={handleExportCsv}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#181a26] dark:hover:bg-[#1e2130] border border-slate-300 dark:border-white/[0.08] text-slate-800 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white text-xs font-medium transition-colors cursor-pointer shadow-2xs"
             title="CSV formatında indir"
@@ -203,6 +222,7 @@ export function StudentCRMDirectory({
 
           {/* Add Student Button */}
           <button
+            type="button"
             onClick={() => setIsAddModalOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white dark:text-zinc-100 border border-slate-900 dark:border-white/[0.1] text-xs font-medium transition-colors cursor-pointer shadow-xs"
           >
@@ -213,23 +233,23 @@ export function StudentCRMDirectory({
       </div>
 
       {/* Students Table */}
-      <div className="border border-slate-200 dark:border-white/[0.08] rounded-xl overflow-hidden bg-white dark:bg-[#141622] shadow-sm dark:shadow-2xl transition-colors">
+      <div className="border border-slate-200/90 dark:border-white/[0.08] rounded-xl overflow-hidden bg-white dark:bg-[#121420] shadow-xs transition-colors">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-[#12141e] border-b border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-zinc-400 text-xs font-semibold">
-                <th className="py-2.5 px-3 font-semibold text-slate-900 dark:text-zinc-200">Öğrenci & Sınıf</th>
-                <th className="py-2.5 px-3 font-semibold text-slate-900 dark:text-zinc-200">Telefon</th>
-                <th className="py-2.5 px-3 font-semibold text-slate-900 dark:text-zinc-200">Son Görüşme</th>
-                <th className="py-2.5 px-3 font-semibold text-slate-900 dark:text-zinc-200">Hedef & Etiket</th>
-                <th className="py-2.5 px-3 text-right font-semibold text-slate-900 dark:text-zinc-200">İşlem</th>
+              <tr className="bg-slate-50/90 dark:bg-[#0c0e17] border-b border-slate-200 dark:border-white/[0.08] text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 select-none">
+                <th className="align-middle py-3 px-4 min-w-[220px]">Öğrenci & Sınıf</th>
+                <th className="align-middle py-3 px-4 w-40 font-mono">Telefon</th>
+                <th className="align-middle py-3 px-4 w-44">Son Görüşme</th>
+                <th className="align-middle py-3 px-4 min-w-[240px]">Hedef & Teşhis Etiketleri</th>
+                <th className="align-middle py-3 px-4 text-right w-44">İşlemler</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04] font-sans">
+            <tbody className="divide-y divide-slate-200/90 dark:divide-white/[0.07] font-sans">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-slate-500 dark:text-zinc-500">
-                    Öğrenci kaydı bulunamadı.
+                  <td colSpan={5} className="py-14 text-center text-slate-500 dark:text-zinc-500 text-xs">
+                    Kayıtlı öğrenci bulunamadı.
                   </td>
                 </tr>
               ) : (
@@ -242,69 +262,74 @@ export function StudentCRMDirectory({
                   return (
                     <tr
                       key={student.id}
-                      className="group hover:bg-slate-50/90 dark:hover:bg-white/[0.02] transition-colors"
+                      className="group transition-colors duration-150 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20"
                     >
                       {/* Name & Grade */}
-                      <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-2">
+                      <td className="align-middle py-3.5 px-4">
+                        <div className="flex items-center gap-2.5">
                           <button
+                            type="button"
                             onClick={() => setHistoryStudent(student)}
-                            className="font-semibold text-slate-900 hover:text-emerald-700 dark:text-zinc-200 dark:hover:text-white text-left hover:underline cursor-pointer"
+                            className="font-bold text-sm text-slate-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 text-left transition-colors cursor-pointer"
                           >
                             {student.full_name}
                           </button>
-                          <span className="text-[11px] font-mono text-slate-600 dark:text-zinc-400 shrink-0 font-medium">
+                          <span className="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 border border-slate-200/80 dark:border-zinc-700 shrink-0">
                             {student.class_grade}
                           </span>
                           {isUncontacted20d && (
                             <span
-                              className="w-2 h-2 rounded-full bg-amber-500 shrink-0 shadow-2xs"
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-200/90 dark:border-amber-800/40 shrink-0"
                               title="20+ gündür görüşülmedi"
-                            />
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                              <span>20+ Gün</span>
+                            </span>
                           )}
                         </div>
                       </td>
 
                       {/* Phone */}
-                      <td className="py-2.5 px-3 font-mono text-slate-800 dark:text-zinc-300 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <Phone className="w-3 h-3 text-slate-400 dark:text-zinc-500" />
+                      <td className="align-middle py-3.5 px-4 font-mono text-xs font-semibold text-slate-800 dark:text-zinc-200 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 shrink-0" />
                           <span>{displayPhone(student.phone)}</span>
                         </div>
                       </td>
 
                       {/* Son Görüşme */}
-                      <td className="py-2.5 px-3 whitespace-nowrap">
+                      <td className="align-middle py-3.5 px-4 whitespace-nowrap">
                         {student.last_meeting_date ? (
-                          <div className="flex items-center gap-1.5">
-                            <Clock className={`w-3.5 h-3.5 ${isUncontacted20d ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-zinc-500'}`} />
-                            <span className={isUncontacted20d ? 'text-amber-800 dark:text-amber-300 font-semibold' : 'text-slate-700 dark:text-zinc-300'}>
+                          <div className="flex items-center gap-2">
+                            <Clock className={`w-3.5 h-3.5 shrink-0 ${isUncontacted20d ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-zinc-500'}`} />
+                            <span className={`text-xs ${isUncontacted20d ? 'text-amber-900 dark:text-amber-300 font-bold' : 'text-slate-800 dark:text-zinc-200 font-medium'}`}>
                               {formatTurkishDate(student.last_meeting_date)}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-slate-400 dark:text-zinc-500 text-[11px] flex items-center gap-1">
-                            Hiç görüşülmedi
+                          <span className="text-slate-400 dark:text-zinc-500 text-xs font-normal flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-600 shrink-0" />
+                            <span>Hiç görüşülmedi</span>
                           </span>
                         )}
                       </td>
 
                       {/* Hedef & Teşhis Etiketleri */}
-                      <td className="py-2.5 px-3">
-                        <div className="space-y-1">
+                      <td className="align-middle py-3.5 px-4">
+                        <div className="space-y-1 max-w-sm">
                           {student.target_goal && (
-                            <div className="text-[11px] text-slate-800 dark:text-zinc-300 font-normal truncate max-w-xs">
+                            <div className="text-xs font-semibold text-slate-900 dark:text-zinc-200 truncate">
                               {student.target_goal}
                             </div>
                           )}
 
                           {student.status_flags && student.status_flags.length > 0 && (
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700/60 font-medium">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700/80">
                                 {student.status_flags[0]}
                               </span>
                               {student.status_flags.length > 1 && (
-                                <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-normal">
+                                <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[160px]">
                                   {student.status_flags.slice(1).join(', ')}
                                 </span>
                               )}
@@ -313,57 +338,62 @@ export function StudentCRMDirectory({
                         </div>
                       </td>
 
-                      {/* Aksiyonlar */}
-                      <td className="py-2.5 px-3 text-right">
+                      {/* Aksiyonlar (Temiz, çerçevesiz, hover-vurgulu butonlar) */}
+                      <td className="align-middle py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {/* Quick Schedule */}
                           <button
+                            type="button"
                             onClick={() => onQuickScheduleStudent(student)}
-                            className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#0e1015] dark:hover:bg-zinc-800 border border-slate-300 dark:border-white/[0.08] text-slate-700 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white text-xs transition-colors cursor-pointer shadow-2xs"
+                            className="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:text-zinc-400 dark:hover:text-indigo-300 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer"
                             title="Bugüne seans planla"
                           >
-                            <Calendar className="w-3.5 h-3.5 text-slate-700 dark:text-zinc-300" />
+                            <Calendar className="w-4 h-4" />
                           </button>
 
                           {/* WhatsApp Direct Chat */}
                           <button
+                            type="button"
                             onClick={() => handleOpenDirectChat(student)}
-                            className="p-1.5 rounded-md bg-emerald-50 hover:bg-emerald-100 dark:bg-[#0e1015] dark:hover:bg-zinc-800 border border-emerald-300 dark:border-white/[0.08] text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 text-xs transition-colors cursor-pointer shadow-2xs"
+                            className="p-2 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
                             title="WhatsApp mesajı"
                           >
-                            <MessageSquare className="w-3.5 h-3.5" />
+                            <MessageSquare className="w-4 h-4" />
                           </button>
 
                           {/* Past Meeting History */}
                           <button
+                            type="button"
                             onClick={() => setHistoryStudent(student)}
-                            className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#0e1015] dark:hover:bg-zinc-800 border border-slate-300 dark:border-white/[0.08] text-slate-700 hover:text-slate-950 dark:text-zinc-400 dark:hover:text-white text-xs transition-colors cursor-pointer shadow-2xs"
+                            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                             title="Geçmiş seanslar"
                           >
-                            <History className="w-3.5 h-3.5 text-slate-700 dark:text-zinc-400" />
+                            <History className="w-4 h-4" />
                           </button>
 
                           {/* Edit Profile */}
                           <button
+                            type="button"
                             onClick={() => setEditingStudent(student)}
-                            className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#0e1015] dark:hover:bg-zinc-800 border border-slate-300 dark:border-white/[0.08] text-slate-700 hover:text-slate-950 dark:text-zinc-400 dark:hover:text-white text-xs transition-colors cursor-pointer shadow-2xs"
+                            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                             title="Düzenle"
                           >
-                            <Edit2 className="w-3.5 h-3.5 text-slate-700 dark:text-zinc-400" />
+                            <Edit2 className="w-4 h-4" />
                           </button>
 
                           {/* Delete Student */}
                           <button
+                            type="button"
                             onClick={() => {
                               if (confirm(`${student.full_name} kaydını silmek istediğinize emin misiniz?`)) {
                                 onDeleteStudent(student.id);
                                 onShowToast('Öğrenci Silindi', student.full_name, 'info');
                               }
                             }}
-                            className="p-1.5 rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                            className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                             title="Sil"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

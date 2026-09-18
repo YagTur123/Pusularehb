@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Student, Session, User, ScheduleConfig } from './types';
 import { StorageService, getTodayDateString } from './lib/storage';
 import { AuthService } from './lib/auth';
+import { cloudSync } from './lib/firebaseSync';
 import { generateGroupBroadcastText, copyToClipboard } from './lib/whatsapp';
 import { Header } from './components/Header';
 import { RiskRadarBar, RiskFilter } from './components/RiskRadarBar';
@@ -76,6 +77,19 @@ export default function App() {
     setIsBroadcastModalOpen(true);
   }, [selectedDate]);
 
+  // Initialize Firebase Cloud Firestore Sync for logged in / current counselor
+  useEffect(() => {
+    const uid = currentUser?.id || 'demo_rehberlik';
+    const uname = currentUser?.name || 'Rehberlik & Psikolojik Danışmanlık Birimi';
+    cloudSync.initSyncForCounselor(uid, uname);
+    const unsubData = cloudSync.onDataUpdated(() => {
+      setStudents(StorageService.getStudents(uid));
+      setSessions(StorageService.getSessions(uid));
+      setCounselorName(StorageService.getCounselorName(uid));
+    });
+    return () => unsubData();
+  }, [currentUser?.id, currentUser?.name]);
+
   // Auth Handlers
   const handleOpenAuth = useCallback((mode: 'signin' | 'signup' = 'signin') => {
     setAuthModalMode(mode);
@@ -85,31 +99,43 @@ export default function App() {
   const handleAuthSuccess = useCallback((user: User) => {
     setCurrentUser(user);
     setCounselorName(user.name);
-    StorageService.setCounselorName(user.name);
-    setStudents(StorageService.getStudents());
-    setSessions(StorageService.getSessions());
+    StorageService.setCounselorName(user.name, user.id);
+    cloudSync.syncUserProfile(user).catch(() => {});
+    cloudSync.initSyncForCounselor(user.id, user.name);
+    // Explicitly reload scoped datasets for this user
+    setStudents(StorageService.getStudents(user.id));
+    setSessions(StorageService.getSessions(user.id));
   }, []);
 
   const handleSignOut = useCallback(() => {
     AuthService.signOut();
     setCurrentUser(null);
-    showToast(
-      'Oturum Kapatıldı',
-      'Misafir modundasınız. Seans çizelgenizi özelleştirmek için giriş yapabilirsiniz.',
-      'info'
-    );
-  }, [showToast]);
+    const guestId = 'demo_rehberlik';
+    const guestName = 'Rehberlik & Psikolojik Danışmanlık Birimi';
+    setCounselorName(guestName);
+    cloudSync.initSyncForCounselor(guestId, guestName);
+    setStudents(StorageService.getStudents(guestId));
+    setSessions(StorageService.getSessions(guestId));
+  }, []);
+
+  const handleQuickDemoLogin = useCallback((roleType: 'counselor' | 'coach') => {
+    const user = AuthService.quickDemoLogin(roleType);
+    handleAuthSuccess(user);
+    showToast('Demo Girişi Yapıldı', `${user.name} olarak oturum açıldı.`, 'success');
+  }, [handleAuthSuccess, showToast]);
 
   const handleUpdateUser = useCallback((updatedUser: User) => {
     setCurrentUser(updatedUser);
     setCounselorName(updatedUser.name);
+    cloudSync.syncUserProfile(updatedUser).catch(() => {});
   }, []);
 
   const refreshData = useCallback(() => {
-    setStudents(StorageService.getStudents());
-    setSessions(StorageService.getSessions());
-    setCounselorName(StorageService.getCounselorName());
-  }, []);
+    const uid = currentUser?.id || 'demo_rehberlik';
+    setStudents(StorageService.getStudents(uid));
+    setSessions(StorageService.getSessions(uid));
+    setCounselorName(StorageService.getCounselorName(uid));
+  }, [currentUser?.id]);
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -300,6 +326,7 @@ export default function App() {
         onOpenAuth={handleOpenAuth}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onSignOut={handleSignOut}
+        onQuickDemoLogin={handleQuickDemoLogin}
         theme={theme}
         onToggleTheme={toggleTheme}
       />
@@ -313,7 +340,27 @@ export default function App() {
               <strong className="text-slate-900 dark:text-zinc-100 font-semibold">Misafir Modu:</strong> Seansları kendi adınız ve okulunuzla yönetmek, WhatsApp ilanlarında ünvanınızı kullanmak için giriş yapın.
             </span>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-800/80 px-2 py-0.5 rounded-md border border-slate-200 dark:border-white/[0.08]">
+              <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium">⚡ Hızlı Demo:</span>
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('counselor')}
+                className="px-2 py-0.5 rounded text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                title="Atatürk Anadolu Lisesi Rehberlik Servisi demo profiliyle giriş yap"
+              >
+                Rehberlik Servisi
+              </button>
+              <span className="text-slate-300 dark:text-zinc-700 text-[10px]">•</span>
+              <button
+                type="button"
+                onClick={() => handleQuickDemoLogin('coach')}
+                className="px-2 py-0.5 rounded text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer"
+                title="Hedef Akademi Bireysel YKS Koçluğu demo profiliyle giriş yap"
+              >
+                YKS Koçluğu
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => handleOpenAuth('signin')}

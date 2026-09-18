@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow counselors read/write access to their profile and data
+    // Supports both anonymous/authenticated users in Vercel & AI Studio
+    match /counselor_profiles/{userId} {
+      allow read, write: if true;
+    }
+
+    match /counselor_data/{counselorId} {
+      allow read, write: if true;
+    }
+  }
+}

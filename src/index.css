@@ -141,3 +141,30 @@ html:not(.dark) .bg-black\/40 {
   animation: dropShelfPulse 1.2s ease-in-out infinite;
 }
 
+/* Print Optimization for Official A4 Counseling Sheets */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  header,
+  nav,
+  aside,
+  button,
+  .print\:hidden {
+    display: none !important;
+  }
+  #counseling-print-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+
+

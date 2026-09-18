@@ -1,0 +1,45 @@
+{
+  "entities": {
+    "counselor_profiles": {
+      "title": "Counselor Profiles",
+      "description": "User profile data for guidance counselors, school info, and metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "school": { "type": "string" },
+        "phone": { "type": "string" },
+        "created_at": { "type": "string" },
+        "avatar_color": { "type": "string" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "counselor_data": {
+      "title": "Counselor Cloud Sync Document",
+      "description": "Root synced payload containing students, sessions, schedule configs, and version info per counselor",
+      "type": "object",
+      "properties": {
+        "counselor_id": { "type": "string" },
+        "counselor_name": { "type": "string" },
+        "students": { "type": "array" },
+        "sessions": { "type": "array" },
+        "schedule_config": { "type": "object" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["counselor_id", "students", "sessions", "updated_at"]
+    }
+  },
+  "firestore": {
+    "counselor_profiles": {
+      "schema": "counselor_profiles",
+      "description": "Collection of counselor accounts and credentials profile"
+    },
+    "counselor_data": {
+      "schema": "counselor_data",
+      "description": "Collection storing real-time synchronized student and session data for each counselor"
+    }
+  }
+}

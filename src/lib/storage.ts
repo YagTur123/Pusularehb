@@ -1,4 +1,6 @@
 import { Student, Session, ScheduleConfig } from '../types';
+import { cloudSync } from './firebaseSync';
+import { AuthService } from './auth';
 
 const STORAGE_KEYS = {
   STUDENTS: 'pusula_students_v1',
@@ -7,6 +9,31 @@ const STORAGE_KEYS = {
   COUNSELOR_NAME: 'pusula_counselor_name_v1',
   SCHEDULE_CONFIG: 'pusula_schedule_config_v1',
 };
+
+// Helper to get active user id for storage key isolation
+export function getActiveUserId(): string {
+  try {
+    const user = AuthService.getCurrentUser();
+    return user?.id || 'demo_rehberlik';
+  } catch {
+    return 'demo_rehberlik';
+  }
+}
+
+// Scoped key helper: if key already contains user ID or for specific user
+export function getUserStorageKey(baseKey: string, userId?: string): string {
+  const uid = userId || getActiveUserId();
+  return `${baseKey}_${uid}`;
+}
+
+// Debounce cloud sync calls to prevent spamming Firestore
+let cloudSyncTimeout: any = null;
+function scheduleCloudSync() {
+  if (cloudSyncTimeout) clearTimeout(cloudSyncTimeout);
+  cloudSyncTimeout = setTimeout(() => {
+    cloudSync.syncLocalToCloud().catch(() => {});
+  }, 400);
+}
 
 export function autoFormatPhone(raw: string): string {
   if (!raw) return '';
@@ -198,6 +225,16 @@ export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
   includeLunchBreak: true,
   lunchBreakAfter: 8,
   lunchBreakDuration: 45,
+};
+
+export const COACH_SCHEDULE_CONFIG: ScheduleConfig = {
+  sessionDuration: 30,
+  breakDuration: 10,
+  startTime: '10:00',
+  sessionCount: 8,
+  includeLunchBreak: true,
+  lunchBreakAfter: 4,
+  lunchBreakDuration: 60,
 };
 
 export function addMinutesToTime(timeStr: string, minutes: number): string {
@@ -493,13 +530,123 @@ function getInitialSessions(): Session[] {
   ];
 }
 
+function getCoachInitialStudents(): Student[] {
+  const today = getTodayDateString();
+  return [
+    {
+      id: 'koc_std_1',
+      full_name: 'Burak Tan',
+      class_grade: '12-SAY',
+      phone: '905331122334',
+      last_meeting_date: today,
+      status_flags: ['Haftalık Plan', 'AYT Matematik'],
+      target_goal: 'Boğaziçi Makine Mühendisliği',
+      notes: 'Haftalık soru hedefi 800 soru. Deneme takip tablosu dolduruldu.',
+      created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+    },
+    {
+      id: 'koc_std_2',
+      full_name: 'Derya Çetin',
+      class_grade: 'Mezun-EA',
+      phone: '905442233445',
+      last_meeting_date: shiftDateString(today, -3),
+      status_flags: ['Paragraf Rutini', 'Edebiyat Ezber'],
+      target_goal: 'Galatasaray Hukuk Fakültesi',
+      notes: 'Edebiyat yazar-eser kartları çalışması haftalık kontrol edilecek.',
+      created_at: new Date(Date.now() - 18 * 86400000).toISOString(),
+    },
+    {
+      id: 'koc_std_3',
+      full_name: 'Caner Aksoy',
+      class_grade: '12-EA',
+      phone: '905553344556',
+      last_meeting_date: shiftDateString(today, -21), // Risk Radarı (>20 gün)
+      status_flags: ['Zaman Yönetimi', 'Net Düşüşü'],
+      target_goal: 'Bilkent İktisat',
+      notes: 'Koçluk seansını aksattı, acil takip görüşmesi yapılmalı.',
+      created_at: new Date(Date.now() - 35 * 86400000).toISOString(),
+    },
+  ];
+}
+
+function getCoachInitialSessions(): Session[] {
+  const today = getTodayDateString();
+  const nextWeek = shiftDateString(today, 7);
+
+  return [
+    {
+      id: 'koc_sess_1',
+      date: today,
+      time_slot: '10:00',
+      student_id: 'koc_std_1',
+      topic: 'Haftalık Soru Analizi & Kamp Programı',
+      action_items: 'Limit-Türev fasikülü bitirilecek.',
+      tags: ['Haftalık Plan', 'AYT Matematik'],
+      status: 'Geldi',
+      next_followup_date: nextWeek,
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'koc_sess_2',
+      date: today,
+      time_slot: '10:40',
+      student_id: 'koc_std_2',
+      topic: 'Deneme Stratejisi & Edebiyat Takibi',
+      action_items: 'Günde 30 paragraf rutini kontrolü.',
+      tags: ['Paragraf Rutini'],
+      status: 'Bekliyor',
+      next_followup_date: nextWeek,
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'koc_sess_break_1',
+      date: today,
+      time_slot: '11:20',
+      student_id: null,
+      topic: 'Teneffüs / Kahve Arası',
+      action_items: '',
+      tags: ['Teneffüs'],
+      status: 'Bekliyor',
+      is_break: true,
+      break_title: '15 dk Koçluk Molası',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'koc_sess_3',
+      date: today,
+      time_slot: '11:35',
+      student_id: 'koc_std_3',
+      topic: 'Kriz Görüşmesi & Takip Seansı',
+      action_items: 'Aksayan program yeniden yapılandırıldı.',
+      tags: ['Net Düşüşü'],
+      status: 'Bekliyor',
+      next_followup_date: nextWeek,
+      created_at: new Date().toISOString(),
+    },
+  ];
+}
+
 export const StorageService = {
-  getStudents(): Student[] {
+  getStudents(userId?: string): Student[] {
+    const key = getUserStorageKey(STORAGE_KEYS.STUDENTS, userId);
+    const activeUid = userId || getActiveUserId();
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+      let data = localStorage.getItem(key);
+      // Seamless migration: if this is demo_rehberlik and no scoped key exists yet, try migrating legacy un-scoped key
+      if (!data && (activeUid === 'demo_rehberlik' || activeUid === 'counselor_1' || activeUid === 'usr_counselor_1')) {
+        const legacyData = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+        if (legacyData) {
+          localStorage.setItem(key, legacyData);
+          data = legacyData;
+        }
+      }
+
       if (!data) {
-        this.saveStudents(INITIAL_STUDENTS);
-        return INITIAL_STUDENTS;
+        // Initial seed based on user role/persona
+        const isCoach = activeUid === 'demo_koc' || activeUid === 'usr_coach_2';
+        const initial = isCoach ? getCoachInitialStudents() : INITIAL_STUDENTS;
+        this.saveStudents(initial, activeUid);
+        return initial;
       }
       const parsed: Student[] = JSON.parse(data);
       let migrated = false;
@@ -520,25 +667,39 @@ export const StorageService = {
         return s;
       });
       if (migrated) {
-        this.saveStudents(cleaned);
+        this.saveStudents(cleaned, activeUid);
         return cleaned;
       }
       return parsed;
     } catch {
-      return INITIAL_STUDENTS;
+      return activeUid === 'demo_koc' ? getCoachInitialStudents() : INITIAL_STUDENTS;
     }
   },
 
-  saveStudents(students: Student[]) {
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+  saveStudents(students: Student[], userId?: string) {
+    const key = getUserStorageKey(STORAGE_KEYS.STUDENTS, userId);
+    localStorage.setItem(key, JSON.stringify(students));
+    scheduleCloudSync();
   },
 
-  getSessions(): Session[] {
+  getSessions(userId?: string): Session[] {
+    const key = getUserStorageKey(STORAGE_KEYS.SESSIONS, userId);
+    const activeUid = userId || getActiveUserId();
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+      let data = localStorage.getItem(key);
+      // Migration from legacy un-scoped key
+      if (!data && (activeUid === 'demo_rehberlik' || activeUid === 'counselor_1' || activeUid === 'usr_counselor_1')) {
+        const legacyData = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+        if (legacyData) {
+          localStorage.setItem(key, legacyData);
+          data = legacyData;
+        }
+      }
+
       if (!data) {
-        const initial = getInitialSessions();
-        this.saveSessions(initial);
+        const isCoach = activeUid === 'demo_koc' || activeUid === 'usr_coach_2';
+        const initial = isCoach ? getCoachInitialSessions() : getInitialSessions();
+        this.saveSessions(initial, activeUid);
         return initial;
       }
       const parsed: Session[] = JSON.parse(data);
@@ -576,24 +737,43 @@ export const StorageService = {
           if (a.date !== b.date) return a.date.localeCompare(b.date);
           return a.time_slot.localeCompare(b.time_slot);
         });
-        this.saveSessions(parsed);
+        this.saveSessions(parsed, activeUid);
       }
       return parsed;
     } catch {
-      return getInitialSessions();
+      const isCoach = activeUid === 'demo_koc' || activeUid === 'usr_coach_2';
+      return isCoach ? getCoachInitialSessions() : getInitialSessions();
     }
   },
 
-  saveSessions(sessions: Session[]) {
-    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(sessions));
+  saveSessions(sessions: Session[], userId?: string) {
+    const key = getUserStorageKey(STORAGE_KEYS.SESSIONS, userId);
+    localStorage.setItem(key, JSON.stringify(sessions));
+    scheduleCloudSync();
   },
 
-  getCounselorName(): string {
-    return localStorage.getItem(STORAGE_KEYS.COUNSELOR_NAME) || 'Rehberlik & Psikolojik Danışmanlık Birimi';
+  getCounselorName(userId?: string): string {
+    const activeUid = userId || getActiveUserId();
+    const key = getUserStorageKey(STORAGE_KEYS.COUNSELOR_NAME, activeUid);
+    const stored = localStorage.getItem(key);
+    if (stored) return stored;
+
+    // Check legacy key for demo_rehberlik
+    if (activeUid === 'demo_rehberlik' || activeUid === 'counselor_1' || activeUid === 'usr_counselor_1') {
+      const legacy = localStorage.getItem(STORAGE_KEYS.COUNSELOR_NAME);
+      if (legacy) return legacy;
+    }
+
+    if (activeUid === 'demo_koc' || activeUid === 'usr_coach_2') {
+      return 'Merve Aydın (YKS Koçu)';
+    }
+    return 'Rehberlik & Psikolojik Danışmanlık Birimi';
   },
 
-  setCounselorName(name: string) {
-    localStorage.setItem(STORAGE_KEYS.COUNSELOR_NAME, name);
+  setCounselorName(name: string, userId?: string) {
+    const key = getUserStorageKey(STORAGE_KEYS.COUNSELOR_NAME, userId);
+    localStorage.setItem(key, name);
+    scheduleCloudSync();
   },
 
   addStudent(student: Omit<Student, 'id' | 'created_at'>): Student {
@@ -690,10 +870,23 @@ export const StorageService = {
     }
   },
 
-  getScheduleConfig(): ScheduleConfig {
+  getScheduleConfig(userId?: string): ScheduleConfig {
+    const key = getUserStorageKey(STORAGE_KEYS.SCHEDULE_CONFIG, userId);
+    const activeUid = userId || getActiveUserId();
     try {
-      const data = localStorage.getItem(STORAGE_KEYS.SCHEDULE_CONFIG);
-      if (!data) return DEFAULT_SCHEDULE_CONFIG;
+      let data = localStorage.getItem(key);
+      // Migration from legacy un-scoped key
+      if (!data && (activeUid === 'demo_rehberlik' || activeUid === 'counselor_1' || activeUid === 'usr_counselor_1')) {
+        const legacyData = localStorage.getItem(STORAGE_KEYS.SCHEDULE_CONFIG);
+        if (legacyData) {
+          localStorage.setItem(key, legacyData);
+          data = legacyData;
+        }
+      }
+
+      const isCoach = activeUid === 'demo_koc' || activeUid === 'usr_coach_2';
+      const baseDefault = isCoach ? COACH_SCHEDULE_CONFIG : DEFAULT_SCHEDULE_CONFIG;
+      if (!data) return baseDefault;
       const parsed = JSON.parse(data);
       // Upgrade legacy 40-min lesson duration to 15-min guidance session default
       if (parsed.sessionDuration === 40) {
@@ -701,16 +894,19 @@ export const StorageService = {
         parsed.breakDuration = 5;
         parsed.sessionCount = 16;
         parsed.lunchBreakAfter = 8;
-        this.saveScheduleConfig({ ...DEFAULT_SCHEDULE_CONFIG, ...parsed });
+        this.saveScheduleConfig({ ...baseDefault, ...parsed }, activeUid);
       }
-      return { ...DEFAULT_SCHEDULE_CONFIG, ...parsed };
+      return { ...baseDefault, ...parsed };
     } catch {
-      return DEFAULT_SCHEDULE_CONFIG;
+      const isCoach = activeUid === 'demo_koc' || activeUid === 'usr_coach_2';
+      return isCoach ? COACH_SCHEDULE_CONFIG : DEFAULT_SCHEDULE_CONFIG;
     }
   },
 
-  saveScheduleConfig(config: ScheduleConfig) {
-    localStorage.setItem(STORAGE_KEYS.SCHEDULE_CONFIG, JSON.stringify(config));
+  saveScheduleConfig(config: ScheduleConfig, userId?: string) {
+    const key = getUserStorageKey(STORAGE_KEYS.SCHEDULE_CONFIG, userId);
+    localStorage.setItem(key, JSON.stringify(config));
+    scheduleCloudSync();
   },
 
   // Shift session times for given dates by deltaMinutes

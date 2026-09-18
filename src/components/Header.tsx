@@ -20,8 +20,13 @@ import {
   ShieldCheck,
   Sun,
   Moon,
+  Cloud,
+  CloudCheck,
+  CloudOff,
+  RefreshCw,
 } from 'lucide-react';
 import { StorageService } from '../lib/storage';
+import { cloudSync, SyncStatus } from '../lib/firebaseSync';
 import { User } from '../types';
 
 interface HeaderProps {
@@ -36,6 +41,7 @@ interface HeaderProps {
   onOpenAuth: (mode?: 'signin' | 'signup') => void;
   onOpenProfile: () => void;
   onSignOut: () => void;
+  onQuickDemoLogin?: (roleType: 'counselor' | 'coach') => void;
   theme?: 'light' | 'dark';
   onToggleTheme?: () => void;
 }
@@ -52,6 +58,7 @@ export function Header({
   onOpenAuth,
   onOpenProfile,
   onSignOut,
+  onQuickDemoLogin,
   theme = 'light',
   onToggleTheme,
 }: HeaderProps) {
@@ -60,9 +67,18 @@ export function Header({
   const [editNameInput, setEditNameInput] = useState(counselorName);
   const [showBackupMenu, setShowBackupMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backupMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unsub = cloudSync.onStatusChange((status) => {
+      setSyncStatus(status);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (currentUser?.name) {
@@ -257,6 +273,47 @@ export function Header({
             )}
           </div>
 
+          {/* Cloud Firestore Sync Button */}
+          <button
+            type="button"
+            onClick={async () => {
+              setIsManualSyncing(true);
+              const success = await cloudSync.syncLocalToCloud();
+              setIsManualSyncing(false);
+              if (success) {
+                onShowToast('Bulut Eşitlendi', 'Tüm seanslar ve öğrenci verileri Firebase Firestore bulutunda güncellendi.', 'success');
+              } else {
+                onShowToast('Bulut Eşitleme Uyarısı', 'İnternet bağlantınızı kontrol ediniz. Verileriniz yerel hafızada güvendedir.', 'warning');
+              }
+            }}
+            disabled={isManualSyncing}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
+              syncStatus === 'syncing' || isManualSyncing
+                ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700/50'
+                : syncStatus === 'error' || syncStatus === 'offline'
+                ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700/50'
+                : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-300/80 dark:border-emerald-800/60 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/40'
+            }`}
+            title="Firebase Cloud Firestore ile anlık bulut yedekleme durumu. Tıklayarak anında eşitleyebilirsiniz."
+          >
+            {syncStatus === 'syncing' || isManualSyncing ? (
+              <>
+                <RefreshCw className="w-3 h-3 animate-spin text-amber-600 dark:text-amber-400" />
+                <span className="hidden sm:inline">Eşitleniyor...</span>
+              </>
+            ) : syncStatus === 'error' || syncStatus === 'offline' ? (
+              <>
+                <CloudOff className="w-3 h-3 text-rose-500" />
+                <span className="hidden sm:inline">Çevrimdışı</span>
+              </>
+            ) : (
+              <>
+                <CloudCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                <span className="hidden sm:inline">Bulutta Güvende</span>
+              </>
+            )}
+          </button>
+
           {/* Theme Switcher Toggle (Güneş / Ay - Dolgu Yok, Sadece Border) */}
           {onToggleTheme && (
             <button
@@ -368,6 +425,44 @@ export function Header({
                       <span>Yeni Danışman Hesabı Aç</span>
                     </button>
 
+                    {onQuickDemoLogin && (
+                      <div className="pt-1.5 pb-1 border-t border-slate-200 dark:border-white/[0.06] mt-1">
+                        <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium block px-1 mb-1">
+                          ⚡ Demo Profiline Geçiş:
+                        </span>
+                        <div className="grid grid-cols-2 gap-1 px-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowUserMenu(false);
+                              onQuickDemoLogin('counselor');
+                            }}
+                            className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all text-center cursor-pointer ${
+                              currentUser.id === 'usr_counselor_1'
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-800 dark:bg-emerald-950/50 dark:border-emerald-500/50 dark:text-emerald-200'
+                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 dark:bg-white/[0.04] dark:border-white/[0.06] dark:text-zinc-300'
+                            }`}
+                          >
+                            Rehber Öğretmen
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowUserMenu(false);
+                              onQuickDemoLogin('coach');
+                            }}
+                            className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all text-center cursor-pointer ${
+                              currentUser.id === 'usr_coach_2'
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-800 dark:bg-indigo-950/50 dark:border-indigo-500/50 dark:text-indigo-200'
+                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 dark:bg-white/[0.04] dark:border-white/[0.06] dark:text-zinc-300'
+                            }`}
+                          >
+                            YKS Koçu
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="h-px bg-slate-200 dark:bg-white/[0.06] my-1" />
 
                     <button
@@ -386,6 +481,28 @@ export function Header({
               </div>
             ) : (
               <div className="flex items-center gap-1.5">
+                {onQuickDemoLogin && (
+                  <div className="hidden lg:flex items-center gap-1 mr-1 bg-slate-100 dark:bg-white/[0.04] px-2 py-1 rounded-md border border-slate-200 dark:border-white/[0.06]">
+                    <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium">Demo:</span>
+                    <button
+                      type="button"
+                      onClick={() => onQuickDemoLogin('counselor')}
+                      className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 hover:underline cursor-pointer"
+                      title="Uzm. Psk. Dan. Yağız Efe (Okul Rehberliği)"
+                    >
+                      Rehberlik
+                    </button>
+                    <span className="text-slate-300 dark:text-zinc-700 text-[9px]">•</span>
+                    <button
+                      type="button"
+                      onClick={() => onQuickDemoLogin('coach')}
+                      className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline cursor-pointer"
+                      title="Merve Aydın (YKS Koçluğu)"
+                    >
+                      Koçluk
+                    </button>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => onOpenAuth('signin')}

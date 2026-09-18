@@ -48,6 +48,13 @@ export function ScheduleConfigModal({
   const [config, setConfig] = useState<ScheduleConfig>(() => StorageService.getScheduleConfig());
   const [keepAssigned, setKeepAssigned] = useState(true);
 
+  // Sync latest user config when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setConfig(StorageService.getScheduleConfig());
+    }
+  }, [isOpen]);
+
   // Time Shift State
   const [shiftScope, setShiftScope] = useState<'day' | 'week'>('week');
   const [customShiftMinutes, setCustomShiftMinutes] = useState<number>(10);

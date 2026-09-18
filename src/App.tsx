@@ -13,7 +13,6 @@ import { CommandPalette } from './components/CommandPalette';
 import { StudentHistoryModal } from './components/StudentHistoryModal';
 import { AuthModal } from './components/AuthModal';
 import { UserProfileModal } from './components/UserProfileModal';
-import { ToastContainer, ToastMessage } from './components/Toast';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'scheduler' | 'students'>('scheduler');
@@ -34,23 +33,13 @@ export default function App() {
   // Risk filter state
   const [activeRiskFilter, setActiveRiskFilter] = useState<RiskFilter>('none');
 
-  // Toast notifications
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
+  // Toast notifications disabled per user request ("Şu geri bildirim notifikaayonlarını kaldır")
   const showToast = useCallback(
-    (title: string, description?: string, type: 'success' | 'info' | 'warning' = 'info') => {
-      const id = 'toast_' + Date.now() + '_' + Math.random().toString(36).substring(2, 4);
-      setToasts((prev) => [...prev, { id, title, description, type }]);
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, 3500);
+    (_title: string, _description?: string, _type: 'success' | 'info' | 'warning' = 'info') => {
+      // Intentionally silent - no intrusive feedback popups
     },
     []
   );
-
-  const dismissToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
 
   // Theme state ('light' by default per user request: "Beyaz tema yap ama karanlık tema ekle")
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -486,9 +475,6 @@ export default function App() {
           sessionsCount={sessions.length}
         />
       )}
-
-      {/* Toast Notifications */}
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

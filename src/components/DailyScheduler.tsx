@@ -27,6 +27,7 @@ import {
 import {
   getTodayDateString,
   shiftDateString,
+  shiftTimeSlotString,
   formatTurkishDate,
   formatTurkishDateWithoutDay,
   displayPhone,
@@ -123,6 +124,55 @@ export function DailyScheduler({
     if (slotFilter === 'missed') return s.status === 'Gelmedi';
     return true;
   });
+
+  // Add empty session at the bottom (after the last session of the day)
+  const handleAddNewSessionRow = () => {
+    let nextTime = '09:00';
+    if (dateSessions.length > 0) {
+      const last = dateSessions[dateSessions.length - 1];
+      nextTime = shiftTimeSlotString(last.time_slot, 15);
+    }
+    onAddSession({
+      date: selectedDate,
+      time_slot: nextTime,
+      student_id: null,
+      topic: '',
+      action_items: '',
+      tags: [],
+      status: 'Bekliyor',
+    });
+  };
+
+  // Add break slot at the bottom (after the last session of the day)
+  const handleAddNewBreakRow = (preset: 'teneffus_10' | 'teneffus_15' | 'ogle_50' = 'teneffus_10') => {
+    let nextTime = '11:50';
+    if (dateSessions.length > 0) {
+      const last = dateSessions[dateSessions.length - 1];
+      nextTime = shiftTimeSlotString(last.time_slot, 15);
+    }
+    const title =
+      preset === 'ogle_50'
+        ? '50 dk Öğle Arası & Yemek'
+        : preset === 'teneffus_15'
+        ? '15 dk Teneffüs'
+        : '10 dk Teneffüs';
+
+    if (onAddBreak) {
+      onAddBreak(selectedDate, nextTime, title);
+    } else {
+      onAddSession({
+        date: selectedDate,
+        time_slot: nextTime,
+        student_id: null,
+        topic: title,
+        action_items: '',
+        tags: [title],
+        status: 'Bekliyor',
+        is_break: true,
+        break_title: title,
+      });
+    }
+  };
 
   const todayStr = getTodayDateString();
   const yesterdayStr = shiftDateString(todayStr, -1);
@@ -502,406 +552,530 @@ export function DailyScheduler({
               </div>
             ) : (
             <div>
-              {/* Fast Slot Filter Tabs */}
-              <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-200 dark:border-white/[0.06] bg-slate-50 dark:bg-[#12141e] text-xs">
+              {/* Professional Table Toolbar & Filters */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 bg-slate-50 dark:bg-[#10121c] border-b border-slate-200 dark:border-white/[0.08] text-xs">
+                {/* Status Filter Tabs */}
                 <div className="flex items-center gap-1">
                   <button
+                    type="button"
                     onClick={() => setSlotFilter('all')}
-                    className={`px-2 py-0.5 rounded text-xs transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
                       slotFilter === 'all'
-                        ? 'bg-slate-900 text-white dark:bg-zinc-800 dark:text-white font-medium'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-800'
                     }`}
                   >
                     Tümü ({dateSessions.length})
                   </button>
                   <button
+                    type="button"
                     onClick={() => setSlotFilter('assigned')}
-                    className={`px-2 py-0.5 rounded text-xs transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
                       slotFilter === 'assigned'
-                        ? 'bg-slate-900 text-white dark:bg-zinc-800 dark:text-white font-medium'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-800'
                     }`}
                   >
                     Dolu ({assignedCount})
                   </button>
                   <button
+                    type="button"
                     onClick={() => setSlotFilter('empty')}
-                    className={`px-2 py-0.5 rounded text-xs transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
                       slotFilter === 'empty'
-                        ? 'bg-slate-900 text-white dark:bg-zinc-800 dark:text-white font-medium'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-800'
                     }`}
                   >
                     Boş ({emptyCount})
                   </button>
                   {missedCount > 0 && (
                     <button
+                      type="button"
                       onClick={() => setSlotFilter('missed')}
-                      className={`px-2 py-0.5 rounded text-xs transition-colors cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
                         slotFilter === 'missed'
-                          ? 'bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-300 font-medium border border-rose-300 dark:border-rose-500/30'
-                          : 'text-rose-600 hover:text-rose-800 dark:text-rose-400 dark:hover:text-rose-300'
+                          ? 'bg-rose-600 text-white shadow-2xs'
+                          : 'text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30'
                       }`}
                     >
                       Gelmedi ({missedCount})
                     </button>
                   )}
                 </div>
+
+                {/* Quick Add Buttons */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleAddNewSessionRow}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-2xs active:scale-95 transition-all cursor-pointer"
+                    title="Aşağıya yeni boş seans saati ekle"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Boş Seans Ekle</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddNewBreakRow('teneffus_10')}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-500/15 dark:hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-500/30 text-xs font-semibold shadow-2xs active:scale-95 transition-all cursor-pointer"
+                    title="Aşağıya 10 dakikalık mola ekle"
+                  >
+                    <Coffee className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+                    <span>+ Mola Ekle</span>
+                  </button>
+                </div>
               </div>
 
+              {/* Table */}
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-100 dark:bg-[#090a0f] border-b border-slate-200 dark:border-white/[0.06] text-slate-700 dark:text-zinc-400 text-xs font-semibold">
-                      <th className="py-2 px-3 w-20 font-mono font-medium">Saat</th>
-                      <th className="py-2 px-3 min-w-[200px] font-medium">Öğrenci</th>
-                      <th className="py-2 px-3 min-w-[200px] font-medium">Konu & Karar</th>
-                      <th className="py-2 px-3 w-40 font-medium">Durum</th>
-                      <th className="py-2 px-3 text-right w-36 font-medium">İşlem</th>
+                    <tr className="bg-slate-100/80 dark:bg-[#0c0d14] border-b border-slate-200 dark:border-white/[0.08] text-slate-700 dark:text-zinc-300 text-xs font-semibold select-none">
+                      <th className="py-2.5 px-3.5 w-28 font-mono">Saat</th>
+                      <th className="py-2.5 px-3.5 min-w-[200px]">Öğrenci</th>
+                      <th className="py-2.5 px-3.5 min-w-[220px]">Görüşme Konusu & Teşhis</th>
+                      <th className="py-2.5 px-3.5 w-44">Durum</th>
+                      <th className="py-2.5 px-3.5 text-right w-36">İşlemler</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200 dark:divide-white/[0.04] font-sans">
+                  <tbody className="font-sans divide-y divide-slate-100 dark:divide-white/[0.04]">
                     {displayedSessions.map((session) => {
-                    if (session.is_break) {
-                      const isLunch = session.break_title?.toLowerCase().includes('öğle') || session.topic?.toLowerCase().includes('öğle');
-                      return (
-                        <tr key={session.id} className={isLunch ? "bg-amber-100/70 dark:bg-amber-950/30 border-y border-amber-300 dark:border-amber-500/40" : "bg-slate-100/70 dark:bg-[#121420] border-y border-dashed border-slate-200 dark:border-white/[0.06]"}>
-                          <td className="py-2.5 px-3 font-mono font-medium whitespace-nowrap">
-                            <span className={`px-2 py-0.5 rounded text-[11px] flex items-center gap-1.5 w-fit font-bold ${
+                      if (session.is_break) {
+                        const isLunch =
+                          session.break_title?.toLowerCase().includes('öğle') ||
+                          session.topic?.toLowerCase().includes('öğle');
+                        return (
+                          <tr
+                            key={session.id}
+                            className={
                               isLunch
-                                ? 'bg-amber-200/90 text-amber-950 dark:bg-amber-500/25 dark:text-amber-200 border border-amber-300 dark:border-amber-500/40'
-                                : 'bg-slate-200/80 text-slate-800 dark:bg-zinc-800 dark:text-zinc-300 border border-slate-300 dark:border-white/[0.08]'
-                            }`}>
-                              {isLunch ? <Utensils className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" /> : <Coffee className="w-3 h-3 text-slate-600 dark:text-zinc-400" />}
+                                ? 'bg-amber-50/75 dark:bg-amber-950/20'
+                                : 'bg-slate-50/60 dark:bg-[#10121a]'
+                            }
+                          >
+                            {/* Saat Column */}
+                            <td className="py-2.5 px-3.5 font-mono whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold font-mono ${
+                                  isLunch
+                                    ? 'bg-amber-100 text-amber-950 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-500/30'
+                                    : 'bg-slate-200/70 text-slate-800 border border-slate-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700'
+                                }`}
+                              >
+                                {isLunch ? (
+                                  <Utensils className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+                                ) : (
+                                  <Coffee className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400" />
+                                )}
+                                {session.time_slot}
+                              </span>
+                            </td>
+
+                            <td colSpan={3} className="py-2.5 px-3.5">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`text-xs font-bold ${
+                                    isLunch
+                                      ? 'text-amber-950 dark:text-amber-100'
+                                      : 'text-slate-800 dark:text-zinc-200'
+                                  }`}
+                                >
+                                  {session.break_title ||
+                                    session.topic ||
+                                    (isLunch ? 'Öğle Arası' : 'Teneffüs')}
+                                </span>
+                                {isLunch && (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200 border border-amber-300 dark:border-amber-500/30">
+                                    Yemek & Dinlenme
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="py-2.5 px-3.5 text-right">
+                              <button
+                                type="button"
+                                onClick={() => onDeleteSession(session.id)}
+                                className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                                title={isLunch ? 'Öğle Arasını Kaldır' : 'Teneffüsü Kaldır'}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      const student = session.student_id
+                        ? studentMap.get(session.student_id)
+                        : undefined;
+
+                      const isCompleted = session.status === 'Geldi';
+                      const isMissed = session.status === 'Gelmedi';
+                      const isPending = session.status === 'Bekliyor';
+
+                      return (
+                        <tr
+                          key={session.id}
+                          className={`group hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors ${
+                            isCompleted
+                              ? 'bg-emerald-50/20 dark:bg-emerald-950/[0.04]'
+                              : isMissed
+                              ? 'bg-rose-50/20 dark:bg-rose-950/[0.05]'
+                              : ''
+                          }`}
+                        >
+                          {/* Saat Column */}
+                          <td className="py-2.5 px-3.5 font-mono text-xs whitespace-nowrap">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 dark:bg-[#161822] border border-slate-200 dark:border-white/[0.08] text-slate-800 dark:text-zinc-200 font-bold font-mono tracking-wide shadow-2xs">
                               {session.time_slot}
                             </span>
                           </td>
-                          <td colSpan={3} className="py-2.5 px-3">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-xs font-bold ${isLunch ? 'text-amber-950 dark:text-amber-100 text-sm' : 'text-slate-800 dark:text-zinc-200'}`}>
-                                {session.break_title || session.topic || (isLunch ? 'Öğle Arası' : 'Teneffüs')}
-                              </span>
-                              {isLunch && (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200 border border-amber-300 dark:border-amber-500/30">
-                                  Yemek & Dinlenme
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onDeleteSession(session.id);
-                                onShowToast(isLunch ? 'Öğle Arası Kaldırıldı' : 'Teneffüs Kaldırıldı', 'Mola takvimden silindi.', 'info');
-                              }}
-                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                              title={isLunch ? 'Öğle Arasını Kaldır' : 'Teneffüsü Kaldır'}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    }
 
-                    const student = session.student_id
-                      ? studentMap.get(session.student_id)
-                      : undefined;
-
-                    const isCompleted = session.status === 'Geldi';
-                    const isMissed = session.status === 'Gelmedi';
-                    const isPending = session.status === 'Bekliyor';
-
-                    return (
-                      <tr
-                        key={session.id}
-                        className={`group hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors ${
-                          isCompleted
-                            ? 'bg-emerald-50/40 dark:bg-emerald-950/[0.04]'
-                            : isMissed
-                            ? 'bg-rose-50/40 dark:bg-rose-950/[0.06]'
-                            : ''
-                        }`}
-                      >
-                        {/* Saat */}
-                        <td className="py-2.5 px-3 font-mono font-medium text-slate-800 dark:text-zinc-200 whitespace-nowrap">
-                          <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-300 dark:bg-white/[0.04] dark:border-white/[0.08] text-slate-800 dark:text-zinc-300 text-[11px] font-semibold">
-                            {session.time_slot}
-                          </span>
-                        </td>
-
-                        {/* Öğrenci Fast Assign or Pill */}
-                        <td className="py-2.5 px-3">
-                          {student ? (
-                            <div className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-[#0c0d12] p-1.5 pl-2 rounded-md border border-slate-200 dark:border-white/[0.06]">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5">
-                                  <button
-                                    onClick={() => onOpenStudentProfile(student)}
-                                    className="font-semibold text-slate-900 hover:text-slate-950 dark:text-zinc-200 dark:hover:text-white truncate hover:underline text-left cursor-pointer"
-                                  >
-                                    {student.full_name}
-                                  </button>
-                                  <span className="text-[10px] font-mono text-slate-600 dark:text-zinc-400 shrink-0 font-medium">
-                                    {student.class_grade}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
-                                  <span>{displayPhone(student.phone)}</span>
-                                  {student.target_goal && (
-                                    <span className="text-slate-600 dark:text-zinc-400 font-sans truncate max-w-[120px]" title={student.target_goal}>
-                                      &bull; {student.target_goal}
+                          {/* Öğrenci */}
+                          <td className="py-2.5 px-3.5">
+                            {student ? (
+                              <div className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-[#0c0d12] p-1.5 pl-2.5 rounded-lg border border-slate-200 dark:border-white/[0.06]">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => onOpenStudentProfile(student)}
+                                      className="font-semibold text-slate-900 hover:text-slate-950 dark:text-zinc-200 dark:hover:text-white truncate hover:underline text-left cursor-pointer"
+                                    >
+                                      {student.full_name}
+                                    </button>
+                                    <span className="text-[10px] font-mono text-slate-600 dark:text-zinc-400 shrink-0 font-medium">
+                                      {student.class_grade}
                                     </span>
-                                  )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
+                                    <span>{displayPhone(student.phone)}</span>
+                                    {student.target_goal && (
+                                      <span
+                                        className="text-slate-600 dark:text-zinc-400 font-sans truncate max-w-[120px]"
+                                        title={student.target_goal}
+                                      >
+                                        &bull; {student.target_goal}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleUnassignStudent(session.id)}
+                                  className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                                  title="Seansı boşalt"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              /* Fast Slot Assignment Input with autocomplete */
+                              <div className="relative">
+                                {activeSlotSearchId === session.id ? (
+                                  <div className="relative">
+                                    <input
+                                      type="text"
+                                      autoFocus
+                                      value={searchQuery}
+                                      onChange={(e) => setSearchQuery(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && filteredStudents.length > 0) {
+                                          handleAssignStudent(session.id, filteredStudents[0].id);
+                                        }
+                                        if (e.key === 'Escape') {
+                                          setActiveSlotSearchId(null);
+                                          setSearchQuery('');
+                                        }
+                                      }}
+                                      placeholder="Öğrenci adı yazıp Enter'a basın..."
+                                      className="w-full px-2.5 py-1.5 rounded-md bg-white dark:bg-[#07080b] border border-indigo-400 dark:border-indigo-500 text-xs text-slate-900 dark:text-white focus:outline-none font-mono"
+                                    />
+
+                                    {/* Suggestions dropdown */}
+                                    {filteredStudents.length > 0 && (
+                                      <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-lg bg-white dark:bg-[#0e1015] border border-slate-300 dark:border-white/[0.08] shadow-2xl z-40 p-1 divide-y divide-slate-100 dark:divide-white/[0.04]">
+                                        {filteredStudents.map((st, idx) => (
+                                          <button
+                                            key={st.id}
+                                            type="button"
+                                            onClick={() => handleAssignStudent(session.id, st.id)}
+                                            className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer ${
+                                              idx === 0
+                                                ? 'bg-slate-100 text-slate-950 dark:bg-white/[0.08] dark:text-white font-semibold'
+                                                : 'text-slate-800 dark:text-zinc-300'
+                                            }`}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-semibold">{st.full_name}</span>
+                                              <span className="text-[10px] font-mono px-1 rounded bg-slate-200 text-slate-800 dark:bg-zinc-800 dark:text-zinc-300">
+                                                {st.class_grade}
+                                              </span>
+                                            </div>
+                                            <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono">
+                                              {st.phone}
+                                            </span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveSlotSearchId(session.id);
+                                      setSearchQuery('');
+                                    }}
+                                    className="w-full text-left px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 dark:border-white/[0.1] hover:border-slate-400 hover:bg-slate-50 dark:hover:border-zinc-500 dark:hover:bg-white/[0.02] text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors flex items-center justify-between cursor-pointer"
+                                  >
+                                    <span>+ Öğrenci ata</span>
+                                    <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-400">
+                                      Seç
+                                    </kbd>
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Konu & Teşhis Notu */}
+                          <td className="py-2.5 px-3.5">
+                            <div className="space-y-1">
+                              {/* Topic Input with suggestion dropdown trigger */}
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  value={session.topic}
+                                  onChange={(e) => {
+                                    onUpdateSession({ ...session, topic: e.target.value });
+                                  }}
+                                  onFocus={() => setActiveTopicDropdownId(session.id)}
+                                  placeholder="Konu girin..."
+                                  className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-slate-500 dark:hover:border-zinc-700 dark:focus:border-zinc-500 text-xs text-slate-900 dark:text-zinc-200 placeholder-slate-400 dark:placeholder-zinc-400 py-0.5 focus:outline-none transition-colors"
+                                />
+
+                                {/* Dropdown with suggested common topics */}
+                                {activeTopicDropdownId === session.id && (
+                                  <div
+                                    className="absolute left-0 top-full mt-1 w-52 rounded-lg bg-white dark:bg-[#0e1015] border border-slate-300 dark:border-white/[0.08] shadow-2xl p-1 z-30 animate-in fade-in"
+                                    onMouseLeave={() => setActiveTopicDropdownId(null)}
+                                  >
+                                    {COMMON_TOPICS.map((top) => (
+                                      <button
+                                        key={top}
+                                        type="button"
+                                        onClick={() => {
+                                          onUpdateSession({ ...session, topic: top });
+                                          setActiveTopicDropdownId(null);
+                                        }}
+                                        className="w-full text-left px-2 py-1 rounded text-xs text-slate-800 hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white truncate cursor-pointer"
+                                      >
+                                        {top}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
 
+                              {/* Quick Tag Chips / Action Item preview */}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {session.tags && session.tags.length > 0 ? (
+                                  <>
+                                    <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700/60">
+                                      {session.tags[0]}
+                                    </span>
+                                    {session.tags.length > 1 && (
+                                      <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-normal truncate max-w-[150px]">
+                                        {session.tags.slice(1).join(', ')}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : null}
+                                {session.action_items && (
+                                  <span
+                                    className="text-[10px] text-slate-600 dark:text-zinc-400 font-normal truncate max-w-[150px]"
+                                    title={session.action_items}
+                                  >
+                                    &bull; {session.action_items}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Durum Toggle: [Bekliyor] [Geldi] [Gelmedi] */}
+                          <td className="py-2.5 px-3.5">
+                            <div className="inline-flex items-center rounded-lg p-0.5 bg-slate-100 dark:bg-[#090a0f] border border-slate-200 dark:border-white/[0.06] text-[11px]">
                               <button
-                                onClick={() => handleUnassignStudent(session.id)}
-                                className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                                title="Seansı boşalt"
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStatusChange(session, 'Bekliyor');
+                                }}
+                                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                  isPending
+                                    ? 'bg-white text-slate-900 shadow-2xs font-semibold dark:bg-zinc-800 dark:text-zinc-200'
+                                    : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                                }`}
+                              >
+                                <span>Bekliyor</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStatusChange(session, 'Geldi');
+                                }}
+                                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                  isCompleted
+                                    ? 'bg-emerald-100 text-emerald-800 font-semibold shadow-2xs dark:bg-zinc-800 dark:text-emerald-400'
+                                    : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                                }`}
+                              >
+                                <span>Geldi</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStatusChange(session, 'Gelmedi');
+                                }}
+                                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                  isMissed
+                                    ? 'bg-rose-100 text-rose-800 font-semibold border border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40'
+                                    : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                                }`}
+                              >
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    isMissed ? 'bg-rose-600' : 'bg-slate-400 dark:bg-zinc-600'
+                                  }`}
+                                />
+                                <span>Gelmedi</span>
+                              </button>
+                            </div>
+                          </td>
+
+                          {/* İşlemler */}
+                          <td className="py-2.5 px-3.5 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {/* Quick Note / Teşhis Popover trigger */}
+                              <button
+                                type="button"
+                                onClick={() => setActiveQuickNoteSession(session)}
+                                className={`p-1.5 rounded-md border text-xs transition-colors cursor-pointer ${
+                                  session.tags?.length || session.action_items
+                                    ? 'bg-slate-200 border-slate-300 text-slate-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-200'
+                                    : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-600 hover:text-slate-950 dark:bg-[#0e1015] dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800'
+                                }`}
+                                title="Not ve Etiketler"
+                              >
+                                <Bookmark className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* 1-on-1 WhatsApp Summary Card Engine */}
+                              {student && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSendIndividualSummary(session)}
+                                  className="p-1.5 rounded-md bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-700 dark:bg-[#0e1015] dark:hover:bg-zinc-800 dark:border-white/[0.08] dark:text-emerald-400 dark:hover:text-emerald-300 text-xs transition-colors cursor-pointer"
+                                  title="WhatsApp Seans Kartı Gönder"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
+                              {/* Gelmedi Auto-reminder button */}
+                              {isMissed && student && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSendMissedReminder(session)}
+                                  className="flex items-center gap-1 px-1.5 py-1 rounded-md bg-rose-100 hover:bg-rose-200 border border-rose-300 text-rose-800 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 dark:border-rose-500/30 dark:text-rose-300 text-[11px] font-medium transition-colors cursor-pointer"
+                                  title="Randevu Hatırlatması Gönder"
+                                >
+                                  <AlertTriangle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
+                                  <span className="hidden sm:inline">Uyar</span>
+                                </button>
+                              )}
+
+                              {/* Student Past History Log */}
+                              {student && (
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryStudent(student)}
+                                  className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 hover:text-slate-950 dark:bg-[#0e1015] dark:hover:bg-zinc-800 dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-white text-xs transition-colors cursor-pointer"
+                                  title="Görüşme geçmişi"
+                                >
+                                  <History className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
+                              {/* Delete Session */}
+                              <button
+                                type="button"
+                                onClick={() => onDeleteSession(session.id)}
+                                className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                                title="Seansı sil"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
-                          ) : (
-                            /* Fast Slot Assignment Input with autocomplete */
-                            <div className="relative">
-                              {activeSlotSearchId === session.id ? (
-                                <div className="relative">
-                                  <input
-                                    type="text"
-                                    autoFocus
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter' && filteredStudents.length > 0) {
-                                        handleAssignStudent(session.id, filteredStudents[0].id);
-                                      }
-                                      if (e.key === 'Escape') {
-                                        setActiveSlotSearchId(null);
-                                        setSearchQuery('');
-                                      }
-                                    }}
-                                    placeholder="2 harf yazıp Enter'a basın..."
-                                    className="w-full px-2.5 py-1.5 rounded-md bg-white dark:bg-[#07080b] border border-slate-400 dark:border-zinc-500 text-xs text-slate-900 dark:text-white focus:outline-none font-mono"
-                                  />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-                                  {/* Suggestions dropdown */}
-                                  {filteredStudents.length > 0 && (
-                                    <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-lg bg-white dark:bg-[#0e1015] border border-slate-300 dark:border-white/[0.08] shadow-2xl z-40 p-1 divide-y divide-slate-100 dark:divide-white/[0.04]">
-                                      {filteredStudents.map((st, idx) => (
-                                        <button
-                                          key={st.id}
-                                          type="button"
-                                          onClick={() => handleAssignStudent(session.id, st.id)}
-                                          className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer ${
-                                            idx === 0 ? 'bg-slate-100 text-slate-950 dark:bg-white/[0.08] dark:text-white font-semibold' : 'text-slate-800 dark:text-zinc-300'
-                                          }`}
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <span className="font-semibold">{st.full_name}</span>
-                                            <span className="text-[10px] font-mono px-1 rounded bg-slate-200 text-slate-800 dark:bg-zinc-800 dark:text-zinc-300">
-                                              {st.class_grade}
-                                            </span>
-                                          </div>
-                                          <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono">
-                                            {st.phone}
-                                          </span>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => {
-                                    setActiveSlotSearchId(session.id);
-                                    setSearchQuery('');
-                                  }}
-                                  className="w-full text-left px-2.5 py-1.5 rounded-md border border-dashed border-slate-300 dark:border-white/[0.08] hover:border-slate-500 hover:bg-slate-50 dark:hover:border-zinc-500 dark:hover:bg-white/[0.02] text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors flex items-center justify-between cursor-pointer"
-                                >
-                                  <span>+ Öğrenci ata</span>
-                                  <kbd className="text-[10px] font-mono px-1 py-0.2 rounded bg-slate-100 border border-slate-300 text-slate-600 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-400">
-                                    Enter
-                                  </kbd>
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </td>
+              {/* Table Footer Status Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-slate-50 dark:bg-[#0c0d14] border-t border-slate-200 dark:border-white/[0.08] text-xs select-none">
+                <div className="flex items-center gap-3 text-[11px] text-slate-600 dark:text-zinc-400 font-medium">
+                  <span className="text-slate-900 dark:text-white font-semibold">
+                    Toplam: {dateSessions.length} Seans
+                  </span>
+                  <span>&bull;</span>
+                  <span className="text-emerald-700 dark:text-emerald-400">
+                    Dolu: {assignedCount}
+                  </span>
+                  <span>&bull;</span>
+                  <span className="text-slate-500 dark:text-zinc-400">
+                    Boş: {emptyCount}
+                  </span>
+                  {missedCount > 0 && (
+                    <>
+                      <span>&bull;</span>
+                      <span className="text-rose-600 dark:text-rose-400 font-bold">
+                        Gelmedi: {missedCount}
+                      </span>
+                    </>
+                  )}
+                </div>
 
-                        {/* Konu & Teşhis Notu */}
-                        <td className="py-2.5 px-3">
-                          <div className="space-y-1">
-                            {/* Topic Input with suggestion dropdown trigger */}
-                            <div className="relative">
-                              <input
-                                type="text"
-                                value={session.topic}
-                                onChange={(e) => {
-                                  onUpdateSession({ ...session, topic: e.target.value });
-                                }}
-                                onFocus={() => setActiveTopicDropdownId(session.id)}
-                                placeholder="Konu girin..."
-                                className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-slate-500 dark:hover:border-zinc-700 dark:focus:border-zinc-500 text-xs text-slate-900 dark:text-zinc-200 placeholder-slate-400 dark:placeholder-zinc-400 py-0.5 focus:outline-none transition-colors"
-                              />
-
-                              {/* Dropdown with suggested common topics */}
-                              {activeTopicDropdownId === session.id && (
-                                <div
-                                  className="absolute left-0 top-full mt-1 w-52 rounded-lg bg-white dark:bg-[#0e1015] border border-slate-300 dark:border-white/[0.08] shadow-2xl p-1 z-30 animate-in fade-in"
-                                  onMouseLeave={() => setActiveTopicDropdownId(null)}
-                                >
-                                  {COMMON_TOPICS.map((top) => (
-                                    <button
-                                      key={top}
-                                      type="button"
-                                      onClick={() => {
-                                        onUpdateSession({ ...session, topic: top });
-                                        setActiveTopicDropdownId(null);
-                                      }}
-                                      className="w-full text-left px-2 py-1 rounded text-xs text-slate-800 hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white truncate cursor-pointer"
-                                    >
-                                      {top}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Quick Tag Chips / Action Item preview */}
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {session.tags && session.tags.length > 0 ? (
-                                <>
-                                  <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700/60">
-                                    {session.tags[0]}
-                                  </span>
-                                  {session.tags.length > 1 && (
-                                    <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-normal truncate max-w-[150px]">
-                                      {session.tags.slice(1).join(', ')}
-                                    </span>
-                                  )}
-                                </>
-                              ) : null}
-                              {session.action_items && (
-                                <span
-                                  className="text-[10px] text-slate-600 dark:text-zinc-400 font-normal truncate max-w-[150px]"
-                                  title={session.action_items}
-                                >
-                                  &bull; {session.action_items}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Durum Toggle: [Bekliyor] [Geldi] [Gelmedi] */}
-                        <td className="py-2.5 px-3">
-                          <div className="inline-flex items-center rounded-md p-0.5 bg-slate-100 dark:bg-[#090a0f] border border-slate-300 dark:border-white/[0.06] text-[11px]">
-                            <button
-                              onClick={() => handleStatusChange(session, 'Bekliyor')}
-                              className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
-                                isPending
-                                  ? 'bg-white text-slate-900 shadow-2xs font-semibold dark:bg-zinc-800 dark:text-zinc-200'
-                                  : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
-                              }`}
-                            >
-                              <span>Bekliyor</span>
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(session, 'Geldi')}
-                              className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
-                                isCompleted
-                                  ? 'bg-emerald-100 text-emerald-800 font-semibold shadow-2xs dark:bg-zinc-800 dark:text-emerald-400'
-                                  : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
-                              }`}
-                            >
-                              <span>Geldi</span>
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(session, 'Gelmedi')}
-                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded transition-colors cursor-pointer ${
-                                isMissed
-                                  ? 'bg-rose-100 text-rose-800 font-semibold border border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40'
-                                  : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
-                              }`}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full ${isMissed ? 'bg-rose-600' : 'bg-slate-400 dark:bg-zinc-600'}`} />
-                              <span>Gelmedi</span>
-                            </button>
-                          </div>
-                        </td>
-
-                        {/* Hızlı Aksiyonlar */}
-                        <td className="py-2.5 px-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {/* Quick Note / Teşhis Popover trigger */}
-                            <button
-                              onClick={() => setActiveQuickNoteSession(session)}
-                              className={`p-1.5 rounded-md border text-xs transition-colors cursor-pointer ${
-                                session.tags?.length || session.action_items
-                                  ? 'bg-slate-200 border-slate-300 text-slate-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-200'
-                                  : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-600 hover:text-slate-950 dark:bg-[#0e1015] dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800'
-                              }`}
-                              title="Not ve Etiketler"
-                            >
-                              <Bookmark className="w-3.5 h-3.5" />
-                            </button>
-
-                            {/* 1-on-1 WhatsApp Summary Card Engine */}
-                            {student && (
-                              <button
-                                onClick={() => handleSendIndividualSummary(session)}
-                                className="p-1.5 rounded-md bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-700 dark:bg-[#0e1015] dark:hover:bg-zinc-800 dark:border-white/[0.08] dark:text-emerald-400 dark:hover:text-emerald-300 text-xs transition-colors cursor-pointer"
-                                title="WhatsApp Seans Kartı Gönder"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-
-                            {/* Gelmedi Auto-reminder button */}
-                            {isMissed && student && (
-                              <button
-                                onClick={() => handleSendMissedReminder(session)}
-                                className="flex items-center gap-1 px-1.5 py-1 rounded-md bg-rose-100 hover:bg-rose-200 border border-rose-300 text-rose-800 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 dark:border-rose-500/30 dark:text-rose-300 text-[11px] font-medium transition-colors cursor-pointer"
-                                title="Randevu Hatırlatması Gönder"
-                              >
-                                <AlertTriangle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
-                                <span className="hidden sm:inline">Uyar</span>
-                              </button>
-                            )}
-
-                            {/* Student Past History Log */}
-                            {student && (
-                              <button
-                                onClick={() => setHistoryStudent(student)}
-                                className="p-1.5 rounded-md bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 hover:text-slate-950 dark:bg-[#0e1015] dark:hover:bg-zinc-800 dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-white text-xs transition-colors cursor-pointer"
-                                title="Görüşme geçmişi"
-                              >
-                                <History className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-
-                            {/* Delete Session */}
-                            <button
-                              onClick={() => onDeleteSession(session.id)}
-                              className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                              title="Seansı sil"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddNewSessionRow}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800/40 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Boş Seans Ekle</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddNewBreakRow('teneffus_10')}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 dark:text-amber-300 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-800/40 transition-colors cursor-pointer"
+                  >
+                    <Coffee className="w-3 h-3 text-amber-600" />
+                    <span>Mola Ekle</span>
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
           )}
 
           {/* Bottom Action Footer with (+) Button */}
@@ -911,54 +1085,101 @@ export function DailyScheduler({
                 type="button"
                 onClick={() => setShowPlusMenu(!showPlusMenu)}
                 className="w-10 h-10 rounded-full bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 flex items-center justify-center shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-95 group"
-                title="Ekle (Seans veya Mola)"
+                title="Aşağıya Seans veya Mola Ekle"
               >
-                <Plus className={`w-5 h-5 transition-transform duration-200 ${showPlusMenu ? 'rotate-45' : ''}`} />
+                <Plus
+                  className={`w-5 h-5 transition-transform duration-200 ${
+                    showPlusMenu ? 'rotate-45' : ''
+                  }`}
+                />
               </button>
 
-              {/* 2 Options Popover: [Seans] & [Mola] */}
+              {/* 2 Options Popover: [Seans (En Aşağıya)] & [Mola (En Aşağıya)] */}
               {showPlusMenu && (
                 <>
                   <div
                     className="fixed inset-0 z-30"
                     onClick={() => setShowPlusMenu(false)}
                   />
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 rounded-xl bg-white dark:bg-[#141622] border border-slate-200 dark:border-white/[0.12] shadow-2xl p-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 rounded-xl bg-white dark:bg-[#141622] border border-slate-200 dark:border-white/[0.12] shadow-2xl p-1.5 z-40 animate-in fade-in zoom-in-95 duration-150">
                     <div className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase px-2.5 py-1 tracking-wider">
-                      Ekle
+                      En Aşağıya Ekle
                     </div>
+                    {/* Option 1: Empty Session Slot at bottom */}
                     <button
                       type="button"
                       onClick={() => {
                         setShowPlusMenu(false);
-                        setShowAddCustomModal(true);
+                        handleAddNewSessionRow();
+                        onShowToast('Boş Seans Eklendi', 'Listenin en altına yeni seans saati eklendi.', 'success');
                       }}
                       className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-800 dark:text-zinc-100 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition-colors cursor-pointer text-left"
                     >
-                      <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300 flex items-center justify-center">
-                        <Calendar className="w-3.5 h-3.5" />
+                      <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300 flex items-center justify-center shrink-0">
+                        <Calendar className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="font-semibold text-slate-900 dark:text-white">Seans</div>
-                        <div className="text-[10px] font-normal text-slate-500 dark:text-zinc-400">Danışmanlık seans saati</div>
+                        <div className="font-semibold text-slate-900 dark:text-white">Seans (Boş Saat)</div>
+                        <div className="text-[10px] font-normal text-slate-500 dark:text-zinc-400">
+                          En alta yeni boş seans satırı açar
+                        </div>
                       </div>
                     </button>
 
+                    {/* Option 2: 10 min Break at bottom */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPlusMenu(false);
+                        handleAddNewBreakRow('teneffus_10');
+                        onShowToast('Mola Eklendi', 'Listenin en altına 10 dakikalık mola eklendi.', 'success');
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-800 dark:text-zinc-100 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition-colors cursor-pointer text-left"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300 flex items-center justify-center shrink-0">
+                        <Coffee className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900 dark:text-white">Mola (Teneffüs)</div>
+                        <div className="text-[10px] font-normal text-slate-500 dark:text-zinc-400">
+                          En alta 10 dk teneffüs satırı açar
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Option 3: Lunch break at bottom */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPlusMenu(false);
+                        handleAddNewBreakRow('ogle_50');
+                        onShowToast('Öğle Arası Eklendi', 'Listenin en altına 50 dakikalık öğle arası eklendi.', 'success');
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-800 dark:text-zinc-100 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition-colors cursor-pointer text-left"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-500/25 dark:text-amber-200 flex items-center justify-center shrink-0">
+                        <Utensils className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-slate-900 dark:text-white">Öğle Arası (50 dk)</div>
+                        <div className="text-[10px] font-normal text-slate-500 dark:text-zinc-400">
+                          En alta yemek ve dinlenme aralığı ekler
+                        </div>
+                      </div>
+                    </button>
+
+                    <div className="my-1 border-t border-slate-100 dark:border-white/[0.06]" />
+
+                    {/* Option 4: Custom time modal */}
                     <button
                       type="button"
                       onClick={() => {
                         setShowPlusMenu(false);
                         setShowAddBreakModal(true);
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-800 dark:text-zinc-100 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition-colors cursor-pointer text-left"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition-colors cursor-pointer text-left"
                     >
-                      <div className="w-6 h-6 rounded-md bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300 flex items-center justify-center">
-                        <Coffee className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-slate-900 dark:text-white">Mola</div>
-                        <div className="text-[10px] font-normal text-slate-500 dark:text-zinc-400">Teneffüs veya Öğle Arası</div>
-                      </div>
+                      <span>Özel saat ve mola ayarla...</span>
                     </button>
                   </div>
                 </>
@@ -1184,20 +1405,20 @@ export function DailyScheduler({
         </div>
       )}
 
-      {/* Floating Bottom-Right Trigger: Günün WhatsApp İlanı */}
+      {/* Floating Bottom-Right Trigger: Günün WhatsApp İlanı (Kare Tasarım) */}
       <div className="fixed bottom-6 right-6 z-40">
         <button
           type="button"
           onClick={() => setIsWhatsAppModalOpen(true)}
-          className="flex items-center gap-2.5 px-4 py-3 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-xl hover:shadow-2xl active:scale-95 transition-all cursor-pointer border border-emerald-400/40 group"
+          className="flex flex-col items-center justify-center w-16 h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl hover:shadow-2xl active:scale-95 transition-all cursor-pointer border border-emerald-400/40 group relative"
           title="Günün Resmi WhatsApp Seans İlanını Aç"
         >
-          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-            <MessageSquare className="w-3.5 h-3.5 text-white" />
+          <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center mb-0.5">
+            <MessageSquare className="w-4 h-4 text-white" />
           </div>
-          <span className="tracking-tight font-medium">Günün WhatsApp İlanı</span>
+          <span className="text-[10px] font-bold tracking-tight text-center leading-tight">İlan Gönder</span>
           {assignedCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-white text-emerald-800 text-[10px] font-bold shadow-2xs">
+            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-emerald-900 border border-emerald-400/50 text-[10px] font-mono font-bold flex items-center justify-center shadow">
               {assignedCount}
             </span>
           )}

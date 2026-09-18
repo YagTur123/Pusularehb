@@ -257,23 +257,23 @@ export function Header({
             )}
           </div>
 
-          {/* Theme Switcher Toggle (Açık Beyaz / Koyu Tema) */}
+          {/* Theme Switcher Toggle (Güneş / Ay - Dolgu Yok, Sadece Border) */}
           {onToggleTheme && (
             <button
               type="button"
               onClick={onToggleTheme}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-100 border border-slate-300 dark:border-white/[0.08] text-xs font-medium transition-colors cursor-pointer shadow-xs"
-              title={theme === 'light' ? 'Koyu Temaya Geç (Gece Modu)' : 'Açık Beyaz Temaya Geç (Gündüz Modu)'}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-transparent hover:bg-slate-100/80 dark:hover:bg-white/[0.05] text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200 border border-slate-300 dark:border-white/[0.12] text-xs transition-colors cursor-pointer"
+              title={theme === 'light' ? 'Koyu Temaya Geç (Gece Modu)' : 'Açık Temaya Geç (Gündüz Modu)'}
             >
               {theme === 'light' ? (
                 <>
-                  <Moon className="w-3.5 h-3.5 text-slate-700" />
-                  <span className="hidden sm:inline">Koyu Tema</span>
+                  <Moon className="w-3.5 h-3.5 text-slate-600" />
+                  <span className="hidden sm:inline">Koyu</span>
                 </>
               ) : (
                 <>
                   <Sun className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="hidden sm:inline">Açık Tema</span>
+                  <span className="hidden sm:inline">Açık</span>
                 </>
               )}
             </button>

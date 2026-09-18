@@ -24,6 +24,8 @@ import {
   Copy,
   Calendar as CalendarIcon,
   ChevronUp,
+  MoreHorizontal,
+  CalendarPlus,
 } from 'lucide-react';
 import {
   getWeekDays,
@@ -90,7 +92,7 @@ export function WeeklySchedulerGrid({
   const [assignSearch, setAssignSearch] = useState('');
   const [quickEditingSession, setQuickEditingSession] = useState<Session | null>(null);
   const [showOnlyPriority, setShowOnlyPriority] = useState(false);
-  const [quickShiftMenuOpen, setQuickShiftMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [quickBarOpen, setQuickBarOpen] = useState(false);
   const [spotlightCollapsed, setSpotlightCollapsed] = useState(false);
   const [quickSessionMinutes, setQuickSessionMinutes] = useState<number>(15);
@@ -161,6 +163,18 @@ export function WeeklySchedulerGrid({
         return a.time_slot.localeCompare(b.time_slot);
       });
   }, [weekSessions, studentMap]);
+
+  const handleStartWeeklyProgram = () => {
+    if (onFillStandardWeek) {
+      onFillStandardWeek(baseDate);
+    } else {
+      StorageService.fillStandardSlotsForWeek(baseDate);
+      window.location.reload();
+    }
+    if (onShowToast) {
+      onShowToast('Haftalık Program Başlatıldı', '15 dakikalık standart seans ve mola saatleri takvime yüklendi.', 'success');
+    }
+  };
 
   // Filter students for slot assignment
   const filteredStudents = useMemo(() => {
@@ -462,136 +476,156 @@ export function WeeklySchedulerGrid({
           )}
         </div>
 
-        {/* Right: The Requested Standard Schedule / Recess / Shift Configurator Buttons */}
+        {/* Right: Primary Action Buttons (Max 2: Sihirbaz [Indigo] & WhatsApp [Green]) + Secondary Dropdown ("...") */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* PRIMARY REQUESTED BUTTON: Standard Program, Period & Recess Configurator */}
+          {/* PRIMARY 1: Program & Teneffüs Sihirbazı (Indigo / Blue accent) */}
           <button
             type="button"
             onClick={() => setIsScheduleConfigOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-700/90 hover:bg-emerald-600 text-white text-xs font-medium border border-emerald-600/40 shadow-xs transition-all cursor-pointer active:scale-[0.98]"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold border border-indigo-500/40 shadow-xs transition-all cursor-pointer active:scale-[0.98]"
             title="Seans dakikası, teneffüs süresi belirle, tablo saatlerini kaydır ve teneffüs ekle"
           >
             <Sliders className="w-3.5 h-3.5" />
-            <span>Standart Program & Teneffüs Sihirbazı</span>
+            <span>Program & Teneffüs Sihirbazı</span>
           </button>
 
-          {/* Quick Bar Toggle */}
-          <button
-            type="button"
-            onClick={() => setQuickBarOpen(!quickBarOpen)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
-              quickBarOpen
-                ? 'bg-zinc-800 text-zinc-100 border-zinc-700'
-                : 'bg-[#151722] hover:bg-[#1a1d2b] text-zinc-300 hover:text-white border-white/[0.08]'
-            }`}
-            title="Hızlı program dakikaları, ara ve saat kaydırma çubuğunu aç/kapat"
-          >
-            <Zap className="w-3.5 h-3.5 text-zinc-400" />
-            <span>Hızlı Çubuk</span>
-          </button>
-
-          {/* Quick Shift Dropdown Button */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setQuickShiftMenuOpen(!quickShiftMenuOpen)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#151722] hover:bg-[#1a1d2b] text-zinc-300 hover:text-white border border-white/[0.08] text-xs font-medium transition-colors cursor-pointer"
-              title="Tüm tablodaki saatleri hızlı kaydır"
-            >
-              <Clock className="w-3.5 h-3.5 text-zinc-400" />
-              <span>±10 dk Kaydır</span>
-              <ChevronDown className="w-3 h-3 text-zinc-500" />
-            </button>
-
-            {quickShiftMenuOpen && (
-              <div
-                className="absolute right-0 mt-1.5 w-48 bg-[#181a26] border border-white/[0.1] rounded-xl shadow-2xl p-1.5 z-40 space-y-1 text-xs animate-in fade-in zoom-in-95 duration-100"
-                onClick={() => setQuickShiftMenuOpen(false)}
-              >
-                <div className="px-2 py-1 text-[10px] uppercase font-mono tracking-wider text-zinc-500 border-b border-white/[0.06]">
-                  Haftalık Saatleri Kaydır
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleShiftTime(targetWeekDates, 10)}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/[0.06] text-zinc-200 flex items-center justify-between cursor-pointer"
-                >
-                  <span>10 Dakika İleri</span>
-                  <span className="font-mono text-[11px] text-zinc-400">+10 dk</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleShiftTime(targetWeekDates, -10)}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/[0.06] text-zinc-200 flex items-center justify-between cursor-pointer"
-                >
-                  <span>10 Dakika Geri</span>
-                  <span className="font-mono text-[11px] text-zinc-400">-10 dk</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleShiftTime(targetWeekDates, 15)}
-                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white/[0.06] text-zinc-200 flex items-center justify-between cursor-pointer"
-                >
-                  <span>15 Dakika İleri</span>
-                  <span className="font-mono text-[11px] text-zinc-400">+15 dk</span>
-                </button>
-                <div className="border-t border-white/[0.06] pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsScheduleConfigOpen(true);
-                      setQuickShiftMenuOpen(false);
-                    }}
-                    className="w-full text-left px-2 py-1 text-[11px] text-zinc-400 hover:text-white"
-                  >
-                    Detaylı Sihirbazı Aç...
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Quick Add Break / Recess Button */}
-          <button
-            type="button"
-            onClick={() =>
-              setQuickBreakModal({
-                open: true,
-                date: baseDate,
-                time: '10:10',
-                title: '10 dk Teneffüs',
-              })
-            }
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#1c1a16] hover:bg-[#25221d] text-amber-200/90 hover:text-amber-100 border border-amber-500/20 text-xs font-medium transition-colors cursor-pointer"
-            title="Tabloya anında teneffüs / mola bloğu ekle"
-          >
-            <Coffee className="w-3.5 h-3.5 text-amber-300/80" />
-            <span>+ Teneffüs Ekle</span>
-          </button>
-
-          {/* Weekend Toggle */}
-          <button
-            type="button"
-            onClick={() => setIncludeWeekend(!includeWeekend)}
-            className={`px-2.5 py-1.5 text-xs rounded-xl border transition-colors cursor-pointer ${
-              includeWeekend
-                ? 'bg-zinc-800 text-white border-white/20'
-                : 'text-zinc-400 hover:text-white border-white/[0.06] hover:bg-zinc-900'
-            }`}
-          >
-            {includeWeekend ? '7 Günlük' : '5 Günlük (Okul)'}
-          </button>
-
-          {/* WhatsApp Broadcast Shortcut */}
+          {/* PRIMARY 2: WhatsApp İlanı (Brand WhatsApp Green with distinct icon weight) */}
           <button
             type="button"
             onClick={() => onOpenBroadcast(baseDate)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#161c19] hover:bg-[#1d2722] text-emerald-300/90 hover:text-emerald-200 border border-emerald-500/20 text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#22c55e] dark:text-[#25D366] hover:text-[#16a34a] dark:hover:text-[#4ade80] border border-[#25D366]/35 text-xs font-semibold transition-colors cursor-pointer"
             title="Haftalık veya seçili günün WhatsApp seans ilanını aç"
           >
-            <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+            <MessageSquare className="w-3.5 h-3.5 stroke-[2.4]" />
             <span>WhatsApp İlanı</span>
           </button>
+
+          {/* SECONDARY: Dropdown Menu ("..." / "Diğer Ayarlar") */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
+                moreMenuOpen
+                  ? 'bg-slate-200 text-slate-900 border-slate-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-700'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-[#151722] dark:hover:bg-[#1a1d2b] dark:text-zinc-300 dark:hover:text-white border-slate-300 dark:border-white/[0.08]'
+              }`}
+              title="Diğer çizelge ve seans ayarları"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+              <span className="hidden sm:inline">Diğer Ayarlar</span>
+              <ChevronDown className={`w-3 h-3 text-slate-500 dark:text-zinc-400 transition-transform ${moreMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {moreMenuOpen && (
+              <>
+                {/* Backdrop */}
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setMoreMenuOpen(false)}
+                />
+
+                {/* Dropdown Menu */}
+                <div
+                  className="absolute right-0 mt-1.5 w-56 bg-white dark:bg-[#181a26] border border-slate-200 dark:border-white/[0.1] rounded-xl shadow-2xl p-1.5 z-40 space-y-1 text-xs animate-in fade-in zoom-in-95 duration-100 text-slate-800 dark:text-zinc-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="px-2 py-1 text-[10px] uppercase font-mono tracking-wider text-slate-400 dark:text-zinc-500 border-b border-slate-100 dark:border-white/[0.06]">
+                    İkincil Tablo Ayarları
+                  </div>
+
+                  {/* 1. Hızlı Çubuk Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickBarOpen(!quickBarOpen);
+                      setMoreMenuOpen(false);
+                    }}
+                    className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] flex items-center justify-between cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Hızlı Çubuk (15dk / 5dk)</span>
+                    </div>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${quickBarOpen ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400 dark:text-zinc-500'}`}>
+                      {quickBarOpen ? 'Açık' : 'Kapalı'}
+                    </span>
+                  </button>
+
+                  {/* 2. + Teneffüs Ekle */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickBreakModal({
+                        open: true,
+                        date: baseDate,
+                        time: '10:10',
+                        title: '10 dk Teneffüs',
+                      });
+                      setMoreMenuOpen(false);
+                    }}
+                    className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] flex items-center justify-between cursor-pointer text-amber-700 dark:text-amber-300 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Coffee className="w-3.5 h-3.5" />
+                      <span>+ Teneffüs / Mola Ekle</span>
+                    </div>
+                    <span className="text-[10px] font-mono opacity-80">+Mola</span>
+                  </button>
+
+                  {/* 3. 5 Günlük (Okul) / 7 Günlük Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIncludeWeekend(!includeWeekend);
+                      setMoreMenuOpen(false);
+                    }}
+                    className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] flex items-center justify-between cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+                      <span>{includeWeekend ? '7 Günlük Görünüm' : '5 Günlük (Okul)'}</span>
+                    </div>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.06] font-mono text-slate-500 dark:text-zinc-400">
+                      {includeWeekend ? 'Hafta Sonu Açık' : 'Hafta Sonu Gizli'}
+                    </span>
+                  </button>
+
+                  {/* 4. ±10dk Kaydır Sub-Options */}
+                  <div className="border-t border-slate-100 dark:border-white/[0.06] pt-1.5 mt-1">
+                    <div className="px-2 py-0.5 text-[10px] font-mono text-slate-400 dark:text-zinc-500 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      <span>Haftalık Saatleri Kaydır:</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1 p-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleShiftTime(targetWeekDates, -10);
+                          setMoreMenuOpen(false);
+                        }}
+                        className="px-2 py-1.5 rounded bg-slate-100 dark:bg-zinc-800/90 hover:bg-slate-200 dark:hover:bg-zinc-700 text-center text-xs font-mono text-slate-700 dark:text-zinc-300 cursor-pointer transition-colors"
+                        title="Tüm seansları 10 dk geri al"
+                      >
+                        -10 dk
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleShiftTime(targetWeekDates, 10);
+                          setMoreMenuOpen(false);
+                        }}
+                        className="px-2 py-1.5 rounded bg-slate-100 dark:bg-zinc-800/90 hover:bg-slate-200 dark:hover:bg-zinc-700 text-center text-xs font-mono text-slate-700 dark:text-zinc-300 cursor-pointer transition-colors"
+                        title="Tüm seansları 10 dk ileri al"
+                      >
+                        +10 dk
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -867,52 +901,127 @@ export function WeeklySchedulerGrid({
         </div>
       )}
 
-      {/* ASYMMETRIC RESPONSIVE GRID LAYOUT (Clean Day-Lanes with Dynamic Card Sizing) */}
-      <div
-        className={`grid gap-3.5 items-start ${
-          includeWeekend
-            ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7'
-            : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5'
-        }`}
-      >
-        {weekDays.map((day) => {
-          const isSelected = day.date === baseDate;
-          const dayAllSessions = weekSessions
-            .filter((s) => s.date === day.date)
-            .sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+      {/* 2. BOŞ DURUM (EMPTY STATE) VE 3. GRID DÜZENİ */}
+      {weekSessions.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 dark:border-white/[0.12] bg-white/60 dark:bg-[#141622]/70 backdrop-blur-xs p-10 sm:p-14 text-center my-4 transition-all shadow-xs">
+          <div className="max-w-md mx-auto space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-inner">
+              <CalendarPlus className="w-8 h-8" />
+            </div>
 
-          const dayLessons = dayAllSessions.filter((s) => !s.is_break);
-          const dayFilled = dayLessons.filter((s) => s.student_id).length;
+            <div className="space-y-1.5">
+              <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100">
+                Bu Hafta İçin Henüz Program Açılmadı
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                Rehberlik seanslarınızı 15 dakikalık periyotlar ve teneffüslerle tek tıkla planlamaya başlayın. 
+                Program oluşturulduktan sonra öğrenciler gün ve saatlere atanabilir.
+              </p>
+            </div>
 
-          // Filter by priority if toggle active
-          const displayedDaySessions = showOnlyPriority
-            ? dayAllSessions.filter((s) => s.is_break || isHighPriority(s))
-            : dayAllSessions;
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleStartWeeklyProgram}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-md transition-all cursor-pointer active:scale-[0.98]"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-200" />
+                <span>Haftalık Programı Başlat (15 dk)</span>
+              </button>
 
-          return (
-            <div
-              key={day.date}
-              onClick={() => onSelectDate(day.date)}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                if (dragOverDayDate !== day.date) setDragOverDayDate(day.date);
-              }}
-              onDragLeave={(e) => {
-                if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-                if (dragOverDayDate === day.date) setDragOverDayDate(null);
-              }}
-              onDrop={(e) => handleDayDrop(day.date, day.dayName, e)}
-              className={`flex flex-col rounded-2xl border transition-all duration-150 overflow-hidden ${
-                dragOverDayDate === day.date
-                  ? 'bg-[#182333] border-emerald-500 ring-2 ring-emerald-500/50 shadow-xl'
-                  : day.isToday
-                  ? 'bg-[#181a26] border-zinc-600/50 shadow-md'
-                  : isSelected
-                  ? 'bg-[#161824] border-zinc-500/40 ring-1 ring-zinc-500/20'
-                  : 'bg-[#141620] border-white/[0.06] hover:border-white/[0.12]'
-              }`}
-            >
+              <button
+                type="button"
+                onClick={() => setIsScheduleConfigOpen(true)}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-medium text-xs border border-slate-200 dark:border-white/[0.08] transition-colors cursor-pointer"
+              >
+                <Sliders className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
+                <span>Program Sihirbazı İle Başlat</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {/* Mobile Day Navigation Tabs (Only on small screens to navigate cards easily) */}
+          <div className="flex md:hidden items-center gap-1.5 overflow-x-auto pb-1.5 -mx-1 px-1 no-scrollbar">
+            {weekDays.map((day) => {
+              const isSelected = day.date === baseDate;
+              const dayLessonsCount = weekSessions.filter((s) => s.date === day.date && !s.is_break).length;
+              return (
+                <button
+                  key={day.date}
+                  type="button"
+                  onClick={() => {
+                    onSelectDate(day.date);
+                    const el = document.getElementById(`day-col-${day.date}`);
+                    el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                    isSelected
+                      ? 'bg-indigo-600 text-white shadow-xs font-semibold'
+                      : 'bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 border border-slate-200 dark:border-white/[0.06]'
+                  }`}
+                >
+                  <span>{day.shortDayName}</span>
+                  <span className="font-mono text-[11px] opacity-80">{day.dayNumber}</span>
+                  {day.isToday && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                  {dayLessonsCount > 0 && (
+                    <span className="text-[10px] px-1 py-0.2 rounded bg-black/15 dark:bg-white/10 font-mono">
+                      {dayLessonsCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* GRID DÜZENİ: Masaüstünde 5 eşit genişlikte tek satır grid (md:grid-cols-5), mobilde yatay kaydırma */}
+          <div
+            className={`flex overflow-x-auto snap-x snap-mandatory gap-3.5 pb-4 scroll-smooth no-scrollbar md:grid md:overflow-visible ${
+              includeWeekend
+                ? 'md:grid-cols-7'
+                : 'md:grid-cols-5'
+            } items-start`}
+          >
+            {weekDays.map((day) => {
+              const isSelected = day.date === baseDate;
+              const dayAllSessions = weekSessions
+                .filter((s) => s.date === day.date)
+                .sort((a, b) => a.time_slot.localeCompare(b.time_slot));
+
+              const dayLessons = dayAllSessions.filter((s) => !s.is_break);
+              const dayFilled = dayLessons.filter((s) => s.student_id).length;
+
+              // Filter by priority if toggle active
+              const displayedDaySessions = showOnlyPriority
+                ? dayAllSessions.filter((s) => s.is_break || isHighPriority(s))
+                : dayAllSessions;
+
+              return (
+                <div
+                  key={day.date}
+                  id={`day-col-${day.date}`}
+                  onClick={() => onSelectDate(day.date)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragOverDayDate !== day.date) setDragOverDayDate(day.date);
+                  }}
+                  onDragLeave={(e) => {
+                    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                    if (dragOverDayDate === day.date) setDragOverDayDate(null);
+                  }}
+                  onDrop={(e) => handleDayDrop(day.date, day.dayName, e)}
+                  className={`w-[85vw] max-w-[340px] shrink-0 snap-center md:w-auto md:max-w-none md:shrink flex flex-col rounded-2xl border transition-all duration-150 overflow-hidden ${
+                    dragOverDayDate === day.date
+                      ? 'bg-[#182333] border-emerald-500 ring-2 ring-emerald-500/50 shadow-xl'
+                      : day.isToday
+                      ? 'bg-[#181a26] border-zinc-600/50 shadow-md'
+                      : isSelected
+                      ? 'bg-[#161824] border-zinc-500/40 ring-1 ring-zinc-500/20'
+                      : 'bg-[#141620] border-white/[0.06] hover:border-white/[0.12]'
+                  }`}
+                >
               {/* Day Column Header with Quick Shift & Break controls */}
               <div
                 className={`p-3 border-b transition-colors cursor-pointer select-none ${
@@ -989,17 +1098,17 @@ export function WeeklySchedulerGrid({
               {/* Day Sessions List (Asymmetric Vertical Flow with Larger Priority Cards) */}
               <div className="p-2 space-y-2 flex-1 min-h-[140px]">
                 {displayedDaySessions.length === 0 ? (
-                  <div className="py-8 text-center px-2 space-y-2">
-                    <p className="text-[11px] text-zinc-600">Planlanmış saat yok</p>
+                  <div className="py-8 text-center px-2 space-y-1.5">
+                    <p className="text-[11px] text-slate-400 dark:text-zinc-500">Bugün seans yok</p>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onFillStandardSlots(day.date);
                       }}
-                      className="text-[10px] px-2 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white border border-white/[0.08] transition-colors cursor-pointer"
+                      className="text-[10px] px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-white/[0.08] transition-colors cursor-pointer"
                     >
-                      Standart Saatleri Aç (15 dk)
+                      + Saat Ekle (15 dk)
                     </button>
                   </div>
                 ) : (
@@ -1022,7 +1131,7 @@ export function WeeklySchedulerGrid({
                             ) : (
                               <Coffee className="w-3 h-3 text-slate-500 dark:text-zinc-400 shrink-0" />
                             )}
-                            <span className="font-bold text-[11px]">{session.time_slot}</span>
+                            <span className="font-bold text-[11px] font-mono">{session.time_slot}</span>
                             <span className={`text-[10px] truncate ${isLunch ? 'font-bold text-amber-900 dark:text-amber-300' : 'text-slate-600 dark:text-zinc-400'}`}>
                               {session.break_title || session.topic || (isLunch ? 'Öğle Arası' : 'Mola')}
                             </span>
@@ -1102,7 +1211,7 @@ export function WeeklySchedulerGrid({
                                   className="w-3.5 h-3.5 text-zinc-500 hover:text-amber-300 cursor-grab active:cursor-grabbing shrink-0"
                                   title="Sürükle ve Bırak (Başka Güne veya Saate Taşı)"
                                 />
-                                <span className="px-1.5 py-0.5 rounded-md bg-amber-400/15 text-amber-200/90 border border-amber-400/20 font-mono text-xs font-semibold">
+                                <span className="px-1.5 py-0.5 rounded-md bg-amber-400/15 text-amber-900 dark:text-amber-200 border border-amber-400/20 font-mono text-xs font-semibold">
                                   {session.time_slot}
                                 </span>
                                 
@@ -1261,7 +1370,7 @@ export function WeeklySchedulerGrid({
                                 className="w-3 h-3 text-zinc-500 hover:text-zinc-300 cursor-grab active:cursor-grabbing shrink-0"
                                 title="Sürükle ve Bırak (Başka Güne veya Saate Taşı)"
                               />
-                              <span className="text-[11px] font-mono font-semibold px-1.5 py-0.2 rounded bg-white/[0.05] text-zinc-300">
+                              <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-white/[0.05] text-zinc-300">
                                 {session.time_slot}
                               </span>
                               {/* Quick Time Nudge */}
@@ -1365,7 +1474,7 @@ export function WeeklySchedulerGrid({
                         }`}
                       >
                         <div className="flex items-center gap-1">
-                          <span className="font-mono text-[11px] text-zinc-500 font-medium">
+                          <span className="font-mono text-[11px] text-zinc-400 font-medium px-1 py-0.5 rounded bg-white/[0.03]">
                             {session.time_slot}
                           </span>
                           {/* Nudge empty slot */}
@@ -1521,6 +1630,8 @@ export function WeeklySchedulerGrid({
           );
         })}
       </div>
+    </div>
+  )}
 
       {/* SCHEDULE CONFIGURATION MODAL (Minutes, Breaks, Shift, Recess) */}
       <ScheduleConfigModal

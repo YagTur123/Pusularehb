@@ -119,14 +119,6 @@ export function GroupBroadcastModal({
     }
   };
 
-  const handleOpenWhatsAppWeb = () => {
-    window.open(getWhatsAppWebShareUrl(messageText), '_blank');
-  };
-
-  const handleOpenWhatsAppApp = () => {
-    window.open(getWhatsAppDirectUrl('', messageText), '_blank');
-  };
-
   const assignedCount = formatMode === 'weekly'
     ? allSessions.filter((s) => s.student_id && weekDays.some((w) => w.date === s.date)).length
     : dateSessions.filter((s) => s.student_id).length;

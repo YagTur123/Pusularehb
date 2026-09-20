@@ -476,3 +476,53 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Robust external URL opener compliant with iframe sandboxes and mobile webview.
+ * Creates an anchor element and simulates a click to avoid popup blocker / iframe restriction warnings.
+ * Strictly validates URL scheme to prevent javascript:, data:, or protocol injection attacks.
+ */
+export function openExternalUrl(url: string): void {
+  try {
+    const trimmed = (url || '').trim();
+    if (!trimmed) return;
+
+    // Strict URL validation: Only allow https, http, or whatsapp scheme
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed, window.location.href);
+    } catch {
+      return;
+    }
+
+    const allowedProtocols = ['https:', 'http:', 'whatsapp:'];
+    if (!allowedProtocols.includes(parsed.protocol)) {
+      console.warn('Blocked opening disallowed URL protocol:', parsed.protocol);
+      return;
+    }
+
+    const safeUrl = parsed.toString();
+    const link = document.createElement('a');
+    link.href = safeUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 150);
+  } catch {
+    // Graceful fallback with safe protocols only
+    try {
+      const parsed = new URL(url, window.location.href);
+      if (['https:', 'http:', 'whatsapp:'].includes(parsed.protocol)) {
+        window.open(parsed.toString(), '_blank', 'noopener,noreferrer');
+      }
+    } catch {
+      // Ignore invalid URLs
+    }
+  }
+}

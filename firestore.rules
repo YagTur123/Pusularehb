@@ -1,14 +1,87 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow counselors read/write access to their profile and data
-    // Supports both anonymous/authenticated users in Vercel & AI Studio
-    match /counselor_profiles/{userId} {
-      allow read, write: if true;
+
+    // Document ID validation to prevent ID poisoning and denial of wallet attacks
+    function isValidId(id) {
+      return id is string && id.size() >= 3 && id.size() <= 64 && id.matches('^[a-zA-Z0-9_-]+$');
     }
 
+    // Timestamp format validation (ISO-8601 string)
+    function isValidTimestamp(val) {
+      return val is string && val.size() >= 10 && val.size() <= 40;
+    }
+
+    // Validates counselor profile documents
+    function isValidCounselorProfile(userId, data) {
+      return data.keys().hasAll(['id', 'name']) &&
+        data.keys().hasOnly([
+          'id', 'name', 'email', 'role', 'school', 'phone',
+          'avatar_color', 'created_at', 'updated_at'
+        ]) &&
+        data.id == userId &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 120)) &&
+        (!('role' in data) || (data.role is string && data.role.size() <= 100)) &&
+        (!('school' in data) || (data.school is string && data.school.size() <= 150)) &&
+        (!('phone' in data) || (data.phone is string && data.phone.size() <= 30)) &&
+        (!('avatar_color' in data) || (data.avatar_color is string && data.avatar_color.size() <= 60)) &&
+        (!('created_at' in data) || isValidTimestamp(data.created_at)) &&
+        (!('updated_at' in data) || isValidTimestamp(data.updated_at));
+    }
+
+    // Validates counselor cloud sync document (students CRM, sessions, schedule configuration)
+    function isValidCounselorData(counselorId, data) {
+      return data.keys().hasAll(['counselor_id', 'students', 'sessions', 'updated_at']) &&
+        data.keys().hasOnly([
+          'counselor_id', 'counselor_name', 'students', 'sessions',
+          'schedule_config', 'updated_at', 'server_timestamp'
+        ]) &&
+        data.counselor_id == counselorId &&
+        (!('counselor_name' in data) || (data.counselor_name is string && data.counselor_name.size() <= 100)) &&
+        data.students is list && data.students.size() <= 1000 &&
+        data.sessions is list && data.sessions.size() <= 3000 &&
+        isValidTimestamp(data.updated_at) &&
+        (!('schedule_config' in data) || (data.schedule_config is map));
+    }
+
+    // Counselor Profiles collection
+    match /counselor_profiles/{userId} {
+      // Disallow broad enumeration/listing across all counselor accounts
+      allow list: if false;
+
+      // Allow get for single document
+      allow get: if isValidId(userId) && (request.auth == null || request.auth.uid == userId);
+
+      // Enforce strict schema and size bounds on create & update
+      allow create, update: if isValidId(userId) &&
+        isValidCounselorProfile(userId, request.resource.data) &&
+        (request.auth == null || request.auth.uid == userId);
+
+      // Disallow client-side deletion to prevent catastrophic data loss
+      allow delete: if false;
+    }
+
+    // Counselor Data collection (student records, notes, sessions)
     match /counselor_data/{counselorId} {
-      allow read, write: if true;
+      // Disallow broad enumeration/listing across all counselor datasets
+      allow list: if false;
+
+      // Allow get for single counselor dataset
+      allow get: if isValidId(counselorId) && (request.auth == null || request.auth.uid == counselorId);
+
+      // Enforce strict payload constraints, bounded array lengths, and entity verification
+      allow create, update: if isValidId(counselorId) &&
+        isValidCounselorData(counselorId, request.resource.data) &&
+        (request.auth == null || request.auth.uid == counselorId);
+
+      // Disallow client-side deletion to prevent catastrophic data loss
+      allow delete: if false;
+    }
+
+    // Default deny all other paths
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

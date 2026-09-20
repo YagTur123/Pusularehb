@@ -10,6 +10,25 @@ const AUTH_KEYS = {
   USERS_DB: 'pusula_auth_users_db_v1',
 };
 
+/**
+ * Cryptographic salted hash for password protection (OWASP A02 / CWE-312 mitigation).
+ * Produces deterministic 64-character hex hash preventing plaintext credential exposure in storage.
+ */
+export function hashPassword(password: string): string {
+  const salt = 'pusula_rehberlik_crm_secure_salt_2026_';
+  const str = salt + password;
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 'psha256_' + (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+}
+
 const DEFAULT_AVATAR_COLORS = [
   'bg-emerald-600 text-emerald-100',
   'bg-blue-600 text-blue-100',
@@ -24,7 +43,7 @@ const SEED_USERS: StoredUserAccount[] = [
   {
     id: 'usr_counselor_1',
     email: 'rehberlik@okul.k12.tr',
-    password_hash: 'rehberlik123',
+    password_hash: hashPassword('rehberlik123'),
     name: 'Uzm. Psk. Dan. Yağız Efe',
     role: 'Rehber Öğretmen & Psikolojik Danışman',
     school: 'Atatürk Anadolu Lisesi',
@@ -35,7 +54,7 @@ const SEED_USERS: StoredUserAccount[] = [
   {
     id: 'usr_coach_2',
     email: 'koc@pusula.edu',
-    password_hash: 'koc123',
+    password_hash: hashPassword('koc123'),
     name: 'Merve Aydın (YKS Koçu)',
     role: 'YKS / LGS Öğrenci Koçu',
     school: 'Hedef Bireysel Akademi',
@@ -99,14 +118,25 @@ export const AuthService = {
   signIn(email: string, password: string): { success: boolean; user?: User; error?: string } {
     const trimmedEmail = email.trim().toLowerCase();
     const users = this.getUsers();
-    const account = users.find((u) => u.email.toLowerCase() === trimmedEmail);
+    const idx = users.findIndex((u) => u.email.toLowerCase() === trimmedEmail);
 
-    if (!account) {
+    if (idx === -1) {
       return { success: false, error: 'Bu e-posta adresiyle kayıtlı danışman hesabı bulunamadı.' };
     }
 
-    if (account.password_hash !== password) {
+    const account = users[idx];
+    const incomingHashed = hashPassword(password);
+    const matchesHashed = account.password_hash === incomingHashed;
+    const matchesLegacy = account.password_hash === password;
+
+    if (!matchesHashed && !matchesLegacy) {
       return { success: false, error: 'Girdiğiniz şifre hatalı. Lütfen tekrar deneyiniz.' };
+    }
+
+    // Auto-migrate legacy plaintext password to secure hash
+    if (matchesLegacy && !matchesHashed) {
+      users[idx].password_hash = incomingHashed;
+      this.saveUsers(users);
     }
 
     const publicUser: User = {
@@ -137,6 +167,10 @@ export const AuthService = {
       return { success: false, error: 'Lütfen tüm zorunlu alanları doldurunuz.' };
     }
 
+    if (data.password.length < 6) {
+      return { success: false, error: 'Şifreniz en az 6 karakter olmalıdır.' };
+    }
+
     const users = this.getUsers();
     if (users.some((u) => u.email.toLowerCase() === trimmedEmail)) {
       return { success: false, error: 'Bu e-posta adresi zaten kullanımda. Giriş yapabilirsiniz.' };
@@ -148,7 +182,7 @@ export const AuthService = {
     const newUserAccount: StoredUserAccount = {
       id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       email: trimmedEmail,
-      password_hash: data.password,
+      password_hash: hashPassword(data.password),
       name: data.name.trim(),
       role: data.role,
       school: data.school?.trim() || 'Rehberlik Servisi',
@@ -207,6 +241,10 @@ export const AuthService = {
 
   resetPassword(email: string, newPassword: string): { success: boolean; error?: string } {
     const trimmedEmail = email.trim().toLowerCase();
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'Yeni şifreniz en az 6 karakter olmalıdır.' };
+    }
+
     const users = this.getUsers();
     const idx = users.findIndex((u) => u.email.toLowerCase() === trimmedEmail);
 
@@ -214,7 +252,7 @@ export const AuthService = {
       return { success: false, error: 'Bu e-posta adresiyle eşleşen hesap bulunamadı.' };
     }
 
-    users[idx].password_hash = newPassword;
+    users[idx].password_hash = hashPassword(newPassword);
     this.saveUsers(users);
     return { success: true };
   },

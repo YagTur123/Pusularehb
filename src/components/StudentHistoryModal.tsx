@@ -1,7 +1,7 @@
 import { Student, Session } from '../types';
 import { X, Calendar, Clock, CheckCircle2, UserX, Tag, MessageSquare } from 'lucide-react';
 import { formatTurkishDate, displayPhone } from '../lib/storage';
-import { generateIndividualSummaryText, getWhatsAppDirectUrl } from '../lib/whatsapp';
+import { generateIndividualSummaryText, getWhatsAppDirectUrl, openExternalUrl } from '../lib/whatsapp';
 
 interface StudentHistoryModalProps {
   student: Student;
@@ -32,7 +32,7 @@ export function StudentHistoryModal({
   const handleSendCard = (session: Session) => {
     const text = generateIndividualSummaryText(session, student, counselorName);
     const url = getWhatsAppDirectUrl(student.phone, text);
-    window.open(url, '_blank');
+    openExternalUrl(url);
   };
 
   return (

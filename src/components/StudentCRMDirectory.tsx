@@ -19,7 +19,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { displayPhone, formatTurkishDate, StorageService } from '../lib/storage';
-import { getWhatsAppDirectUrl } from '../lib/whatsapp';
+import { getWhatsAppDirectUrl, openExternalUrl } from '../lib/whatsapp';
 import { StudentHistoryModal } from './StudentHistoryModal';
 import { StudentProfileModal } from './StudentProfileModal';
 import { RiskFilter } from './RiskRadarBar';
@@ -54,6 +54,7 @@ export function StudentCRMDirectory({
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [historyStudent, setHistoryStudent] = useState<Student | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Collect distinct classes
@@ -115,7 +116,7 @@ export function StudentCRMDirectory({
   const handleOpenDirectChat = (student: Student) => {
     const text = `Merhaba ${student.full_name}, Pusula Rehberlik servisinden yazıyorum.`;
     const url = getWhatsAppDirectUrl(student.phone, text);
-    window.open(url, '_blank');
+    openExternalUrl(url);
   };
 
   const handleExportCsv = () => {
@@ -384,12 +385,7 @@ export function StudentCRMDirectory({
                           {/* Delete Student */}
                           <button
                             type="button"
-                            onClick={() => {
-                              if (confirm(`${student.full_name} kaydını silmek istediğinize emin misiniz?`)) {
-                                onDeleteStudent(student.id);
-                                onShowToast('Öğrenci Silindi', student.full_name, 'info');
-                              }
-                            }}
+                            onClick={() => setStudentToDelete(student)}
                             className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                             title="Sil"
                           >
@@ -405,6 +401,48 @@ export function StudentCRMDirectory({
           </table>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {studentToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-2xl max-w-md w-full p-6 text-slate-800 dark:text-zinc-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400 mb-3">
+              <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/40">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                Öğrenci Kaydını Sil
+              </h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-zinc-300 mb-2">
+              <strong className="text-slate-900 dark:text-white">{studentToDelete.full_name}</strong> isimli öğrenciyi ve CRM profilini silmek istediğinize emin misiniz?
+            </p>
+            <p className="text-xs text-slate-400 dark:text-zinc-500 mb-6">
+              Bu işlem öğrencinin profil bilgilerini sistemden kaldırır. Geçmiş görüşmeler arşivde tutulmaya devam edebilir.
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setStudentToDelete(null)}
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 text-xs font-medium hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteStudent(studentToDelete.id);
+                  onShowToast('Öğrenci Silindi', studentToDelete.full_name, 'info');
+                  setStudentToDelete(null);
+                }}
+                className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium transition-colors shadow-xs cursor-pointer"
+              >
+                Evet, Sil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* History Modal */}
       {historyStudent && (

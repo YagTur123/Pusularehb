@@ -42,6 +42,7 @@ import {
   generateIndividualSummaryText,
   generateMissedSessionReminderText,
   getWhatsAppDirectUrl,
+  openExternalUrl,
 } from '../lib/whatsapp';
 import { ScheduleConfigModal } from './ScheduleConfigModal';
 
@@ -385,7 +386,7 @@ export function WeeklySchedulerGrid({
 
     const text = generateIndividualSummaryText(session, student, counselorName);
     const url = getWhatsAppDirectUrl(student.phone, text);
-    window.open(url, '_blank');
+    openExternalUrl(url);
     onShowToast('WhatsApp Özeti Açıldı', `${student.full_name} için mesaj hazırlandı.`, 'success');
   };
 

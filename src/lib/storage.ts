@@ -626,6 +626,17 @@ function getCoachInitialSessions(): Session[] {
   ];
 }
 
+function sanitizeCsvCell(value: string | undefined | null): string {
+  if (!value) return '""';
+  let str = String(value).trim();
+  // Neutralize CSV/Formula Injection if starting with =, +, -, @, \t, \r
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = "'" + str;
+  }
+  // Escape internal double quotes by doubling them
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
 export const StorageService = {
   getStudents(userId?: string): Student[] {
     const key = getUserStorageKey(STORAGE_KEYS.STUDENTS, userId);
@@ -1159,14 +1170,14 @@ export const StorageService = {
 
   exportToCsv(): string {
     const students = this.getStudents();
-    const headers = ['Ad Soyad', 'Sınıf', 'Telefon', 'Son Görüşme', 'Teşhis Etiketleri', 'Hedef'];
+    const headers = ['Ad Soyad', 'Sınıf', 'Telefon', 'Son Görüşme', 'Teşhis Etiketleri', 'Hedef'].map((h) => `"${h}"`);
     const rows = students.map((s) => [
-      `"${s.full_name}"`,
-      `"${s.class_grade}"`,
-      `"${s.phone}"`,
-      `"${s.last_meeting_date || '-'}"`,
-      `"${s.status_flags.join(', ')}"`,
-      `"${s.target_goal || ''}"`,
+      sanitizeCsvCell(s.full_name),
+      sanitizeCsvCell(s.class_grade),
+      sanitizeCsvCell(s.phone),
+      sanitizeCsvCell(s.last_meeting_date || '-'),
+      sanitizeCsvCell(s.status_flags.join(', ')),
+      sanitizeCsvCell(s.target_goal || ''),
     ]);
     return [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
   },

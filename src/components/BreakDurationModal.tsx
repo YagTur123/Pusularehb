@@ -67,22 +67,22 @@ export function BreakDurationModal({
   allDateSessions,
   onSaveBreakDuration,
 }: BreakDurationModalProps) {
-  if (!isOpen || !session) return null;
+  const isLunch = Boolean(
+    session?.break_title?.toLowerCase().includes('öğle') ||
+    session?.topic?.toLowerCase().includes('öğle')
+  );
 
-  const isLunch =
-    session.break_title?.toLowerCase().includes('öğle') ||
-    session.topic?.toLowerCase().includes('öğle');
+  const currentIndex = session ? allDateSessions.findIndex((s) => s.id === session.id) : -1;
+  const nextSession =
+    currentIndex !== -1 && currentIndex < allDateSessions.length - 1
+      ? allDateSessions[currentIndex + 1]
+      : undefined;
 
-  const currentIndex = allDateSessions.findIndex((s) => s.id === session.id);
-  const nextSession = currentIndex !== -1 && currentIndex < allDateSessions.length - 1
-    ? allDateSessions[currentIndex + 1]
-    : undefined;
-
-  const currentDuration = getBreakMinutes(session, nextSession);
+  const currentDuration = session ? getBreakMinutes(session, nextSession) : 10;
 
   const [minutes, setMinutes] = useState<number>(currentDuration);
   const [customTitle, setCustomTitle] = useState<string>(
-    session.break_title || session.topic || (isLunch ? 'Öğle Arası' : 'Teneffüs')
+    session?.break_title || session?.topic || (isLunch ? 'Öğle Arası' : 'Teneffüs')
   );
   const [shiftSubsequent, setShiftSubsequent] = useState<boolean>(true);
 
@@ -97,6 +97,8 @@ export function BreakDurationModal({
       setShiftSubsequent(true);
     }
   }, [session?.id]);
+
+  if (!isOpen || !session) return null;
 
   const deltaMinutes = minutes - currentDuration;
   const breakStart = session.time_slot.includes('-')

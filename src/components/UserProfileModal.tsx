@@ -48,13 +48,17 @@ export function UserProfileModal({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    const sanitizedName = name.replace(/[<>]/g, '').trim().slice(0, 100);
+    const sanitizedSchool = school.replace(/[<>]/g, '').trim().slice(0, 150);
+    const sanitizedPhone = phone.replace(/[<>]/g, '').trim().slice(0, 30);
+
+    if (!sanitizedName) return;
 
     const updated = AuthService.updateProfile({
-      name: name.trim(),
+      name: sanitizedName,
       role,
-      school: school.trim(),
-      phone: phone.trim(),
+      school: sanitizedSchool,
+      phone: sanitizedPhone,
     });
 
     if (updated) {
@@ -138,6 +142,7 @@ export function UserProfileModal({
               <input
                 type="text"
                 required
+                maxLength={100}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-[#07080d] border border-slate-300 dark:border-white/[0.08] focus:border-emerald-500 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none transition-colors"
@@ -174,6 +179,7 @@ export function UserProfileModal({
                 <Building2 className="w-4 h-4 text-slate-400 dark:text-zinc-500 absolute left-3 top-2.5" />
                 <input
                   type="text"
+                  maxLength={150}
                   value={school}
                   onChange={(e) => setSchool(e.target.value)}
                   placeholder="Okul adı"
@@ -207,6 +213,7 @@ export function UserProfileModal({
                 <Phone className="w-4 h-4 text-slate-400 dark:text-zinc-500 absolute left-3 top-2.5" />
                 <input
                   type="text"
+                  maxLength={30}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="0532 123 45 67"

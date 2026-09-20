@@ -258,6 +258,7 @@ export function AuthModal({
                 <input
                   type="email"
                   required
+                  maxLength={120}
                   value={signInEmail}
                   onChange={(e) => setSignInEmail(e.target.value)}
                   placeholder="ornek@okul.k12.tr"
@@ -287,6 +288,7 @@ export function AuthModal({
                 <input
                   type={showSignInPassword ? 'text' : 'password'}
                   required
+                  maxLength={100}
                   value={signInPassword}
                   onChange={(e) => setSignInPassword(e.target.value)}
                   placeholder="••••••••"
@@ -365,6 +367,7 @@ export function AuthModal({
                 <input
                   type="text"
                   required
+                  maxLength={100}
                   value={signUpName}
                   onChange={(e) => setSignUpName(e.target.value)}
                   placeholder="Örn: Uzm. Psk. Dan. Elif Yılmaz"
@@ -402,6 +405,7 @@ export function AuthModal({
                   <Building2 className="w-4 h-4 text-slate-400 dark:text-zinc-500 absolute left-3 top-2.5" />
                   <input
                     type="text"
+                    maxLength={150}
                     value={signUpSchool}
                     onChange={(e) => setSignUpSchool(e.target.value)}
                     placeholder="Örn: Atatürk Anadolu Lisesi"
@@ -421,6 +425,7 @@ export function AuthModal({
                   <input
                     type="email"
                     required
+                    maxLength={120}
                     value={signUpEmail}
                     onChange={(e) => setSignUpEmail(e.target.value)}
                     placeholder="ornek@okul.com"
@@ -437,6 +442,7 @@ export function AuthModal({
                   <Phone className="w-4 h-4 text-slate-400 dark:text-zinc-500 absolute left-3 top-2.5" />
                   <input
                     type="tel"
+                    maxLength={30}
                     value={signUpPhone}
                     onChange={(e) => setSignUpPhone(e.target.value)}
                     placeholder="0532 123 45 67"
@@ -456,6 +462,7 @@ export function AuthModal({
                   <input
                     type={showSignUpPassword ? 'text' : 'password'}
                     required
+                    maxLength={100}
                     value={signUpPassword}
                     onChange={(e) => setSignUpPassword(e.target.value)}
                     placeholder="En az 6 karakter"
@@ -480,6 +487,7 @@ export function AuthModal({
                   <input
                     type={showSignUpPassword ? 'text' : 'password'}
                     required
+                    maxLength={100}
                     value={signUpPasswordConfirm}
                     onChange={(e) => setSignUpPasswordConfirm(e.target.value)}
                     placeholder="Şifreyi onaylayın"
@@ -516,6 +524,7 @@ export function AuthModal({
                 <input
                   type="email"
                   required
+                  maxLength={120}
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
                   placeholder="ornek@okul.k12.tr"
@@ -533,6 +542,7 @@ export function AuthModal({
                 <input
                   type="password"
                   required
+                  maxLength={100}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="En az 6 karakter"

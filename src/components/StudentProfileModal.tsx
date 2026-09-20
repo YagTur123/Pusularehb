@@ -33,19 +33,24 @@ export function StudentProfileModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !phone.trim()) return;
+    const sanitizedName = fullName.replace(/[<>]/g, '').trim().slice(0, 100);
+    const sanitizedGrade = classGrade.replace(/[<>]/g, '').trim().slice(0, 20);
+    const sanitizedGoal = targetGoal.replace(/[<>]/g, '').trim().slice(0, 200);
+    const sanitizedNotes = notes.replace(/[<>]/g, '').trim().slice(0, 2000);
 
-    const cleanedPhone = autoFormatPhone(phone);
+    if (!sanitizedName || !phone.trim()) return;
+
+    const cleanedPhone = autoFormatPhone(phone).slice(0, 25);
 
     onSave(
       {
-        full_name: fullName.trim(),
-        class_grade: classGrade.trim(),
+        full_name: sanitizedName,
+        class_grade: sanitizedGrade || '12-A',
         phone: cleanedPhone,
-        status_flags: statusFlags,
+        status_flags: statusFlags.slice(0, 20),
         last_meeting_date: student?.last_meeting_date || null,
-        target_goal: targetGoal.trim(),
-        notes: notes.trim(),
+        target_goal: sanitizedGoal,
+        notes: sanitizedNotes,
       },
       student?.id
     );
@@ -90,6 +95,7 @@ export function StudentProfileModal({
               <input
                 type="text"
                 required
+                maxLength={100}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Örn: Ahmet Yılmaz"
@@ -105,6 +111,7 @@ export function StudentProfileModal({
               <input
                 type="text"
                 required
+                maxLength={20}
                 value={classGrade}
                 onChange={(e) => setClassGrade(e.target.value)}
                 placeholder="12-A / Mezun"
@@ -125,6 +132,7 @@ export function StudentProfileModal({
             <input
               type="tel"
               required
+              maxLength={30}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="0532 123 45 67 veya 905321234567"
@@ -140,6 +148,7 @@ export function StudentProfileModal({
             </label>
             <input
               type="text"
+              maxLength={200}
               value={targetGoal}
               onChange={(e) => setTargetGoal(e.target.value)}
               placeholder="Örn: İTÜ Bilgisayar Mühendisliği / Boğaziçi İktisat"
@@ -183,6 +192,7 @@ export function StudentProfileModal({
             </label>
             <textarea
               rows={2}
+              maxLength={2000}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Öğrencinin çalışma alışkanlıkları, deneme durumu, aile veya veli iletişim notları..."

@@ -46,6 +46,7 @@ import {
   generateIndividualSummaryText,
   generateMissedSessionReminderText,
   getWhatsAppDirectUrl,
+  openExternalUrl,
 } from '../lib/whatsapp';
 import { QuickNotePopover } from './QuickNotePopover';
 import { StudentHistoryModal } from './StudentHistoryModal';
@@ -464,7 +465,7 @@ export function DailyScheduler({
 
     const text = generateIndividualSummaryText(session, student, counselorName);
     const url = getWhatsAppDirectUrl(student.phone, text);
-    window.open(url, '_blank');
+    openExternalUrl(url);
   };
 
   const handleSendMissedReminder = (session: Session) => {
@@ -474,7 +475,7 @@ export function DailyScheduler({
 
     const text = generateMissedSessionReminderText(student, session);
     const url = getWhatsAppDirectUrl(student.phone, text);
-    window.open(url, '_blank');
+    openExternalUrl(url);
   };
 
   return (

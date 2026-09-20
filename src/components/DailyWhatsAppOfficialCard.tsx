@@ -22,6 +22,7 @@ import {
   generateOfficialTaggedBroadcastText,
   copyToClipboard,
   getWhatsAppUniversalUrl,
+  openExternalUrl,
 } from '../lib/whatsapp';
 
 interface DailyWhatsAppOfficialCardProps {
@@ -416,7 +417,7 @@ export function DailyWhatsAppOfficialCard({
   const handleOpenWhatsApp = () => {
     copyToClipboard(officialBroadcastText);
     const url = getWhatsAppUniversalUrl(officialBroadcastText);
-    window.open(url, '_blank');
+    openExternalUrl(url);
     onShowToast(
       'WhatsApp Açılıyor',
       'Metin panoya kopyalandı. WhatsApp açıldığında görseli de Ctrl+V ile yapıştırabilirsiniz.',

@@ -2,12 +2,15 @@ import { ParsedStudentRow, DIAGNOSTIC_TAGS } from '../types';
 import { autoFormatPhone } from './storage';
 
 export function parseBulkStudentText(rawInput: string): ParsedStudentRow[] {
-  if (!rawInput.trim()) return [];
+  if (!rawInput || !rawInput.trim()) return [];
 
+  // Limit processing to 500 lines to prevent browser freeze/memory exhaustion attacks
   const lines = rawInput
+    .slice(0, 500000)
     .split(/\r?\n/)
     .map((l) => l.trim())
-    .filter((l) => l.length > 0);
+    .filter((l) => l.length > 0)
+    .slice(0, 500);
 
   const results: ParsedStudentRow[] = [];
 
@@ -117,7 +120,9 @@ function parseSingleLine(line: string): ParsedStudentRow {
 
 function cleanName(name: string): string {
   return name
+    .replace(/[<>]/g, '')
     .trim()
+    .slice(0, 100)
     .replace(/[0-9\-_]/g, '')
     .split(' ')
     .filter(Boolean)

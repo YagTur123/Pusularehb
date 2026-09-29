@@ -426,27 +426,27 @@ export function DailyWhatsAppOfficialCard({
   };
 
   return (
-    <div className="border border-slate-200 dark:border-white/[0.1] rounded-2xl bg-white dark:bg-[#12141e] shadow-sm overflow-hidden transition-colors">
+    <div className="border-2 border-black dark:border-white/[0.1] rounded-2xl bg-white dark:bg-[#12141e] shadow-sm overflow-hidden transition-colors">
       {/* Top Header Row of the Rectangular Card */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-50 dark:bg-[#151824] border-b border-slate-200 dark:border-white/[0.08]">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-50 dark:bg-[#151824] border-b-2 border-black dark:border-white/[0.08]">
         {/* Left: Badge & Information */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-600 text-white shadow-2xs">
-            <MessageSquare className="w-4 h-4" />
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#25D366] text-white border-2 border-black dark:border-white/30 shadow-xs shrink-0">
+            <MessageSquare className="w-5 h-5 fill-white text-white stroke-[2]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
+              <span className="font-extrabold text-xs sm:text-sm text-black dark:text-white">
                 Günün WhatsApp İlanı
               </span>
-              <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-[10px] font-semibold">
+              <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 border-2 border-black dark:border-emerald-500/30 text-black dark:text-emerald-300 text-[10px] font-bold">
                 Resmi Görüşme Çıktısı
               </span>
             </div>
-            <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5 flex items-center gap-2">
+            <p className="text-[11px] text-slate-700 dark:text-zinc-400 mt-0.5 flex items-center gap-2">
               <span>{formatTurkishDate(selectedDate)}</span>
               <span>&bull;</span>
-              <span className="font-semibold text-slate-800 dark:text-zinc-200">
+              <span className="font-bold text-black dark:text-zinc-200">
                 {totalAssigned > 0 ? `${totalAssigned} Öğrenci Randevulu` : 'Randevulu Seans Yok'}
               </span>
             </p>
@@ -460,10 +460,10 @@ export function DailyWhatsAppOfficialCard({
             type="button"
             onClick={handleCopyImage}
             disabled={isGeneratingImage}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-2xs transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black shadow-2xs transition-all cursor-pointer ${
               isCopiedImage
-                ? 'bg-emerald-600 text-white border border-emerald-600'
-                : 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30'
+                ? 'bg-emerald-600 text-white border-2 border-black'
+                : 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-900 dark:text-emerald-300 border-2 border-black dark:border-emerald-500/30'
             }`}
             title="Resmi görüşme çıktısının ekran görüntüsünü kopyala (WhatsApp'a Ctrl+V yapıştır)"
           >
@@ -479,10 +479,10 @@ export function DailyWhatsAppOfficialCard({
           <button
             type="button"
             onClick={handleDownloadImage}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 border border-slate-300 dark:border-white/[0.08] text-xs font-semibold transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-black dark:text-zinc-200 border-2 border-black dark:border-white/[0.08] text-xs font-bold transition-colors cursor-pointer"
             title="Görseli PNG olarak indir"
           >
-            <Download className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400" />
+            <Download className="w-3.5 h-3.5 text-black dark:text-zinc-400" />
             <span className="hidden sm:inline">PNG İndir</span>
           </button>
 
@@ -490,17 +490,17 @@ export function DailyWhatsAppOfficialCard({
           <button
             type="button"
             onClick={handleCopyTaggedText}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
               isCopiedText
-                ? 'bg-slate-900 text-white dark:bg-zinc-800'
-                : 'bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 border border-slate-300 dark:border-white/[0.08]'
+                ? 'bg-black text-white dark:bg-zinc-800 border-2 border-black'
+                : 'bg-white hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-black dark:text-zinc-200 border-2 border-black dark:border-white/[0.08]'
             }`}
             title="Etiketli metni kopyala"
           >
             {isCopiedText ? (
               <Check className="w-3.5 h-3.5" />
             ) : (
-              <Copy className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400" />
+              <Copy className="w-3.5 h-3.5 text-black dark:text-zinc-400" />
             )}
             <span className="hidden sm:inline">Metni & Etiketleri Kopyala</span>
             <span className="sm:hidden">Metin</span>
@@ -510,11 +510,11 @@ export function DailyWhatsAppOfficialCard({
           <button
             type="button"
             onClick={handleOpenWhatsApp}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-black border-2 border-black dark:border-white/30 shadow-xs transition-transform active:scale-95 cursor-pointer"
             title="WhatsApp üzerinden aç ve gönder"
           >
-            <Share2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">WhatsApp</span>
+            <Share2 className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span className="hidden sm:inline">WhatsApp Aç</span>
           </button>
 
           {/* 5. Print Modal Trigger */}
@@ -522,7 +522,7 @@ export function DailyWhatsAppOfficialCard({
             <button
               type="button"
               onClick={onOpenPrintModal}
-              className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 hover:text-slate-900 dark:text-zinc-300 border border-slate-300 dark:border-white/[0.08] transition-colors cursor-pointer"
+              className="p-1.5 rounded-xl bg-white hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-black dark:text-zinc-300 border-2 border-black dark:border-white/[0.08] transition-colors cursor-pointer"
               title="Resmi Defter A4 Çıktısını Yazdır"
             >
               <Printer className="w-3.5 h-3.5" />

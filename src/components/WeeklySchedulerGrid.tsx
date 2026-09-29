@@ -479,25 +479,29 @@ export function WeeklySchedulerGrid({
 
         {/* Right: Primary Action Buttons (Max 2: Sihirbaz [Indigo] & WhatsApp [Green]) + Secondary Dropdown ("...") */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* PRIMARY 1: Program & Teneffüs Sihirbazı (Indigo / Blue accent) */}
+          {/* PRIMARY 1: Program & Teneffüs Sihirbazı (Belirgin Sliders Butonu) */}
           <button
             type="button"
             onClick={() => setIsScheduleConfigOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold border border-indigo-500/40 shadow-xs transition-all cursor-pointer active:scale-[0.98]"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-black dark:bg-zinc-800 dark:text-zinc-100 border-2 border-black dark:border-amber-500/50 text-xs font-black shadow-xs transition-all cursor-pointer active:scale-[0.98]"
             title="Seans dakikası, teneffüs süresi belirle, tablo saatlerini kaydır ve teneffüs ekle"
           >
-            <Sliders className="w-3.5 h-3.5" />
+            <div className="w-5 h-5 rounded-md bg-amber-400 text-black border border-black flex items-center justify-center shrink-0 shadow-2xs">
+              <Sliders className="w-3.5 h-3.5 stroke-[2.5]" />
+            </div>
             <span>Program & Teneffüs Sihirbazı</span>
           </button>
 
-          {/* PRIMARY 2: WhatsApp İlanı (Brand WhatsApp Green with distinct icon weight) */}
+          {/* PRIMARY 2: WhatsApp İlanı (Belirgin WhatsApp Logosu ve Yeşili) */}
           <button
             type="button"
             onClick={() => onOpenBroadcast(baseDate)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#22c55e] dark:text-[#25D366] hover:text-[#16a34a] dark:hover:text-[#4ade80] border border-[#25D366]/35 text-xs font-semibold transition-colors cursor-pointer"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white border-2 border-black dark:border-white/30 text-xs font-black transition-all cursor-pointer shadow-xs active:scale-[0.98]"
             title="Haftalık veya seçili günün WhatsApp seans ilanını aç"
           >
-            <MessageSquare className="w-3.5 h-3.5 stroke-[2.4]" />
+            <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              <MessageSquare className="w-3.5 h-3.5 text-white fill-white stroke-[2]" />
+            </div>
             <span>WhatsApp İlanı</span>
           </button>
 
@@ -802,20 +806,20 @@ export function WeeklySchedulerGrid({
 
       {/* ASYMMETRIC TOP BENTO SPOTLIGHT: Bu Haftanın Öncelikli Seansları (Calm Muted Styling) */}
       {prioritySessionsThisWeek.length > 0 && !showOnlyPriority && (
-        <div className="p-3.5 bg-[#161824] border border-white/[0.08] rounded-2xl space-y-2.5 shadow-md">
+        <div className="p-3.5 bg-amber-50/60 dark:bg-[#161824] border border-amber-200/80 dark:border-white/[0.08] rounded-2xl space-y-2.5 shadow-2xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-amber-500/15 border border-amber-500/25 flex items-center justify-center text-amber-300">
-                <Star className="w-3.5 h-3.5 fill-amber-300/40 text-amber-300/80" />
+              <div className="w-6 h-6 rounded-lg bg-amber-100 border border-amber-300 dark:bg-amber-500/15 dark:border-amber-500/25 flex items-center justify-center text-amber-700 dark:text-amber-300">
+                <Star className="w-3.5 h-3.5 fill-amber-500/30 text-amber-600 dark:text-amber-300" />
               </div>
               <div>
-                <h3 className="text-xs font-bold text-zinc-100 flex items-center gap-2">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
                   <span>Bu Haftanın Öncelikli Görüşmeleri Vitrini</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/25">
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-amber-200/60 text-amber-800 border border-amber-300 dark:bg-amber-400/15 dark:text-amber-300 dark:border-amber-400/25">
                     {prioritySessionsThisWeek.length} Seans
                   </span>
                 </h3>
-                <p className="text-[10px] text-zinc-400">
+                <p className="text-[10px] text-slate-600 dark:text-zinc-400">
                   Net düşüşü, randevu aksaması veya kritik risk taşıyan öğrencilerin genişletilmiş seans kartları
                 </p>
               </div>
@@ -823,7 +827,7 @@ export function WeeklySchedulerGrid({
             <button
               type="button"
               onClick={() => setSpotlightCollapsed(!spotlightCollapsed)}
-              className="text-[11px] text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] transition-colors cursor-pointer"
+              className="text-[11px] text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 px-2 py-1 rounded-lg bg-white/80 dark:bg-white/[0.03] hover:bg-white dark:hover:bg-white/[0.06] border border-slate-200 dark:border-transparent transition-colors cursor-pointer"
             >
               {spotlightCollapsed ? 'Genişlet' : 'Daralt'}
             </button>
@@ -843,43 +847,43 @@ export function WeeklySchedulerGrid({
                   <div
                     key={pSession.id}
                     onClick={() => setQuickEditingSession(pSession)}
-                    className="p-3 rounded-xl border border-amber-500/20 bg-[#1c1f2e] hover:border-amber-500/40 hover:shadow-md transition-all cursor-pointer space-y-2 group"
+                    className="p-3 rounded-xl border border-amber-200/90 dark:border-amber-500/20 bg-white dark:bg-[#1c1f2e] hover:border-amber-400 dark:hover:border-amber-500/40 hover:shadow-xs transition-all cursor-pointer space-y-2 group"
                   >
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-200/90 font-mono font-medium border border-amber-400/20 text-[10px]">
+                      <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200/90 font-mono font-medium border border-amber-300/80 dark:border-amber-400/20 text-[10px]">
                         {dayInfo?.shortDayName} • {pSession.time_slot}
                       </span>
-                      <span className="text-[10px] font-mono text-zinc-400 bg-white/[0.05] px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-mono text-slate-600 dark:text-zinc-400 bg-slate-100 dark:bg-white/[0.05] px-1.5 py-0.5 rounded">
                         {st.class_grade}
                       </span>
                     </div>
 
                     <div>
-                      <div className="text-xs font-bold text-zinc-100 group-hover:text-amber-200 transition-colors truncate">
+                      <div className="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-amber-700 dark:group-hover:text-amber-200 transition-colors truncate">
                         {st.full_name}
                       </div>
                       <div className="flex items-center gap-1 mt-1">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-medium truncate">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300 font-medium truncate">
                           ⚠️ {reasonFlag}
                         </span>
                       </div>
                       {pSession.topic && (
-                        <p className="text-[11px] text-zinc-400 truncate mt-1">
+                        <p className="text-[11px] text-slate-600 dark:text-zinc-400 truncate mt-1">
                           {pSession.topic}
                         </p>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06] text-[10px]">
+                    <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-white/[0.06] text-[10px]">
                       <button
                         type="button"
                         onClick={(e) => handleToggleStatus(pSession, e)}
                         className={`px-2 py-0.5 rounded font-medium transition-all cursor-pointer ${
                           pSession.status === 'Geldi'
-                            ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/20'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/20'
                             : pSession.status === 'Gelmedi'
-                            ? 'bg-rose-950/40 text-rose-300 border border-rose-500/20'
-                            : 'bg-zinc-800 text-zinc-300'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-500/20'
+                            : 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-300'
                         }`}
                       >
                         {pSession.status}
@@ -887,10 +891,10 @@ export function WeeklySchedulerGrid({
                       <button
                         type="button"
                         onClick={(e) => handleSendWhatsAppSummary(pSession, e)}
-                        className="p-1 rounded text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-1"
+                        className="p-1 rounded text-slate-500 hover:text-emerald-600 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-emerald-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-1"
                         title="WhatsApp Özeti Gönder"
                       >
-                        <MessageSquare className="w-3 h-3 text-emerald-400" />
+                        <MessageSquare className="w-3 h-3 text-emerald-500" />
                         <span>Mesaj</span>
                       </button>
                     </div>

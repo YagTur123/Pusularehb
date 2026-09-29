@@ -42,7 +42,7 @@ export default function App() {
     []
   );
 
-  // Theme state ('light' by default per user request: "Beyaz tema yap ama karanlık tema ekle")
+  // Theme state ('light' by default per user request, toggle between light and dark)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('pusula_theme');
     return saved === 'dark' ? 'dark' : 'light';
@@ -54,13 +54,22 @@ export default function App() {
 
   useEffect(() => {
     const root = document.documentElement;
+
+    // Her zaman Minimalist & Kurumsal Mavi Paleti
+    root.classList.remove('palette-warm');
+    root.classList.add('palette-corporate');
+    root.setAttribute('data-palette', 'corporate');
+
+    // Açık ve Koyu Mod Yönetimi
+    root.classList.remove('light', 'dim', 'dark');
     if (theme === 'dark') {
       root.classList.add('dark');
-      root.classList.remove('light');
+      root.setAttribute('color-scheme', 'dark');
     } else {
       root.classList.add('light');
-      root.classList.remove('dark');
+      root.setAttribute('color-scheme', 'light');
     }
+
     localStorage.setItem('pusula_theme', theme);
   }, [theme]);
 
@@ -312,7 +321,7 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'dark bg-[#121319] text-zinc-200' : 'light bg-slate-50 text-slate-900'} flex flex-col selection:bg-emerald-500/20`}>
+    <div className="min-h-screen flex flex-col selection:bg-emerald-500/20 bg-[var(--surface1)] text-[var(--text1)] transition-colors">
       {/* Linear Style Header */}
       <Header
         activeTab={activeTab}
@@ -333,29 +342,29 @@ export default function App() {
 
       {/* Guest Mode Notice Bar (if not logged in) */}
       {!currentUser && (
-        <div className="bg-slate-100 dark:bg-[#161822] border-b border-slate-200 dark:border-white/[0.08] px-4 sm:px-6 py-2 text-xs flex flex-wrap items-center justify-between gap-3 transition-colors">
-          <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+        <div className="bg-white dark:bg-[#161822] border-b border-slate-300 dark:border-white/[0.08] px-4 sm:px-6 py-2 text-xs flex flex-wrap items-center justify-between gap-3 transition-colors">
+          <div className="flex items-center gap-2 text-black dark:text-zinc-300">
+            <span className="w-2 h-2 rounded-full bg-black dark:bg-emerald-500 shrink-0" />
             <span className="text-[11px] sm:text-xs">
-              <strong className="text-slate-900 dark:text-zinc-100 font-semibold">Misafir Modu:</strong> Seansları kendi adınız ve okulunuzla yönetmek, WhatsApp ilanlarında ünvanınızı kullanmak için giriş yapın.
+              <strong className="text-black dark:text-zinc-100 font-semibold">Misafir Modu:</strong> Seansları kendi adınız ve okulunuzla yönetmek, WhatsApp ilanlarında ünvanınızı kullanmak için giriş yapın.
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-800/80 px-2 py-0.5 rounded-md border border-slate-200 dark:border-white/[0.08]">
-              <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium">⚡ Hızlı Demo:</span>
+            <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-800/80 px-2 py-0.5 rounded-md border border-slate-300 dark:border-white/[0.08]">
+              <span className="text-[10px] text-black dark:text-zinc-400 font-medium">⚡ Hızlı Demo:</span>
               <button
                 type="button"
                 onClick={() => handleQuickDemoLogin('counselor')}
-                className="px-2 py-0.5 rounded text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                className="px-2 py-0.5 rounded text-[11px] font-semibold text-black hover:underline dark:text-emerald-300 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
                 title="Atatürk Anadolu Lisesi Rehberlik Servisi demo profiliyle giriş yap"
               >
                 Rehberlik Servisi
               </button>
-              <span className="text-slate-300 dark:text-zinc-700 text-[10px]">•</span>
+              <span className="text-slate-400 dark:text-zinc-700 text-[10px]">•</span>
               <button
                 type="button"
                 onClick={() => handleQuickDemoLogin('coach')}
-                className="px-2 py-0.5 rounded text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer"
+                className="px-2 py-0.5 rounded text-[11px] font-semibold text-black hover:underline dark:text-indigo-300 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer"
                 title="Hedef Akademi Bireysel YKS Koçluğu demo profiliyle giriş yap"
               >
                 YKS Koçluğu
@@ -364,14 +373,14 @@ export default function App() {
             <button
               type="button"
               onClick={() => handleOpenAuth('signin')}
-              className="px-2.5 py-1 rounded-md bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-750 dark:text-zinc-200 dark:hover:text-white dark:border-transparent text-xs font-medium cursor-pointer transition-colors shadow-2xs"
+              className="px-2.5 py-1 rounded-md bg-white hover:bg-white text-black border border-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-750 dark:text-zinc-200 dark:hover:text-white dark:border-transparent text-xs font-medium cursor-pointer transition-colors shadow-2xs"
             >
               Giriş Yap
             </button>
             <button
               type="button"
               onClick={() => handleOpenAuth('signup')}
-              className="px-2.5 py-1 rounded-md bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium cursor-pointer transition-colors shadow-2xs"
+              className="px-2.5 py-1 rounded-md bg-white hover:bg-white text-black font-bold border border-black dark:bg-emerald-700 dark:text-white text-xs cursor-pointer transition-colors shadow-2xs"
             >
               Kayıt Ol
             </button>

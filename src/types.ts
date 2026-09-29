@@ -1,5 +1,8 @@
 export type SessionStatus = 'Bekliyor' | 'Geldi' | 'Gelmedi';
 
+export type ColorPalette = 'corporate';
+export type ThemeMode = 'light' | 'dark';
+
 export interface Student {
   id: string;
   full_name: string;

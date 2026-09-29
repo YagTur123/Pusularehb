@@ -29,6 +29,17 @@ export function CalendarMonthPicker({
   const [viewYear, setViewYear] = useState(selectedY || new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState((selectedM ? selectedM - 1 : new Date().getMonth()));
 
+  // Bug fix: keep viewYear and viewMonth in sync when selectedDate changes from external controls
+  React.useEffect(() => {
+    if (selectedDate && selectedDate.includes('-')) {
+      const [y, m] = selectedDate.split('-').map(Number);
+      if (y && m) {
+        setViewYear(y);
+        setViewMonth(m - 1);
+      }
+    }
+  }, [selectedDate]);
+
   const todayStr = getTodayDateString();
   const monthDays = getMonthDays(viewYear, viewMonth);
 

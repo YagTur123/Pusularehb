@@ -481,35 +481,35 @@ export function DailyScheduler({
   return (
     <div className="space-y-3">
       {/* Top Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-[#0c0d12] p-2.5 rounded-lg border border-slate-200 dark:border-white/[0.07] shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 rounded-lg bg-white dark:bg-[#13151f] border border-slate-200/90 dark:border-white/[0.08] shadow-xs">
         {/* Left: View Mode Switcher + Interactive Date Selector + Quick switches */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* View Mode Toggle: [Günlük (Liste)] [Haftalık (Çizelge)] */}
-          <div className="flex items-center bg-slate-100 dark:bg-[#12141e] p-0.5 rounded-lg border border-slate-200/80 dark:border-white/[0.06]">
+          {/* View Mode Slider: [Günlük (Liste)] [Haftalık (Çizelge)] */}
+          <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-[#181a24] border border-slate-200 dark:border-white/15 shadow-2xs gap-1">
             <button
               type="button"
               onClick={() => setViewMode('daily')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                 viewMode === 'daily'
-                  ? 'bg-white text-slate-800 shadow-xs border border-slate-200/80 dark:bg-zinc-800 dark:text-white dark:border-transparent'
+                  ? 'bg-white text-slate-900 border border-slate-300/80 shadow-xs dark:bg-zinc-800 dark:text-blue-400 dark:border-blue-500/40'
                   : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
               title="Günlük detaylı seans listesi"
             >
-              <LayoutList className="w-3.5 h-3.5" />
+              <LayoutList className="w-3.5 h-3.5 stroke-[2.2]" />
               <span>Günlük</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('weekly')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                 viewMode === 'weekly'
-                  ? 'bg-white text-slate-800 shadow-xs border border-slate-200/80 dark:bg-zinc-800 dark:text-white dark:border-transparent'
+                  ? 'bg-white text-slate-900 border border-slate-300/80 shadow-xs dark:bg-zinc-800 dark:text-blue-400 dark:border-blue-500/40'
                   : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
               }`}
               title="Haftalık ders ve seans çizelgesi matrisi"
             >
-              <Table className="w-3.5 h-3.5" />
+              <Table className="w-3.5 h-3.5 stroke-[2.2]" />
               <span>Haftalık Çizelge</span>
             </button>
           </div>
@@ -519,14 +519,14 @@ export function DailyScheduler({
             <button
               type="button"
               onClick={() => setShowMonthPicker(!showMonthPicker)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-800 dark:bg-[#181a26] dark:hover:bg-[#1e2130] dark:text-zinc-200 px-3 py-1.5 rounded-lg border border-slate-200/90 dark:border-white/[0.08] cursor-pointer transition-colors group shadow-2xs"
+              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-800 dark:bg-zinc-800 dark:hover:bg-zinc-750 dark:text-zinc-100 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-white/[0.08] cursor-pointer transition-colors group shadow-2xs"
               title="Aylık takvim gezginini aç"
             >
-              <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400 group-hover:text-indigo-600 dark:group-hover:text-zinc-200" />
-              <span className="text-xs font-bold text-slate-800 dark:text-zinc-200">
+              <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span className="text-xs font-semibold text-slate-800 dark:text-zinc-100">
                 {formatTurkishDateWithoutDay(selectedDate)}
               </span>
-              <ChevronDown className="w-3 h-3 text-slate-400 dark:text-zinc-500 group-hover:text-slate-700 dark:group-hover:text-zinc-300" />
+              <ChevronDown className="w-3 h-3 text-slate-500 dark:text-zinc-400" />
             </button>
 
             {showMonthPicker && (
@@ -552,14 +552,16 @@ export function DailyScheduler({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Program & Teneffüs Customizer Modal Trigger */}
+          {/* Program & Teneffüs Customizer Modal Trigger (Belirgin Sliders Butonu) */}
           <button
             type="button"
             onClick={() => setIsScheduleConfigOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100/80 border border-amber-200 dark:bg-[#221f1a] dark:hover:bg-[#2c2822] dark:border-amber-500/25 text-amber-900 hover:text-amber-950 dark:text-amber-200/90 dark:hover:text-amber-100 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 dark:bg-zinc-800 dark:text-zinc-100 border border-slate-300 dark:border-amber-500/50 text-xs font-semibold transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
             title="Seans dakikası, teneffüs süresi belirle, tablo saatlerini kaydır veya teneffüs ekle"
           >
-            <Sliders className="w-3.5 h-3.5 text-amber-600 dark:text-amber-300/80" />
+            <div className="w-5 h-5 rounded-md bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 flex items-center justify-center shrink-0">
+              <Sliders className="w-3.5 h-3.5 stroke-[2.2]" />
+            </div>
             <span>Program & Teneffüs Planla</span>
           </button>
 
@@ -567,22 +569,22 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={() => setShowPrintModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200/90 dark:bg-[#181a26] dark:hover:bg-[#1e2130] dark:border-white/[0.08] text-slate-700 hover:text-slate-900 dark:text-zinc-300 dark:hover:text-white text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-slate-300 dark:border-white/[0.08] text-xs font-semibold dark:text-zinc-200 transition-colors cursor-pointer shadow-2xs"
             title="Resmi görüşme defteri ve A4 çıktısı"
           >
-            <Printer className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
+            <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400" />
             <span>Defter</span>
           </button>
         </div>
       </div>
 
       {/* Interactive Week Navigation Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-[#141622] px-3 py-2 rounded-lg border border-slate-200/90 dark:border-white/[0.06] shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white dark:bg-[#13151f] border border-slate-200/90 dark:border-white/[0.08] shadow-xs">
         <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => setSelectedDate(shiftDateString(selectedDate, -7))}
-            className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-md hover:bg-slate-100 text-slate-600 dark:hover:bg-zinc-800 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
             title="Önceki Hafta (7 gün önce)"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -602,15 +604,15 @@ export function DailyScheduler({
                   onClick={() => setSelectedDate(day.date)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-indigo-600 text-white font-semibold shadow-xs border border-indigo-600 dark:bg-indigo-600 dark:text-white dark:border-transparent'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200/80 dark:bg-white/[0.03] dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-900 dark:border-transparent'
+                      ? 'bg-blue-600 text-white font-semibold shadow-xs border border-blue-600 dark:bg-blue-600 dark:text-white'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 dark:bg-white/[0.03] dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-900 dark:border-transparent'
                   }`}
                   title={`${day.shortDayName} gününü seç`}
                 >
-                  <span className="font-bold">{day.shortDayName}</span>
+                  <span className="font-semibold">{day.shortDayName}</span>
                   <span
                     className={`text-[11px] font-mono ${
-                      isSelected ? 'text-indigo-100 dark:text-indigo-200' : 'text-slate-500 dark:text-zinc-400'
+                      isSelected ? 'text-white font-bold' : 'text-slate-600 dark:text-zinc-400'
                     }`}
                   >
                     {day.dayNumber}
@@ -623,7 +625,7 @@ export function DailyScheduler({
                       className={`text-[10px] font-mono px-1 py-0.5 rounded ${
                         isSelected
                           ? 'bg-white/20 text-white'
-                          : 'bg-slate-200/80 text-slate-700 dark:bg-white/[0.06] dark:text-zinc-400'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-white/[0.06] dark:text-zinc-400 dark:border-transparent'
                       }`}
                     >
                       {dayFilled}/{dayTotal}
@@ -637,7 +639,7 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={() => setSelectedDate(shiftDateString(selectedDate, 7))}
-            className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-md hover:bg-slate-100 text-slate-600 dark:hover:bg-zinc-800 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
             title="Sonraki Hafta (7 gün sonra)"
           >
             <ChevronRight className="w-4 h-4" />
@@ -648,12 +650,12 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={() => setSelectedDate(todayStr)}
-            className="text-slate-700 hover:text-slate-950 font-medium hover:underline cursor-pointer dark:text-zinc-400 dark:hover:text-white"
+            className="text-black font-bold hover:underline cursor-pointer dark:text-blue-400"
           >
             Bugüne Dön
           </button>
-          <span className="text-slate-300 dark:text-zinc-700">|</span>
-          <span className="text-slate-700 dark:text-zinc-400 font-mono text-[11px] font-medium">
+          <span className="text-slate-400 dark:text-zinc-700">|</span>
+          <span className="text-black dark:text-zinc-400 font-mono text-[11px] font-medium">
             {currentWeekDays[0]?.dayNumber} - {currentWeekDays[currentWeekDays.length - 1]?.dayNumber}{' '}
             {formatTurkishDate(selectedDate).split(' ')[1]}
           </span>
@@ -726,16 +728,16 @@ export function DailyScheduler({
             ) : (
             <div>
               {/* Professional Table Toolbar & Filters */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 bg-slate-50/80 dark:bg-[#10121c] border-b border-slate-200/80 dark:border-white/[0.08] text-xs">
-                {/* Status Filter Tabs (Linear-inspired segmented switch) */}
-                <div className="flex items-center gap-1 bg-slate-100/90 dark:bg-[#0c0d12] p-1 rounded-lg border border-slate-200/80 dark:border-white/[0.06]">
+              <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 border-b border-slate-200/80 dark:border-white/[0.08] text-xs">
+                {/* Status Filter Tabs (Linear-inspired prominent segmented slider) */}
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#181a24] border-2 border-black dark:border-white/20 shadow-xs">
                   <button
                     type="button"
                     onClick={() => setSlotFilter('all')}
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       slotFilter === 'all'
-                        ? 'bg-white text-slate-900 shadow-xs border border-slate-200/90 dark:bg-zinc-800 dark:text-white dark:border-transparent'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                        ? 'bg-white text-black font-black border-2 border-black shadow-2xs dark:bg-zinc-800 dark:text-blue-400 dark:border-blue-500/40'
+                        : 'text-black hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200'
                     }`}
                   >
                     Tümü ({dateSessions.length})
@@ -743,10 +745,10 @@ export function DailyScheduler({
                   <button
                     type="button"
                     onClick={() => setSlotFilter('assigned')}
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       slotFilter === 'assigned'
-                        ? 'bg-white text-emerald-800 shadow-xs border border-slate-200/90 dark:bg-zinc-800 dark:text-emerald-400 dark:border-transparent'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                        ? 'bg-white text-black font-black border-2 border-black shadow-2xs dark:bg-zinc-800 dark:text-blue-400 dark:border-blue-500/40'
+                        : 'text-black hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200'
                     }`}
                   >
                     Dolu ({assignedCount})
@@ -754,10 +756,10 @@ export function DailyScheduler({
                   <button
                     type="button"
                     onClick={() => setSlotFilter('empty')}
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       slotFilter === 'empty'
-                        ? 'bg-white text-slate-800 shadow-xs border border-slate-200/90 dark:bg-zinc-800 dark:text-white dark:border-transparent'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                        ? 'bg-white text-black font-black border-2 border-black shadow-2xs dark:bg-zinc-800 dark:text-blue-400 dark:border-blue-500/40'
+                        : 'text-black hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200'
                     }`}
                   >
                     Boş ({emptyCount})
@@ -766,10 +768,10 @@ export function DailyScheduler({
                     <button
                       type="button"
                       onClick={() => setSlotFilter('missed')}
-                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                         slotFilter === 'missed'
-                          ? 'bg-rose-600 text-white shadow-xs'
-                          : 'text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30'
+                          ? 'bg-rose-500 text-white font-black border-2 border-black shadow-xs'
+                          : 'text-rose-600 hover:text-rose-700 dark:text-rose-400 font-bold hover:underline'
                       }`}
                     >
                       Gelmedi ({missedCount})
@@ -778,8 +780,8 @@ export function DailyScheduler({
                 </div>
 
                 {/* Day Summary Badge */}
-                <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-zinc-400">
-                  <span className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200/90 dark:border-zinc-700 font-mono shadow-2xs">
+                <div className="flex items-center gap-2 text-xs font-medium text-black dark:text-zinc-400">
+                  <span className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 text-black dark:text-zinc-300 font-mono shadow-2xs">
                     Toplam {dateSessions.length} Seans / Aralık
                   </span>
                 </div>
@@ -858,8 +860,8 @@ export function DailyScheduler({
                                     : isDropTarget
                                     ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-t-[3px] border-indigo-600 dark:border-indigo-400 drop-shelf-indicator'
                                     : isLunch
-                                    ? 'bg-amber-50/70 hover:bg-amber-100/60 border-l-[3px] border-l-amber-500 dark:bg-amber-950/20 dark:border-l-amber-500'
-                                    : 'bg-amber-50/40 hover:bg-amber-100/50 border-l-[3px] border-l-amber-400 dark:bg-[#10121a] dark:border-l-amber-400'
+                                    ? 'bg-amber-50/60 hover:bg-amber-100/50 border-l-[3px] border-l-amber-500 dark:bg-amber-950/20 dark:border-l-amber-500'
+                                    : 'bg-slate-50/60 hover:bg-slate-100/60 border-l-[3px] border-l-slate-300 dark:bg-zinc-900/40 dark:border-l-zinc-700'
                                 }`}
                               >
                                 {/* 9 Noktalı Sürükleme Tutamacı & Tablet Kontrolleri */}
@@ -919,10 +921,10 @@ export function DailyScheduler({
                                   <button
                                     type="button"
                                     onClick={() => setEditingBreakSession(session)}
-                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold font-mono transition-all cursor-pointer hover:ring-2 hover:ring-amber-400/60 ${
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold font-mono transition-all cursor-pointer ${
                                       isLunch
-                                        ? 'bg-amber-100 text-amber-950 border border-amber-300/80 dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-500/30'
-                                        : 'bg-slate-100 text-slate-800 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 hover:bg-amber-100/70'
+                                        ? 'bg-amber-100 text-amber-950 border border-amber-300/80 dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-500/30 hover:ring-2 hover:ring-amber-400/60'
+                                        : 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 hover:bg-slate-200/80'
                                     }`}
                                     title="Teneffüs süresini değiştirmek için tıklayın"
                                   >
@@ -940,21 +942,25 @@ export function DailyScheduler({
                                     <button
                                       type="button"
                                       onClick={() => setEditingBreakSession(session)}
-                                      className="group/break inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-100/80 hover:bg-amber-200/90 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-950 dark:text-amber-100 border border-amber-300/80 dark:border-amber-500/30 transition-all cursor-pointer text-left shadow-2xs"
-                                      title="Teneffüs süresini (kaç dakika) değiştirmek için dokunun"
+                                      className={`group/break inline-flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all cursor-pointer text-left shadow-2xs ${
+                                        isLunch
+                                          ? 'bg-amber-100/80 hover:bg-amber-200/90 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-950 dark:text-amber-100 border border-amber-300/80 dark:border-amber-500/30'
+                                          : 'bg-slate-100/90 hover:bg-slate-200/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700'
+                                      }`}
+                                      title="Teneffüs süresini değiştirmek için tıklayın"
                                     >
                                       <span className="text-xs font-bold">
                                         {session.break_title ||
                                           session.topic ||
                                           (isLunch ? 'Öğle Arası' : 'Teneffüs')}
                                       </span>
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold font-mono bg-white/85 dark:bg-black/40 text-amber-900 dark:text-amber-200 border border-amber-300/70 dark:border-amber-500/30">
-                                        <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold font-mono ${
+                                        isLunch
+                                          ? 'bg-white/85 dark:bg-black/40 text-amber-900 dark:text-amber-200 border border-amber-300/70 dark:border-amber-500/30'
+                                          : 'bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700'
+                                      }`}>
+                                        <Clock className={`w-3 h-3 ${isLunch ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-zinc-400'}`} />
                                         <span>{getBreakMinutes(session)} dk</span>
-                                      </span>
-                                      <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-200 group-hover/break:text-amber-950 dark:group-hover/break:text-white flex items-center gap-0.5 ml-1">
-                                        <Pencil className="w-3 h-3" />
-                                        <span className="underline decoration-amber-500/60">Süreyi Düzenle</span>
                                       </span>
                                     </button>
                                     {isLunch && (
@@ -1244,7 +1250,7 @@ export function DailyScheduler({
 
                               {/* Durum Toggle: [Bekliyor] [Geldi] [Gelmedi] */}
                               <td className="align-middle py-3 px-3.5">
-                                <div className="inline-flex items-center rounded-lg p-0.5 bg-slate-100 dark:bg-[#090a0f] border border-slate-200/90 dark:border-white/[0.06] text-[11px]">
+                                <div className="inline-flex items-center rounded-lg p-0.5 bg-white dark:bg-[#090a0f] border border-slate-300 dark:border-white/[0.06] text-[11px]">
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -1253,8 +1259,8 @@ export function DailyScheduler({
                                     }}
                                     className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
                                       isPending
-                                        ? 'bg-white text-slate-900 shadow-xs font-bold border border-slate-200/90 dark:bg-zinc-800 dark:text-zinc-100 dark:border-transparent'
-                                        : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium'
+                                        ? 'bg-white text-black shadow-xs font-bold border-2 border-black dark:bg-zinc-800 dark:text-zinc-100 dark:border-transparent'
+                                        : 'text-black hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium'
                                     }`}
                                   >
                                     <span>Bekliyor</span>
@@ -1267,8 +1273,8 @@ export function DailyScheduler({
                                     }}
                                     className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
                                       isCompleted
-                                        ? 'bg-emerald-600 text-white font-bold shadow-xs dark:bg-emerald-600 dark:text-white'
-                                        : 'text-slate-600 hover:text-emerald-700 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium'
+                                        ? 'bg-white text-black font-bold border-2 border-black shadow-xs dark:bg-emerald-600 dark:text-white dark:border-transparent'
+                                        : 'text-black hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium'
                                     }`}
                                     title="Seansı tamamla ve geri bildirim ekranını aç"
                                   >
@@ -1282,14 +1288,14 @@ export function DailyScheduler({
                                     }}
                                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
                                       isMissed
-                                        ? 'bg-rose-600 text-white font-bold shadow-xs dark:bg-rose-600 dark:text-white'
-                                        : 'text-slate-600 hover:text-rose-700 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium'
+                                        ? 'bg-white text-black font-bold border-2 border-black shadow-xs dark:bg-rose-600 dark:text-white dark:border-transparent'
+                                        : 'text-black hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium'
                                     }`}
                                     title="Gelmedi işaretle ve mazeret/telafi formunu aç"
                                   >
                                     <span
                                       className={`w-1.5 h-1.5 rounded-full ${
-                                        isMissed ? 'bg-white' : 'bg-slate-400 dark:bg-zinc-600'
+                                        isMissed ? 'bg-black dark:bg-white' : 'bg-slate-400 dark:bg-zinc-600'
                                       }`}
                                     />
                                     <span>Gelmedi</span>
@@ -1308,11 +1314,7 @@ export function DailyScheduler({
                                           status: session.status === 'Gelmedi' ? 'Gelmedi' : 'Geldi',
                                         });
                                       }}
-                                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold border transition-all cursor-pointer ${
-                                        session.feedback.status === 'Geldi'
-                                          ? 'bg-emerald-50 text-emerald-900 border-emerald-300/80 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40'
-                                          : 'bg-rose-50 text-rose-900 border-rose-300/80 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40'
-                                      }`}
+                                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold border transition-all cursor-pointer bg-white text-black border-slate-300 hover:bg-white dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40`}
                                       title="Geri bildirim detayını incele veya düzenle"
                                     >
                                       <FileText className="w-3 h-3 shrink-0" />
@@ -1431,7 +1433,6 @@ export function DailyScheduler({
                             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-amber-200/90 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 shrink-0">
                               <Clock className="w-2.5 h-2.5" />
                               <span>{getBreakMinutes(session)} dk</span>
-                              <Pencil className="w-2.5 h-2.5 ml-0.5 opacity-60" />
                             </span>
                           </div>
                         </button>
@@ -1856,18 +1857,23 @@ export function DailyScheduler({
         />
       )}
 
-      {/* Floating Bottom-Right Trigger: Günün WhatsApp İlanı (Sadece WhatsApp Logosu) */}
-      <div className="fixed bottom-6 right-6 z-40">
+      {/* Floating Bottom-Right Trigger: Günün WhatsApp İlanı (Belirgin WhatsApp Logosu) */}
+      <div className="fixed bottom-6 right-6 z-40 flex items-center group">
         <button
           type="button"
           onClick={() => setIsWhatsAppModalOpen(true)}
-          className="w-14 h-14 rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-xl hover:shadow-2xl active:scale-95 transition-all cursor-pointer flex items-center justify-center border-2 border-white/60 dark:border-white/20 group relative hover:scale-105"
+          className="flex items-center gap-2.5 px-4 py-3 rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-2xl hover:shadow-[0_10px_25px_rgba(37,211,102,0.45)] active:scale-95 transition-all cursor-pointer border-2 border-black dark:border-white/40 group relative"
           title="Günün WhatsApp Seans İlanını Aç"
           aria-label="WhatsApp İlanı"
         >
-          <MessageCircle className="w-7 h-7 text-white fill-white/20 transition-transform group-hover:scale-110" />
+          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+            <MessageCircle className="w-5 h-5 text-white fill-white transition-transform group-hover:scale-110 stroke-[2]" />
+          </div>
+          <span className="font-black text-xs tracking-wide text-white drop-shadow-xs">
+            WhatsApp İlanı
+          </span>
           {assignedCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-slate-950 dark:bg-black border-2 border-white text-[10px] font-mono font-bold text-white flex items-center justify-center shadow-md">
+            <span className="min-w-[22px] h-5 px-1.5 rounded-full bg-black text-white text-[11px] font-mono font-black border-2 border-white flex items-center justify-center shadow-md">
               {assignedCount}
             </span>
           )}

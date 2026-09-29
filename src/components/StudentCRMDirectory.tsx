@@ -139,13 +139,13 @@ export function StudentCRMDirectory({
         <div className="flex flex-wrap items-center gap-2 flex-1 max-w-2xl">
           {/* Search Input */}
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-black dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Öğrenci, sınıf veya telefon ara..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-md bg-slate-50 dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-slate-500 dark:focus:border-zinc-500"
+              className="w-full pl-8 pr-3 py-1.5 rounded-md bg-white dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-xs text-black dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-black dark:focus:border-zinc-500"
             />
           </div>
 
@@ -153,7 +153,7 @@ export function StudentCRMDirectory({
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="px-2.5 py-1.5 rounded-md bg-slate-50 dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-xs text-slate-900 dark:text-zinc-300 focus:outline-none focus:border-slate-500 dark:focus:border-zinc-500 cursor-pointer font-medium"
+            className="px-2.5 py-1.5 rounded-md bg-white dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-xs text-black dark:text-zinc-300 focus:outline-none focus:border-black dark:focus:border-zinc-500 cursor-pointer font-medium"
           >
             <option value="all">Tüm Sınıflar</option>
             {classes.map((cls) => (
@@ -167,7 +167,7 @@ export function StudentCRMDirectory({
           <select
             value={selectedTag}
             onChange={(e) => setSelectedTag(e.target.value)}
-            className="px-2.5 py-1.5 rounded-md bg-slate-50 dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-xs text-slate-900 dark:text-zinc-300 focus:outline-none focus:border-slate-500 dark:focus:border-zinc-500 max-w-[160px] truncate cursor-pointer font-medium"
+            className="px-2.5 py-1.5 rounded-md bg-white dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-xs text-black dark:text-zinc-300 focus:outline-none focus:border-black dark:focus:border-zinc-500 max-w-[160px] truncate cursor-pointer font-medium"
           >
             <option value="all">Tüm Etiketler</option>
             {DIAGNOSTIC_TAGS.map((tag) => (
@@ -179,13 +179,13 @@ export function StudentCRMDirectory({
 
           {/* Active Risk Radar indication badge */}
           {activeRiskFilter !== 'none' && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30 text-amber-950 dark:text-amber-300 text-xs font-semibold shadow-2xs">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white dark:bg-amber-500/10 border border-black dark:border-amber-500/30 text-black dark:text-amber-300 text-xs font-semibold shadow-2xs">
               <span>
                 {activeRiskFilter === 'uncontacted_20d' ? '20+ Gün İletişimsiz' : 'Gelmeyenler'}
               </span>
               <button
                 onClick={onClearRiskFilter}
-                className="text-amber-800 dark:text-amber-400 hover:text-black dark:hover:text-white font-bold ml-1 cursor-pointer"
+                className="text-black dark:text-amber-400 hover:opacity-75 font-bold ml-1 cursor-pointer"
                 title="Filtreyi kaldır"
               >
                 &times;
@@ -201,10 +201,10 @@ export function StudentCRMDirectory({
             <button
               type="button"
               onClick={onOpenSmartPaste}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white hover:bg-white text-black dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 dark:text-indigo-300 border border-slate-300 dark:border-indigo-800/50 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
               title="e-Okul veya Excel'den toplu öğrenci aktarımı yap"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-black dark:text-current" />
               <span className="hidden sm:inline">Toplu İçe Aktar (e-Okul / Excel)</span>
               <span className="sm:hidden">İçe Aktar</span>
             </button>
@@ -214,10 +214,10 @@ export function StudentCRMDirectory({
           <button
             type="button"
             onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#181a26] dark:hover:bg-[#1e2130] border border-slate-300 dark:border-white/[0.08] text-slate-800 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white text-xs font-medium transition-colors cursor-pointer shadow-2xs"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white hover:bg-white dark:bg-[#181a26] dark:hover:bg-[#1e2130] border border-slate-300 dark:border-white/[0.08] text-black dark:text-zinc-300 dark:hover:text-white text-xs font-medium transition-colors cursor-pointer shadow-2xs"
             title="CSV formatında indir"
           >
-            <Download className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400" />
+            <Download className="w-3.5 h-3.5 text-black dark:text-zinc-400" />
             <span>CSV İndir</span>
           </button>
 
@@ -225,9 +225,9 @@ export function StudentCRMDirectory({
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white dark:text-zinc-100 border border-slate-900 dark:border-white/[0.1] text-xs font-medium transition-colors cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white hover:bg-white text-black font-bold dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100 border border-black dark:border-white/[0.1] text-xs transition-colors cursor-pointer shadow-xs"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 text-black dark:text-current" />
             <span>Öğrenci Ekle</span>
           </button>
         </div>

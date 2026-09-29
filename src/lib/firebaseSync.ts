@@ -19,12 +19,39 @@ class FirebaseSyncService {
   private currentStatus: SyncStatus = 'synced';
   private lastSyncedAt: Date = new Date();
   private isWritingToCloud: boolean = false;
+  private isSyncEnabled: boolean = (() => {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem('pusula_cloud_sync_enabled') !== 'false';
+    }
+    return true;
+  })();
 
   constructor() {
     // Check initial online status
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => this.handleConnectivityChange(true));
       window.addEventListener('offline', () => this.handleConnectivityChange(false));
+    }
+  }
+
+  public isEnabled(): boolean {
+    return this.isSyncEnabled;
+  }
+
+  public setEnabled(enabled: boolean) {
+    this.isSyncEnabled = enabled;
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('pusula_cloud_sync_enabled', enabled ? 'true' : 'false');
+    }
+    if (!enabled) {
+      if (this.unsubscribeSnapshot) {
+        this.unsubscribeSnapshot();
+        this.unsubscribeSnapshot = null;
+      }
+      this.setStatus('offline');
+    } else {
+      this.initSyncForCounselor(this.activeCounselorId);
+      this.syncLocalToCloud();
     }
   }
 
@@ -76,6 +103,11 @@ class FirebaseSyncService {
     if (this.unsubscribeSnapshot) {
       this.unsubscribeSnapshot();
       this.unsubscribeSnapshot = null;
+    }
+
+    if (!this.isSyncEnabled) {
+      this.setStatus('offline');
+      return;
     }
 
     try {
@@ -136,6 +168,11 @@ class FirebaseSyncService {
    * Synchronizes current local state directly to Cloud Firestore
    */
   public async syncLocalToCloud(counselorName?: string): Promise<boolean> {
+    if (!this.isSyncEnabled) {
+      this.setStatus('offline');
+      return false;
+    }
+
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       this.setStatus('offline');
       return false;

@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { Session, Student } from '../types';
-import { formatTurkishDate } from '../lib/storage';
+import { formatTurkishDate, StorageService } from '../lib/storage';
 import {
   generateOfficialTaggedBroadcastText,
   copyToClipboard,
@@ -416,6 +416,14 @@ export function DailyWhatsAppOfficialCard({
   // Open WhatsApp with prefilled message
   const handleOpenWhatsApp = () => {
     copyToClipboard(officialBroadcastText);
+    if (StorageService.isDemo()) {
+      onShowToast(
+        'Demo Modu: Mesaj Önizlemesi',
+        'Demo modunda dış ağa WhatsApp isteği gönderilmez. Metin panoya kopyalandı ve aşağıda önizlenmektedir.',
+        'info'
+      );
+      return;
+    }
     const url = getWhatsAppUniversalUrl(officialBroadcastText);
     openExternalUrl(url);
     onShowToast(
@@ -426,27 +434,27 @@ export function DailyWhatsAppOfficialCard({
   };
 
   return (
-    <div className="border-2 border-black dark:border-white/[0.1] rounded-2xl bg-white dark:bg-[#12141e] shadow-sm overflow-hidden transition-colors">
+    <div className="border border-stone-200 dark:border-stone-800 rounded-lg bg-white dark:bg-[#1E1E1E] shadow-xs overflow-hidden transition-colors">
       {/* Top Header Row of the Rectangular Card */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-50 dark:bg-[#151824] border-b-2 border-black dark:border-white/[0.08]">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-stone-50 dark:bg-stone-900/60 border-b border-stone-200 dark:border-stone-800">
         {/* Left: Badge & Information */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#25D366] text-white border-2 border-black dark:border-white/30 shadow-xs shrink-0">
-            <MessageSquare className="w-5 h-5 fill-white text-white stroke-[2]" />
+          <div className="flex items-center justify-center w-8 h-8 rounded-md bg-[#0F766E] text-white shrink-0">
+            <MessageSquare className="w-4 h-4 fill-white text-white stroke-[2]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-xs sm:text-sm text-black dark:text-white">
+              <span className="font-semibold text-xs sm:text-sm text-stone-900 dark:text-stone-100">
                 Günün WhatsApp İlanı
               </span>
-              <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 border-2 border-black dark:border-emerald-500/30 text-black dark:text-emerald-300 text-[10px] font-bold">
+              <span className="px-2 py-0.5 rounded bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300 text-[10px] font-semibold">
                 Resmi Görüşme Çıktısı
               </span>
             </div>
-            <p className="text-[11px] text-slate-700 dark:text-zinc-400 mt-0.5 flex items-center gap-2">
+            <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 flex items-center gap-2">
               <span>{formatTurkishDate(selectedDate)}</span>
               <span>&bull;</span>
-              <span className="font-bold text-black dark:text-zinc-200">
+              <span className="font-medium text-stone-700 dark:text-stone-300">
                 {totalAssigned > 0 ? `${totalAssigned} Öğrenci Randevulu` : 'Randevulu Seans Yok'}
               </span>
             </p>
@@ -454,35 +462,35 @@ export function DailyWhatsAppOfficialCard({
         </div>
 
         {/* Right Action Buttons */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* 1. Copy Image (Screenshot) Button */}
           <button
             type="button"
             onClick={handleCopyImage}
             disabled={isGeneratingImage}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black shadow-2xs transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
               isCopiedImage
-                ? 'bg-emerald-600 text-white border-2 border-black'
-                : 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-900 dark:text-emerald-300 border-2 border-black dark:border-emerald-500/30'
+                ? 'bg-emerald-700 text-white'
+                : 'bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 border border-stone-300 dark:border-stone-700'
             }`}
             title="Resmi görüşme çıktısının ekran görüntüsünü kopyala (WhatsApp'a Ctrl+V yapıştır)"
           >
             {isCopiedImage ? (
               <Check className="w-3.5 h-3.5 text-white" />
             ) : (
-              <FileImage className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <FileImage className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
             )}
-            <span>{isCopiedImage ? 'Görsel Kopyalandı!' : '📸 Ekran Görüntüsü Kopyala'}</span>
+            <span>{isCopiedImage ? 'Görsel Kopyalandı' : 'Görsel Kopyala'}</span>
           </button>
 
           {/* 2. Download Image Button */}
           <button
             type="button"
             onClick={handleDownloadImage}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-black dark:text-zinc-200 border-2 border-black dark:border-white/[0.08] text-xs font-bold transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 border border-stone-300 dark:border-stone-700 text-xs font-medium transition-colors cursor-pointer"
             title="Görseli PNG olarak indir"
           >
-            <Download className="w-3.5 h-3.5 text-black dark:text-zinc-400" />
+            <Download className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
             <span className="hidden sm:inline">PNG İndir</span>
           </button>
 
@@ -490,19 +498,19 @@ export function DailyWhatsAppOfficialCard({
           <button
             type="button"
             onClick={handleCopyTaggedText}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
               isCopiedText
-                ? 'bg-black text-white dark:bg-zinc-800 border-2 border-black'
-                : 'bg-white hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-black dark:text-zinc-200 border-2 border-black dark:border-white/[0.08]'
+                ? 'bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900'
+                : 'bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 border border-stone-300 dark:border-stone-700'
             }`}
             title="Etiketli metni kopyala"
           >
             {isCopiedText ? (
               <Check className="w-3.5 h-3.5" />
             ) : (
-              <Copy className="w-3.5 h-3.5 text-black dark:text-zinc-400" />
+              <Copy className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
             )}
-            <span className="hidden sm:inline">Metni & Etiketleri Kopyala</span>
+            <span className="hidden sm:inline">Metni Kopyala</span>
             <span className="sm:hidden">Metin</span>
           </button>
 
@@ -510,8 +518,8 @@ export function DailyWhatsAppOfficialCard({
           <button
             type="button"
             onClick={handleOpenWhatsApp}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-black border-2 border-black dark:border-white/30 shadow-xs transition-transform active:scale-95 cursor-pointer"
-            title="WhatsApp üzerinden aç ve gönder"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            title={StorageService.isDemo() ? "Demo modunda mesaj önizlemesi" : "WhatsApp üzerinden aç ve gönder"}
           >
             <Share2 className="w-3.5 h-3.5 stroke-[2.5]" />
             <span className="hidden sm:inline">WhatsApp Aç</span>
@@ -522,10 +530,11 @@ export function DailyWhatsAppOfficialCard({
             <button
               type="button"
               onClick={onOpenPrintModal}
-              className="p-1.5 rounded-xl bg-white hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-black dark:text-zinc-300 border-2 border-black dark:border-white/[0.08] transition-colors cursor-pointer"
-              title="Resmi Defter A4 Çıktısını Yazdır"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#0F766E] hover:bg-[#0D645E] text-white text-xs font-semibold transition-colors cursor-pointer"
+              title="Resmi A4 Çizelgesini Yazdır veya PDF Kaydet"
             >
               <Printer className="w-3.5 h-3.5" />
+              <span>Yazdır / PDF</span>
             </button>
           )}
 
@@ -533,7 +542,7 @@ export function DailyWhatsAppOfficialCard({
           <button
             type="button"
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-zinc-800 transition-colors cursor-pointer ml-1"
+            className="p-1.5 rounded-md text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors cursor-pointer"
             title={isCollapsed ? 'Görünümü Genişlet' : 'Görünümü Daralt'}
           >
             {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
@@ -544,7 +553,7 @@ export function DailyWhatsAppOfficialCard({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors cursor-pointer ml-1"
+              className="p-1.5 rounded-md text-stone-400 hover:text-stone-700 hover:bg-stone-200 dark:text-stone-400 dark:hover:text-white dark:hover:bg-stone-800 transition-colors cursor-pointer"
               title="Kapat"
             >
               <X className="w-4 h-4" />
@@ -594,21 +603,21 @@ export function DailyWhatsAppOfficialCard({
 
               {/* Table */}
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px] border border-slate-800 border-collapse">
+                    <table className="w-full text-left text-[11px] border border-stone-800 border-collapse">
                   <thead>
-                    <tr className="bg-slate-100 border-b border-slate-800 text-slate-900 font-bold">
-                      <th className="py-1 px-1.5 w-8 text-center border-r border-slate-300">No</th>
-                      <th className="py-1 px-2 w-16 text-center border-r border-slate-300 font-mono">Saat</th>
-                      <th className="py-1 px-2 border-r border-slate-300">Öğrenci Adı Soyadı</th>
-                      <th className="py-1 px-2 w-20 text-center border-r border-slate-300 font-mono">Sınıf</th>
-                      <th className="py-1 px-2 border-r border-slate-300">Görüşme Konusu</th>
+                    <tr className="bg-stone-100 border-b border-stone-800 text-stone-900 font-bold h-9">
+                      <th className="py-1 px-1.5 w-8 text-center border-r border-stone-300">No</th>
+                      <th className="py-1 px-2 w-16 text-center border-r border-stone-300 font-mono">Saat</th>
+                      <th className="py-1 px-2 border-r border-stone-300">Öğrenci Adı Soyadı</th>
+                      <th className="py-1 px-2 w-20 text-center border-r border-stone-300 font-mono">Sınıf</th>
+                      <th className="py-1 px-2 border-r border-stone-300">Görüşme Konusu</th>
                       <th className="py-1 px-2 w-20 text-center">Durum</th>
                     </tr>
                   </thead>
                   <tbody>
                     {assignedSessions.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-4 text-center text-slate-500 italic">
+                        <td colSpan={6} className="py-4 text-center text-stone-500 italic">
                           Bu tarih için planlanmış resmi görüşme bulunmamaktadır.
                         </td>
                       </tr>
@@ -616,20 +625,20 @@ export function DailyWhatsAppOfficialCard({
                       assignedSessions.map((sess, idx) => {
                         const st = sess.student_id ? studentMap.get(sess.student_id) : undefined;
                         return (
-                          <tr key={sess.id} className="border-b border-slate-200 hover:bg-slate-50">
-                            <td className="py-1 px-1.5 text-center font-mono text-slate-500 border-r border-slate-200">
+                          <tr key={sess.id} className="border-b border-stone-200 h-10 hover:bg-stone-50 transition-colors">
+                            <td className="py-1 px-1.5 text-center font-mono text-stone-500 border-r border-stone-200">
                               {idx + 1}
                             </td>
-                            <td className="py-1 px-2 text-center font-mono font-semibold text-slate-900 border-r border-slate-200">
+                            <td className="py-1 px-2 text-center font-mono font-semibold text-stone-900 border-r border-stone-200">
                               {sess.time_slot}
                             </td>
-                            <td className="py-1 px-2 font-semibold text-slate-900 border-r border-slate-200">
+                            <td className="py-1 px-2 font-semibold text-stone-900 border-r border-stone-200">
                               {st ? st.full_name : 'Boş'}
                             </td>
-                            <td className="py-1 px-2 text-center font-mono text-slate-700 border-r border-slate-200">
+                            <td className="py-1 px-2 text-center font-mono text-stone-700 border-r border-stone-200">
                               {st?.class_grade || '-'}
                             </td>
-                            <td className="py-1 px-2 text-slate-700 border-r border-slate-200">
+                            <td className="py-1 px-2 text-stone-700 border-r border-stone-200">
                               {sess.topic || 'Bireysel Görüşme'}
                             </td>
                             <td className="py-1 px-2 text-center font-semibold">
@@ -638,7 +647,7 @@ export function DailyWhatsAppOfficialCard({
                               ) : sess.status === 'Gelmedi' ? (
                                 <span className="text-rose-700">✕ Gelmedi</span>
                               ) : (
-                                <span className="text-slate-600">Bekliyor</span>
+                                <span className="text-stone-600">Bekliyor</span>
                               )}
                             </td>
                           </tr>
@@ -650,25 +659,25 @@ export function DailyWhatsAppOfficialCard({
               </div>
 
               {/* Bottom official sign */}
-              <div className="flex justify-between items-end mt-4 pt-2 text-[10px] text-slate-500">
+              <div className="flex justify-between items-end mt-4 pt-2 text-[10px] text-stone-500">
                 <span className="italic">MEB Rehberlik Hizmetleri Mevzuatı</span>
                 <div className="text-right">
-                  <div className="font-semibold text-slate-800">{counselorName || 'Rehber Öğretmen'}</div>
-                  <div className="text-[9px] text-slate-500">İmza & Kaşe</div>
+                  <div className="font-semibold text-stone-800">{counselorName || 'Rehber Öğretmen'}</div>
+                  <div className="text-[9px] text-stone-500">İmza & Kaşe</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* 2. Tagged Numbers Section ("ve altında ilgilendiren numaralar etiketlendirilsin") */}
-          <div className="rounded-xl border border-emerald-300 dark:border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-950/20 p-3.5 space-y-2.5">
+          <div className="rounded-lg border border-teal-200 dark:border-teal-900/60 bg-teal-50/50 dark:bg-teal-950/20 p-3.5 space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Tag className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-                <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200">
+                <Tag className="w-4 h-4 text-teal-700 dark:text-teal-400" />
+                <span className="text-xs font-semibold text-teal-950 dark:text-teal-200">
                   Görüşmeye Çağrılan Öğrenci & Veli Numaraları (WhatsApp Etiketleri)
                 </span>
-                <span className="px-1.5 py-0.2 rounded-md bg-emerald-200 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-300 text-[10px] font-mono font-semibold">
+                <span className="px-1.5 py-0.5 rounded bg-teal-100 dark:bg-teal-900/60 text-teal-900 dark:text-teal-300 text-[10px] font-mono font-medium">
                   {taggedStudents.length} Numara
                 </span>
               </div>
@@ -677,7 +686,7 @@ export function DailyWhatsAppOfficialCard({
                 <button
                   type="button"
                   onClick={handleCopyOnlyTags}
-                  className="px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 border border-emerald-300 dark:border-emerald-500/30 text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
+                  className="px-2.5 py-1 rounded-md bg-white dark:bg-stone-800 hover:bg-stone-50 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 border border-stone-300 dark:border-stone-700 text-[11px] font-medium transition-colors cursor-pointer"
                   title="Sadece @+905... etiketlerini kopyala"
                 >
                   Yalnızca Etiketleri Kopyala
@@ -686,7 +695,7 @@ export function DailyWhatsAppOfficialCard({
             </div>
 
             {taggedStudents.length === 0 ? (
-              <div className="p-3 bg-white/80 dark:bg-[#151824] rounded-lg border border-emerald-200 dark:border-white/[0.06] text-xs text-slate-600 dark:text-zinc-400 italic">
+              <div className="p-3 bg-white/80 dark:bg-[#1E1E1E] rounded-md border border-stone-200 dark:border-stone-800 text-xs text-stone-600 dark:text-stone-400 italic">
                 Bugün için telefon numarası kayıtlı randevulu öğrenci bulunmamaktadır.
               </div>
             ) : (
@@ -694,40 +703,57 @@ export function DailyWhatsAppOfficialCard({
                 {taggedStudents.map((item, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-[#151824] border border-emerald-200 dark:border-white/[0.08] text-xs shadow-2xs"
+                    className="flex items-center justify-between p-2 rounded-md bg-white dark:bg-[#1E1E1E] border border-stone-200 dark:border-stone-800 text-xs shadow-2xs"
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400">
+                        <span className="font-mono text-[11px] font-semibold text-teal-700 dark:text-teal-400">
                           {item.tag}
                         </span>
-                        <span className="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-white/[0.08] font-mono text-[10px] text-slate-700 dark:text-zinc-300 font-semibold">
+                        <span className="px-1.5 py-0.5 rounded bg-stone-100 dark:bg-stone-800 font-mono text-[10px] text-stone-700 dark:text-stone-300 font-medium">
                           {item.session.time_slot}
                         </span>
                       </div>
-                      <div className="text-[11px] text-slate-700 dark:text-zinc-300 font-medium truncate mt-0.5">
+                      <div className="text-[11px] text-stone-700 dark:text-stone-300 font-medium truncate mt-0.5">
                         {item.student.full_name} ({item.student.class_grade})
                       </div>
                     </div>
 
-                    <a
-                      href={getWhatsAppUniversalUrl(`Merhaba ${item.student.full_name}, ${formatTurkishDate(selectedDate)} saat ${item.session.time_slot} rehberlik seansınızı hatırlatırız.`)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1.5 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 transition-colors ml-2"
-                      title={`${item.student.full_name} için direkt WhatsApp`}
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+                    {StorageService.isDemo() ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onShowToast(
+                            'Demo Modu',
+                            'Demo modunda dış ağa WhatsApp isteği gönderilmez. Önizleme aktiftir.',
+                            'info'
+                          )
+                        }
+                        className="p-1.5 rounded-md hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 transition-colors ml-2 cursor-pointer"
+                        title="Demo modunda bağlantı devre dışıdır"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <a
+                        href={getWhatsAppUniversalUrl(`Merhaba ${item.student.full_name}, ${formatTurkishDate(selectedDate)} saat ${item.session.time_slot} rehberlik seansınızı hatırlatırız.`)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 rounded-md hover:bg-teal-100 dark:hover:bg-teal-950/60 text-teal-700 dark:text-teal-400 transition-colors ml-2"
+                        title={`${item.student.full_name} için direkt WhatsApp`}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>
             )}
 
             {/* Copyable Message Snippet Preview */}
-            <div className="mt-2 pt-2 border-t border-emerald-200 dark:border-emerald-500/20 text-[11px] text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+            <div className="mt-2 pt-2 border-t border-teal-200 dark:border-teal-900/40 text-[11px] text-stone-600 dark:text-stone-400 flex items-center justify-between">
               <span className="truncate">
-                💡 <strong className="font-semibold text-emerald-900 dark:text-emerald-300">Kullanım:</strong> Yukarıdaki <strong>"Ekran Görüntüsü Kopyala"</strong> butonuna basın ve WhatsApp grubunuza yapıştırın (Ctrl+V); altına bu etiketler eklenecektir.
+                💡 <strong className="font-semibold text-teal-900 dark:text-teal-300">Kullanım:</strong> Yukarıdaki <strong>"Görsel Kopyala"</strong> butonuna basın ve WhatsApp grubunuza yapıştırın (Ctrl+V); altına bu etiketler eklenecektir.
               </span>
             </div>
           </div>

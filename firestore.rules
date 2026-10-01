@@ -2,81 +2,86 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Document ID validation to prevent ID poisoning and denial of wallet attacks
-    function isValidId(id) {
-      return id is string && id.size() >= 3 && id.size() <= 64 && id.matches('^[a-zA-Z0-9_-]+$');
+    // Helper to verify user ownership based on authenticated Firebase UID
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
-    // Timestamp format validation (ISO-8601 string)
-    function isValidTimestamp(val) {
-      return val is string && val.size() >= 10 && val.size() <= 40;
+    // Validation for Student documents
+    function validStudent(data) {
+      return data.keys().hasAll(['id', 'full_name', 'class_grade', 'created_at'])
+        && data.keys().hasOnly(['id', 'full_name', 'class_grade', 'phone', 'last_meeting_date', 'status_flags', 'target_goal', 'notes', 'created_at'])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 100
+        && data.full_name is string && data.full_name.size() > 0 && data.full_name.size() <= 150
+        && data.class_grade is string && data.class_grade.size() <= 50
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 40))
+        && (!('last_meeting_date' in data) || data.last_meeting_date == null || (data.last_meeting_date is string && data.last_meeting_date.size() <= 50))
+        && (!('status_flags' in data) || (data.status_flags is list && data.status_flags.size() <= 30))
+        && (!('target_goal' in data) || (data.target_goal is string && data.target_goal.size() <= 250))
+        && (!('notes' in data) || (data.notes is string && data.notes.size() <= 3000))
+        && data.created_at is string && data.created_at.size() <= 50;
     }
 
-    // Validates counselor profile documents
-    function isValidCounselorProfile(userId, data) {
-      return data.keys().hasAll(['id', 'name']) &&
-        data.keys().hasOnly([
-          'id', 'name', 'email', 'role', 'school', 'phone',
-          'avatar_color', 'created_at', 'updated_at'
-        ]) &&
-        data.id == userId &&
-        data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
-        (!('email' in data) || (data.email is string && data.email.size() <= 120)) &&
-        (!('role' in data) || (data.role is string && data.role.size() <= 100)) &&
-        (!('school' in data) || (data.school is string && data.school.size() <= 150)) &&
-        (!('phone' in data) || (data.phone is string && data.phone.size() <= 30)) &&
-        (!('avatar_color' in data) || (data.avatar_color is string && data.avatar_color.size() <= 60)) &&
-        (!('created_at' in data) || isValidTimestamp(data.created_at)) &&
-        (!('updated_at' in data) || isValidTimestamp(data.updated_at));
+    // Validation for Session documents
+    function validSession(data) {
+      return data.keys().hasAll(['id', 'date', 'time_slot', 'status', 'created_at'])
+        && data.keys().hasOnly(['id', 'date', 'time_slot', 'student_id', 'topic', 'action_items', 'tags', 'status', 'created_at', 'next_followup_date', 'is_priority', 'is_break', 'break_title', 'break_duration', 'feedback', 'whatsapp_sent', 'whatsapp_sent_at', 'is_in_progress'])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 100
+        && data.date is string && data.date.size() <= 20
+        && data.time_slot is string && data.time_slot.size() <= 30
+        && (!('student_id' in data) || data.student_id == null || (data.student_id is string && data.student_id.size() <= 100))
+        && (!('topic' in data) || (data.topic is string && data.topic.size() <= 300))
+        && (!('action_items' in data) || (data.action_items is string && data.action_items.size() <= 1500))
+        && (!('tags' in data) || (data.tags is list && data.tags.size() <= 30))
+        && data.status is string && data.status.size() <= 30
+        && data.created_at is string && data.created_at.size() <= 50
+        && (!('next_followup_date' in data) || (data.next_followup_date is string && data.next_followup_date.size() <= 50))
+        && (!('break_title' in data) || (data.break_title is string && data.break_title.size() <= 150))
+        && (!('whatsapp_sent_at' in data) || (data.whatsapp_sent_at is string && data.whatsapp_sent_at.size() <= 50));
     }
 
-    // Validates counselor cloud sync document (students CRM, sessions, schedule configuration)
-    function isValidCounselorData(counselorId, data) {
-      return data.keys().hasAll(['counselor_id', 'students', 'sessions', 'updated_at']) &&
-        data.keys().hasOnly([
-          'counselor_id', 'counselor_name', 'students', 'sessions',
-          'schedule_config', 'updated_at', 'server_timestamp'
-        ]) &&
-        data.counselor_id == counselorId &&
-        (!('counselor_name' in data) || (data.counselor_name is string && data.counselor_name.size() <= 100)) &&
-        data.students is list && data.students.size() <= 1000 &&
-        data.sessions is list && data.sessions.size() <= 3000 &&
-        isValidTimestamp(data.updated_at) &&
-        (!('schedule_config' in data) || (data.schedule_config is map));
+    // Validation for Counselor Setting documents
+    function validSetting(data) {
+      return data.keys().hasOnly(['id', 'sessionDuration', 'breakDuration', 'startTime', 'sessionCount', 'includeLunchBreak', 'lunchBreakAfter', 'lunchBreakDuration', 'updated_at', 'accepted', 'accepted_at', 'version'])
+        && (!('startTime' in data) || (data.startTime is string && data.startTime.size() <= 20))
+        && (!('updated_at' in data) || (data.updated_at is string && data.updated_at.size() <= 50))
+        && (!('accepted_at' in data) || (data.accepted_at is string && data.accepted_at.size() <= 50))
+        && (!('version' in data) || (data.version is string && data.version.size() <= 20));
     }
 
-    // Counselor Profiles collection
+    // Counselor root document (profile, metadata, preferences)
+    match /counselors/{userId} {
+      allow read, write, delete: if isOwner(userId);
+
+      // Subcollection: Students (KVKK protected minors data)
+      match /students/{studentId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validStudent(request.resource.data);
+      }
+
+      // Subcollection: Sessions & Meetings
+      match /sessions/{sessionId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validSession(request.resource.data);
+      }
+
+      // Subcollection: Counselor Settings (Schedule configuration, KVKK consent)
+      match /settings/{settingId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) && validSetting(request.resource.data);
+      }
+    }
+
+    // Counselor profiles legacy - only delete allowed
     match /counselor_profiles/{userId} {
-      // Disallow broad enumeration/listing across all counselor accounts
-      allow list: if false;
-
-      // Allow get for single document
-      allow get: if isValidId(userId) && (request.auth == null || request.auth.uid == userId);
-
-      // Enforce strict schema and size bounds on create & update
-      allow create, update: if isValidId(userId) &&
-        isValidCounselorProfile(userId, request.resource.data) &&
-        (request.auth == null || request.auth.uid == userId);
-
-      // Disallow client-side deletion to prevent catastrophic data loss
-      allow delete: if false;
+      allow delete: if isOwner(userId);
+      allow read, create, update: if false;
     }
 
-    // Counselor Data collection (student records, notes, sessions)
-    match /counselor_data/{counselorId} {
-      // Disallow broad enumeration/listing across all counselor datasets
-      allow list: if false;
-
-      // Allow get for single counselor dataset
-      allow get: if isValidId(counselorId) && (request.auth == null || request.auth.uid == counselorId);
-
-      // Enforce strict payload constraints, bounded array lengths, and entity verification
-      allow create, update: if isValidId(counselorId) &&
-        isValidCounselorData(counselorId, request.resource.data) &&
-        (request.auth == null || request.auth.uid == counselorId);
-
-      // Disallow client-side deletion to prevent catastrophic data loss
-      allow delete: if false;
+    // Counselor data legacy - only delete allowed
+    match /counselor_data/{userId} {
+      allow delete: if isOwner(userId);
+      allow read, create, update: if false;
     }
 
     // Default deny all other paths

@@ -26,6 +26,7 @@ import {
   ChevronUp,
   MoreHorizontal,
   CalendarPlus,
+  Printer,
 } from 'lucide-react';
 import {
   getWeekDays,
@@ -45,6 +46,7 @@ import {
   openExternalUrl,
 } from '../lib/whatsapp';
 import { ScheduleConfigModal } from './ScheduleConfigModal';
+import { DailyLogPrintModal } from './DailyLogPrintModal';
 
 interface WeeklySchedulerGridProps {
   baseDate: string;
@@ -85,6 +87,7 @@ export function WeeklySchedulerGrid({
 }: WeeklySchedulerGridProps) {
   const [includeWeekend, setIncludeWeekend] = useState(false);
   const [isScheduleConfigOpen, setIsScheduleConfigOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [activeAssignSlot, setActiveAssignSlot] = useState<{
     date: string;
     time_slot: string;
@@ -399,8 +402,9 @@ export function WeeklySchedulerGrid({
     if (onApplyScheduleConfig) {
       onApplyScheduleConfig(dates, config, keepAssigned);
     } else {
-      const updated = StorageService.applyScheduleConfigToDates(dates, config, keepAssigned);
-      updated.forEach((s) => onUpdateSession(s));
+      StorageService.applyScheduleConfigToDates(dates, config, keepAssigned).then((updated) => {
+        updated.forEach((s) => onUpdateSession(s));
+      });
     }
   };
 
@@ -477,32 +481,39 @@ export function WeeklySchedulerGrid({
           )}
         </div>
 
-        {/* Right: Primary Action Buttons (Max 2: Sihirbaz [Indigo] & WhatsApp [Green]) + Secondary Dropdown ("...") */}
+        {/* Right: Primary Action Buttons + Secondary Dropdown ("...") */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* PRIMARY 1: Program & Teneffüs Sihirbazı (Belirgin Sliders Butonu) */}
+          {/* PRIMARY 1: Program & Teneffüs Sihirbazı */}
           <button
             type="button"
             onClick={() => setIsScheduleConfigOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-black dark:bg-zinc-800 dark:text-zinc-100 border-2 border-black dark:border-amber-500/50 text-xs font-black shadow-xs transition-all cursor-pointer active:scale-[0.98]"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white hover:bg-stone-50 dark:bg-stone-800 dark:hover:bg-stone-700/80 text-stone-900 dark:text-stone-100 border border-stone-200 dark:border-stone-700 text-xs font-medium shadow-xs transition-colors cursor-pointer"
             title="Seans dakikası, teneffüs süresi belirle, tablo saatlerini kaydır ve teneffüs ekle"
           >
-            <div className="w-5 h-5 rounded-md bg-amber-400 text-black border border-black flex items-center justify-center shrink-0 shadow-2xs">
-              <Sliders className="w-3.5 h-3.5 stroke-[2.5]" />
-            </div>
-            <span>Program & Teneffüs Sihirbazı</span>
+            <Sliders className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
+            <span>Program & Teneffüs</span>
           </button>
 
-          {/* PRIMARY 2: WhatsApp İlanı (Belirgin WhatsApp Logosu ve Yeşili) */}
+          {/* PRIMARY 2: WhatsApp İlanı */}
           <button
             type="button"
             onClick={() => onOpenBroadcast(baseDate)}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white border-2 border-black dark:border-white/30 text-xs font-black transition-all cursor-pointer shadow-xs active:scale-[0.98]"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium shadow-xs transition-colors cursor-pointer"
             title="Haftalık veya seçili günün WhatsApp seans ilanını aç"
           >
-            <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-              <MessageSquare className="w-3.5 h-3.5 text-white fill-white stroke-[2]" />
-            </div>
+            <MessageSquare className="w-3.5 h-3.5 text-white" />
             <span>WhatsApp İlanı</span>
+          </button>
+
+          {/* PRIMARY 3: Haftalık A4 Yazdır / PDF */}
+          <button
+            type="button"
+            onClick={() => setIsPrintModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white hover:bg-stone-50 dark:bg-stone-800 dark:hover:bg-stone-700/80 text-stone-900 dark:text-stone-100 border border-stone-200 dark:border-stone-700 text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            title="Tüm haftanın gün gün resmi A4 görüşme çizelgesini yazdır veya PDF olarak kaydet"
+          >
+            <Printer className="w-3.5 h-3.5 text-teal-700 dark:text-teal-400" />
+            <span>Yazdır / PDF</span>
           </button>
 
           {/* SECONDARY: Dropdown Menu ("..." / "Diğer Ayarlar") */}
@@ -510,16 +521,16 @@ export function WeeklySchedulerGrid({
             <button
               type="button"
               onClick={() => setMoreMenuOpen(!moreMenuOpen)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
                 moreMenuOpen
-                  ? 'bg-slate-200 text-slate-900 border-slate-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-700'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-[#151722] dark:hover:bg-[#1a1d2b] dark:text-zinc-300 dark:hover:text-white border-slate-300 dark:border-white/[0.08]'
+                  ? 'bg-stone-200 text-stone-900 border-stone-300 dark:bg-stone-800 dark:text-stone-100 dark:border-stone-700'
+                  : 'bg-white hover:bg-stone-50 text-stone-700 dark:bg-stone-800/80 dark:hover:bg-stone-800 dark:text-stone-300 border-stone-200 dark:border-stone-700'
               }`}
               title="Diğer çizelge ve seans ayarları"
             >
-              <MoreHorizontal className="w-4 h-4" />
-              <span className="hidden sm:inline">Diğer Ayarlar</span>
-              <ChevronDown className={`w-3 h-3 text-slate-500 dark:text-zinc-400 transition-transform ${moreMenuOpen ? 'rotate-180' : ''}`} />
+              <MoreHorizontal className="w-4 h-4 text-stone-500" />
+              <span className="hidden sm:inline">Diğer</span>
+              <ChevronDown className={`w-3 h-3 text-stone-500 transition-transform ${moreMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {moreMenuOpen && (
@@ -532,10 +543,10 @@ export function WeeklySchedulerGrid({
 
                 {/* Dropdown Menu */}
                 <div
-                  className="absolute right-0 mt-1.5 w-56 bg-white dark:bg-[#181a26] border border-slate-200 dark:border-white/[0.1] rounded-xl shadow-2xl p-1.5 z-40 space-y-1 text-xs animate-in fade-in zoom-in-95 duration-100 text-slate-800 dark:text-zinc-200"
+                  className="absolute right-0 mt-1.5 w-56 bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 rounded-md shadow-md p-1.5 z-40 space-y-1 text-xs text-stone-800 dark:text-stone-200"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="px-2 py-1 text-[10px] uppercase font-mono tracking-wider text-slate-400 dark:text-zinc-500 border-b border-slate-100 dark:border-white/[0.06]">
+                  <div className="px-2 py-1 text-[10px] uppercase font-mono tracking-wider text-stone-400 dark:text-stone-500 border-b border-stone-100 dark:border-stone-800">
                     İkincil Tablo Ayarları
                   </div>
 
@@ -546,13 +557,13 @@ export function WeeklySchedulerGrid({
                       setQuickBarOpen(!quickBarOpen);
                       setMoreMenuOpen(false);
                     }}
-                    className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] flex items-center justify-between cursor-pointer transition-colors"
+                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-stone-100 dark:hover:bg-stone-800 flex items-center justify-between cursor-pointer transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      <Zap className="w-3.5 h-3.5 text-stone-500" />
                       <span>Hızlı Çubuk (15dk / 5dk)</span>
                     </div>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${quickBarOpen ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold' : 'text-slate-400 dark:text-zinc-500'}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${quickBarOpen ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium' : 'text-stone-400'}`}>
                       {quickBarOpen ? 'Açık' : 'Kapalı'}
                     </span>
                   </button>
@@ -569,13 +580,13 @@ export function WeeklySchedulerGrid({
                       });
                       setMoreMenuOpen(false);
                     }}
-                    className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] flex items-center justify-between cursor-pointer text-amber-700 dark:text-amber-300 transition-colors"
+                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-stone-100 dark:hover:bg-stone-800 flex items-center justify-between cursor-pointer text-stone-700 dark:text-stone-300 transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <Coffee className="w-3.5 h-3.5" />
+                      <Coffee className="w-3.5 h-3.5 text-stone-500" />
                       <span>+ Teneffüs / Mola Ekle</span>
                     </div>
-                    <span className="text-[10px] font-mono opacity-80">+Mola</span>
+                    <span className="text-[10px] font-mono text-stone-400">+Mola</span>
                   </button>
 
                   {/* 3. 5 Günlük (Okul) / 7 Günlük Toggle */}
@@ -585,20 +596,20 @@ export function WeeklySchedulerGrid({
                       setIncludeWeekend(!includeWeekend);
                       setMoreMenuOpen(false);
                     }}
-                    className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] flex items-center justify-between cursor-pointer transition-colors"
+                    className="w-full text-left px-2.5 py-1.5 rounded hover:bg-stone-100 dark:hover:bg-stone-800 flex items-center justify-between cursor-pointer transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <CalendarIcon className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+                      <CalendarIcon className="w-3.5 h-3.5 text-stone-500" />
                       <span>{includeWeekend ? '7 Günlük Görünüm' : '5 Günlük (Okul)'}</span>
                     </div>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.06] font-mono text-slate-500 dark:text-zinc-400">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 dark:bg-stone-800 font-mono text-stone-500">
                       {includeWeekend ? 'Hafta Sonu Açık' : 'Hafta Sonu Gizli'}
                     </span>
                   </button>
 
                   {/* 4. ±10dk Kaydır Sub-Options */}
-                  <div className="border-t border-slate-100 dark:border-white/[0.06] pt-1.5 mt-1">
-                    <div className="px-2 py-0.5 text-[10px] font-mono text-slate-400 dark:text-zinc-500 flex items-center gap-1">
+                  <div className="border-t border-stone-100 dark:border-stone-800 pt-1.5 mt-1">
+                    <div className="px-2 py-0.5 text-[10px] font-mono text-stone-400 dark:text-stone-500 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       <span>Haftalık Saatleri Kaydır:</span>
                     </div>
@@ -609,7 +620,7 @@ export function WeeklySchedulerGrid({
                           handleShiftTime(targetWeekDates, -10);
                           setMoreMenuOpen(false);
                         }}
-                        className="px-2 py-1.5 rounded bg-slate-100 dark:bg-zinc-800/90 hover:bg-slate-200 dark:hover:bg-zinc-700 text-center text-xs font-mono text-slate-700 dark:text-zinc-300 cursor-pointer transition-colors"
+                        className="px-2 py-1 rounded bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-center text-xs font-mono text-stone-700 dark:text-stone-300 cursor-pointer transition-colors"
                         title="Tüm seansları 10 dk geri al"
                       >
                         -10 dk
@@ -620,7 +631,7 @@ export function WeeklySchedulerGrid({
                           handleShiftTime(targetWeekDates, 10);
                           setMoreMenuOpen(false);
                         }}
-                        className="px-2 py-1.5 rounded bg-slate-100 dark:bg-zinc-800/90 hover:bg-slate-200 dark:hover:bg-zinc-700 text-center text-xs font-mono text-slate-700 dark:text-zinc-300 cursor-pointer transition-colors"
+                        className="px-2 py-1 rounded bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-center text-xs font-mono text-stone-700 dark:text-stone-300 cursor-pointer transition-colors"
                         title="Tüm seansları 10 dk ileri al"
                       >
                         +10 dk
@@ -634,13 +645,13 @@ export function WeeklySchedulerGrid({
         </div>
       </div>
 
-      {/* INLINE QUICK SCHEDULE & BREAK STRIP (Calm, Non-Neon Styling) */}
+      {/* INLINE QUICK SCHEDULE & BREAK STRIP */}
       {quickBarOpen && (
-        <div className="p-3.5 bg-[#161824] border border-white/[0.08] rounded-2xl shadow-lg space-y-2.5 text-xs animate-in fade-in slide-in-from-top-2 duration-150">
+        <div className="p-3 bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 rounded-lg shadow-xs space-y-2 text-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-zinc-400" />
-              <span className="font-semibold text-zinc-100 text-xs">Hızlı Çizelge, Seans Dakikası & Saat Kaydırıcı</span>
+              <Zap className="w-3.5 h-3.5 text-stone-500" />
+              <span className="font-medium text-stone-900 dark:text-stone-100 text-xs">Hızlı Çizelge, Seans Dakikası & Saat Kaydırıcı</span>
             </div>
             <button
               type="button"
@@ -804,37 +815,34 @@ export function WeeklySchedulerGrid({
         </div>
       )}
 
-      {/* ASYMMETRIC TOP BENTO SPOTLIGHT: Bu Haftanın Öncelikli Seansları (Calm Muted Styling) */}
+      {/* ASYMMETRIC TOP BENTO SPOTLIGHT: Bu Haftanın Öncelikli Seansları */}
       {prioritySessionsThisWeek.length > 0 && !showOnlyPriority && (
-        <div className="p-3.5 bg-amber-50/60 dark:bg-[#161824] border border-amber-200/80 dark:border-white/[0.08] rounded-2xl space-y-2.5 shadow-2xs">
+        <div className="p-3 bg-amber-50/70 dark:bg-stone-900/60 border border-amber-200 dark:border-amber-900/40 rounded-lg space-y-2 text-xs">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-amber-100 border border-amber-300 dark:bg-amber-500/15 dark:border-amber-500/25 flex items-center justify-center text-amber-700 dark:text-amber-300">
-                <Star className="w-3.5 h-3.5 fill-amber-500/30 text-amber-600 dark:text-amber-300" />
+              <div className="w-5 h-5 rounded bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700/50 flex items-center justify-center text-amber-700 dark:text-amber-400">
+                <Star className="w-3 h-3 fill-amber-500 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
-                <h3 className="text-xs font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                  <span>Bu Haftanın Öncelikli Görüşmeleri Vitrini</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-amber-200/60 text-amber-800 border border-amber-300 dark:bg-amber-400/15 dark:text-amber-300 dark:border-amber-400/25">
+                <h3 className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                  <span>Bu Haftanın Öncelikli Görüşmeleri</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-200/70 text-amber-900 border border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
                     {prioritySessionsThisWeek.length} Seans
                   </span>
                 </h3>
-                <p className="text-[10px] text-slate-600 dark:text-zinc-400">
-                  Net düşüşü, randevu aksaması veya kritik risk taşıyan öğrencilerin genişletilmiş seans kartları
-                </p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setSpotlightCollapsed(!spotlightCollapsed)}
-              className="text-[11px] text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 px-2 py-1 rounded-lg bg-white/80 dark:bg-white/[0.03] hover:bg-white dark:hover:bg-white/[0.06] border border-slate-200 dark:border-transparent transition-colors cursor-pointer"
+              className="text-[11px] text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 px-2 py-0.5 rounded bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 transition-colors cursor-pointer"
             >
               {spotlightCollapsed ? 'Genişlet' : 'Daralt'}
             </button>
           </div>
 
           {!spotlightCollapsed && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 pt-1">
               {prioritySessionsThisWeek.slice(0, 4).map((pSession) => {
                 const st = pSession.student_id ? studentMap.get(pSession.student_id) : null;
                 if (!st) return null;
@@ -847,34 +855,34 @@ export function WeeklySchedulerGrid({
                   <div
                     key={pSession.id}
                     onClick={() => setQuickEditingSession(pSession)}
-                    className="p-3 rounded-xl border border-amber-200/90 dark:border-amber-500/20 bg-white dark:bg-[#1c1f2e] hover:border-amber-400 dark:hover:border-amber-500/40 hover:shadow-xs transition-all cursor-pointer space-y-2 group"
+                    className="p-2.5 rounded-md border border-amber-200 dark:border-amber-900/50 bg-white dark:bg-stone-900 hover:border-amber-400 transition-all cursor-pointer space-y-1.5"
                   >
                     <div className="flex items-center justify-between text-[11px]">
-                      <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200/90 font-mono font-medium border border-amber-300/80 dark:border-amber-400/20 text-[10px]">
+                      <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-mono font-medium text-[10px]">
                         {dayInfo?.shortDayName} • {pSession.time_slot}
                       </span>
-                      <span className="text-[10px] font-mono text-slate-600 dark:text-zinc-400 bg-slate-100 dark:bg-white/[0.05] px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] font-mono text-stone-600 dark:text-stone-400 bg-stone-100 dark:bg-stone-800 px-1.5 py-0.5 rounded">
                         {st.class_grade}
                       </span>
                     </div>
 
                     <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-zinc-100 group-hover:text-amber-700 dark:group-hover:text-amber-200 transition-colors truncate">
+                      <div className="text-xs font-semibold text-stone-900 dark:text-stone-100 truncate">
                         {st.full_name}
                       </div>
-                      <div className="flex items-center gap-1 mt-1">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300 font-medium truncate">
-                          ⚠️ {reasonFlag}
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-medium truncate">
+                          {reasonFlag}
                         </span>
                       </div>
                       {pSession.topic && (
-                        <p className="text-[11px] text-slate-600 dark:text-zinc-400 truncate mt-1">
+                        <p className="text-[11px] text-stone-600 dark:text-stone-400 truncate mt-0.5">
                           {pSession.topic}
                         </p>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 dark:border-white/[0.06] text-[10px]">
+                    <div className="flex items-center justify-between pt-1 border-t border-stone-100 dark:border-stone-800 text-[10px]">
                       <button
                         type="button"
                         onClick={(e) => handleToggleStatus(pSession, e)}
@@ -883,7 +891,7 @@ export function WeeklySchedulerGrid({
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-500/20'
                             : pSession.status === 'Gelmedi'
                             ? 'bg-rose-50 text-rose-700 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-500/20'
-                            : 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-300'
+                            : 'bg-stone-100 text-stone-700 border border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700'
                         }`}
                       >
                         {pSession.status}
@@ -891,10 +899,10 @@ export function WeeklySchedulerGrid({
                       <button
                         type="button"
                         onClick={(e) => handleSendWhatsAppSummary(pSession, e)}
-                        className="p-1 rounded text-slate-500 hover:text-emerald-600 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-emerald-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-1"
+                        className="p-1 rounded text-stone-500 hover:text-emerald-600 hover:bg-stone-100 dark:text-stone-400 dark:hover:text-emerald-400 dark:hover:bg-stone-800 transition-colors cursor-pointer flex items-center gap-1"
                         title="WhatsApp Özeti Gönder"
                       >
-                        <MessageSquare className="w-3 h-3 text-emerald-500" />
+                        <MessageSquare className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                         <span>Mesaj</span>
                       </button>
                     </div>
@@ -908,38 +916,38 @@ export function WeeklySchedulerGrid({
 
       {/* 2. BOŞ DURUM (EMPTY STATE) VE 3. GRID DÜZENİ */}
       {weekSessions.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 dark:border-white/[0.12] bg-white/60 dark:bg-[#141622]/70 backdrop-blur-xs p-10 sm:p-14 text-center my-4 transition-all shadow-xs">
-          <div className="max-w-md mx-auto space-y-4">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-inner">
-              <CalendarPlus className="w-8 h-8" />
+        <div className="rounded-lg border border-dashed border-stone-300 dark:border-stone-800 bg-white dark:bg-[#1F1F1F] p-8 sm:p-12 text-center my-3 transition-all">
+          <div className="max-w-md mx-auto space-y-3">
+            <div className="w-12 h-12 mx-auto rounded-lg bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-teal-600 dark:text-teal-400">
+              <CalendarPlus className="w-6 h-6" />
             </div>
 
-            <div className="space-y-1.5">
-              <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100">
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
                 Bu Hafta İçin Henüz Program Açılmadı
               </h3>
-              <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-                Rehberlik seanslarınızı 15 dakikalık periyotlar ve teneffüslerle tek tıkla planlamaya başlayın. 
+              <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+                Rehberlik seanslarınızı 15 dakikalık periyotlar ve teneffüslerle planlamaya başlayın. 
                 Program oluşturulduktan sonra öğrenciler gün ve saatlere atanabilir.
               </p>
             </div>
 
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
               <button
                 type="button"
                 onClick={handleStartWeeklyProgram}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-md transition-all cursor-pointer active:scale-[0.98]"
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 rounded-md bg-teal-600 hover:bg-teal-700 text-white font-medium text-xs transition-colors cursor-pointer"
               >
-                <Sparkles className="w-4 h-4 text-indigo-200" />
+                <CalendarPlus className="w-3.5 h-3.5" />
                 <span>Haftalık Programı Başlat (15 dk)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsScheduleConfigOpen(true)}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 font-medium text-xs border border-slate-200 dark:border-white/[0.08] transition-colors cursor-pointer"
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-md bg-white dark:bg-stone-800 hover:bg-stone-50 dark:hover:bg-stone-700/80 text-stone-700 dark:text-stone-300 font-medium text-xs border border-stone-200 dark:border-stone-700 transition-colors cursor-pointer"
               >
-                <Sliders className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
+                <Sliders className="w-3.5 h-3.5 text-stone-500" />
                 <span>Program Sihirbazı İle Başlat</span>
               </button>
             </div>
@@ -947,8 +955,8 @@ export function WeeklySchedulerGrid({
         </div>
       ) : (
         <div className="space-y-2">
-          {/* Mobile Day Navigation Tabs (Only on small screens to navigate cards easily) */}
-          <div className="flex md:hidden items-center gap-1.5 overflow-x-auto pb-1.5 -mx-1 px-1 no-scrollbar">
+          {/* Mobile Day Navigation Tabs */}
+          <div className="flex md:hidden items-center gap-1 overflow-x-auto pb-1.5 -mx-1 px-1 no-scrollbar">
             {weekDays.map((day) => {
               const isSelected = day.date === baseDate;
               const dayLessonsCount = weekSessions.filter((s) => s.date === day.date && !s.is_break).length;
@@ -961,17 +969,17 @@ export function WeeklySchedulerGrid({
                     const el = document.getElementById(`day-col-${day.date}`);
                     el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer ${
                     isSelected
-                      ? 'bg-indigo-600 text-white shadow-xs font-semibold'
-                      : 'bg-slate-100 dark:bg-white/[0.04] text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 border border-slate-200 dark:border-white/[0.06]'
+                      ? 'bg-teal-600 text-white font-semibold'
+                      : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 border border-stone-200 dark:border-stone-700'
                   }`}
                 >
                   <span>{day.shortDayName}</span>
                   <span className="font-mono text-[11px] opacity-80">{day.dayNumber}</span>
                   {day.isToday && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                   {dayLessonsCount > 0 && (
-                    <span className="text-[10px] px-1 py-0.2 rounded bg-black/15 dark:bg-white/10 font-mono">
+                    <span className="text-[10px] px-1 py-0.2 rounded bg-black/10 dark:bg-white/10 font-mono">
                       {dayLessonsCount}
                     </span>
                   )}
@@ -980,9 +988,9 @@ export function WeeklySchedulerGrid({
             })}
           </div>
 
-          {/* GRID DÜZENİ: Masaüstünde 5 eşit genişlikte tek satır grid (md:grid-cols-5), mobilde yatay kaydırma */}
+          {/* GRID DÜZENİ */}
           <div
-            className={`flex overflow-x-auto snap-x snap-mandatory gap-3.5 pb-4 scroll-smooth no-scrollbar md:grid md:overflow-visible ${
+            className={`flex overflow-x-auto snap-x snap-mandatory gap-2.5 pb-3 scroll-smooth no-scrollbar md:grid md:overflow-visible ${
               includeWeekend
                 ? 'md:grid-cols-7'
                 : 'md:grid-cols-5'
@@ -997,7 +1005,6 @@ export function WeeklySchedulerGrid({
               const dayLessons = dayAllSessions.filter((s) => !s.is_break);
               const dayFilled = dayLessons.filter((s) => s.student_id).length;
 
-              // Filter by priority if toggle active
               const displayedDaySessions = showOnlyPriority
                 ? dayAllSessions.filter((s) => s.is_break || isHighPriority(s))
                 : dayAllSessions;
@@ -1017,47 +1024,47 @@ export function WeeklySchedulerGrid({
                     if (dragOverDayDate === day.date) setDragOverDayDate(null);
                   }}
                   onDrop={(e) => handleDayDrop(day.date, day.dayName, e)}
-                  className={`w-[85vw] max-w-[340px] shrink-0 snap-center md:w-auto md:max-w-none md:shrink flex flex-col rounded-2xl border transition-all duration-150 overflow-hidden ${
+                  className={`w-[85vw] max-w-[340px] shrink-0 snap-center md:w-auto md:max-w-none md:shrink flex flex-col rounded-lg border transition-colors overflow-hidden ${
                     dragOverDayDate === day.date
-                      ? 'bg-[#182333] border-emerald-500 ring-2 ring-emerald-500/50 shadow-xl'
+                      ? 'bg-teal-50 dark:bg-stone-900 border-teal-500 ring-1 ring-teal-500'
                       : day.isToday
-                      ? 'bg-[#181a26] border-zinc-600/50 shadow-md'
+                      ? 'bg-white dark:bg-[#1F1F1F] border-teal-600/50 dark:border-teal-500/50'
                       : isSelected
-                      ? 'bg-[#161824] border-zinc-500/40 ring-1 ring-zinc-500/20'
-                      : 'bg-[#141620] border-white/[0.06] hover:border-white/[0.12]'
+                      ? 'bg-white dark:bg-[#1F1F1F] border-stone-400 dark:border-stone-600'
+                      : 'bg-white dark:bg-[#1F1F1F] border-stone-200 dark:border-stone-800 hover:border-stone-300 dark:hover:border-stone-700'
                   }`}
                 >
-              {/* Day Column Header with Quick Shift & Break controls */}
+              {/* Day Column Header */}
               <div
-                className={`p-3 border-b transition-colors cursor-pointer select-none ${
+                className={`p-2.5 border-b transition-colors cursor-pointer select-none ${
                   day.isToday
-                    ? 'bg-zinc-800/40 border-zinc-700/50'
+                    ? 'bg-teal-50/50 dark:bg-stone-800/80 border-stone-200 dark:border-stone-800'
                     : isSelected
-                    ? 'bg-zinc-800/30 border-zinc-700/40'
-                    : 'bg-white/[0.02] border-white/[0.05]'
+                    ? 'bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-800'
+                    : 'bg-stone-50/30 dark:bg-stone-900/30 border-stone-200 dark:border-stone-800'
                 }`}
               >
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <div className="flex items-baseline gap-1.5">
                     <span
                       className={`text-xs font-bold tracking-tight ${
-                        day.isToday ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-zinc-100'
+                        day.isToday ? 'text-teal-700 dark:text-teal-400' : 'text-stone-900 dark:text-stone-100'
                       }`}
                     >
                       {day.dayName}
                     </span>
-                    <span className="text-[11px] font-mono text-slate-600 dark:text-zinc-400">{day.dayNumber}</span>
+                    <span className="text-[11px] font-mono text-stone-500 dark:text-stone-400">{day.dayNumber}</span>
                   </div>
 
                   <div className="flex items-center gap-1">
                     {day.isToday && (
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/25">
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider bg-teal-100 text-teal-800 border border-teal-200 dark:bg-teal-950 dark:text-teal-300 dark:border-teal-800">
                         Bugün
                       </span>
                     )}
 
-                    {/* Quick shift -15 / +15 min for this day */}
-                    <div className="flex items-center gap-0.5 bg-white/[0.04] p-0.5 rounded-md border border-white/[0.06]">
+                    {/* Quick shift -15 / +15 min */}
+                    <div className="flex items-center gap-0.5 bg-stone-100 dark:bg-stone-800 p-0.5 rounded border border-stone-200 dark:border-stone-700">
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1065,7 +1072,7 @@ export function WeeklySchedulerGrid({
                           handleShiftTime([day.date], -15);
                           onShowToast('Saatler Kaydırıldı', `${day.dayName} saatleri 15 dk geri alındı.`, 'info');
                         }}
-                        className="px-1 py-0.5 rounded text-[9px] font-mono text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                        className="px-1 py-0.2 rounded text-[9px] font-mono text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors cursor-pointer"
                         title={`${day.dayName} tüm seansları 15 dk geri kaydır`}
                       >
                         -15
@@ -1077,7 +1084,7 @@ export function WeeklySchedulerGrid({
                           handleShiftTime([day.date], 15);
                           onShowToast('Saatler Kaydırıldı', `${day.dayName} saatleri 15 dk ileri alındı.`, 'info');
                         }}
-                        className="px-1 py-0.5 rounded text-[9px] font-mono text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                        className="px-1 py-0.2 rounded text-[9px] font-mono text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors cursor-pointer"
                         title={`${day.dayName} tüm seansları 15 dk ileri kaydır`}
                       >
                         +15
@@ -1087,57 +1094,57 @@ export function WeeklySchedulerGrid({
                 </div>
 
                 {/* Progress / Slot Count */}
-                <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono">
+                <div className="flex items-center justify-between text-[10px] text-stone-500 font-mono">
                   <span>
-                    Seans: <strong className="text-zinc-300 font-semibold">{dayFilled}</strong> / {dayLessons.length}
+                    Seans: <strong className="text-stone-700 dark:text-stone-300 font-medium">{dayFilled}</strong> / {dayLessons.length}
                   </span>
                   {dayAllSessions.some((s) => isHighPriority(s)) && (
-                    <span className="text-amber-400/90 flex items-center gap-0.5">
-                      <Star className="w-2.5 h-2.5 fill-amber-400/40 text-amber-400/80" />
+                    <span className="text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
+                      <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
                       <span>{dayAllSessions.filter((s) => isHighPriority(s)).length}</span>
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Day Sessions List (Asymmetric Vertical Flow with Larger Priority Cards) */}
-              <div className="p-2 space-y-2 flex-1 min-h-[140px]">
+              {/* Day Sessions List */}
+              <div className="p-2 space-y-1.5 flex-1 min-h-[140px]">
                 {displayedDaySessions.length === 0 ? (
-                  <div className="py-8 text-center px-2 space-y-1.5">
-                    <p className="text-[11px] text-slate-400 dark:text-zinc-500">Bugün seans yok</p>
+                  <div className="py-6 text-center px-2 space-y-1.5">
+                    <p className="text-[11px] text-stone-400 dark:text-stone-500">Bugün seans yok</p>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onFillStandardSlots(day.date);
                       }}
-                      className="text-[10px] px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-white/[0.08] transition-colors cursor-pointer"
+                      className="text-[10px] px-2 py-0.5 rounded bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 transition-colors cursor-pointer"
                     >
                       + Saat Ekle (15 dk)
                     </button>
                   </div>
                 ) : (
                   displayedDaySessions.map((session) => {
-                    // Case 1: Teneffüs / Mola (Break) Slot - Slim Intermission Divider
+                    // Case 1: Teneffüs / Mola (Break) Slot
                     if (session.is_break) {
                       const isLunch = session.break_title?.toLowerCase().includes('öğle') || session.topic?.toLowerCase().includes('öğle');
                       return (
                         <div
                           key={session.id}
-                          className={`group relative px-2.5 py-1.5 rounded-lg text-xs font-mono flex items-center justify-between my-1 transition-all ${
+                          className={`group relative px-2 py-1 rounded text-xs font-mono flex items-center justify-between my-0.5 transition-colors ${
                             isLunch
-                              ? 'bg-amber-100 dark:bg-[#251f15] border border-amber-300 dark:border-amber-500/40 text-amber-950 dark:text-amber-200 font-semibold shadow-2xs'
-                              : 'bg-slate-100/90 dark:bg-[#161822] border border-dashed border-slate-300 dark:border-white/[0.1] text-slate-700 dark:text-zinc-300'
+                              ? 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200 font-medium'
+                              : 'bg-stone-50 dark:bg-stone-900/60 border border-dashed border-stone-200 dark:border-stone-800 text-stone-600 dark:text-stone-400'
                           }`}
                         >
                           <div className="flex items-center gap-1.5 truncate">
                             {isLunch ? (
-                              <Utensils className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400 shrink-0" />
+                              <Utensils className="w-3 h-3 text-amber-700 dark:text-amber-400 shrink-0" />
                             ) : (
-                              <Coffee className="w-3 h-3 text-slate-500 dark:text-zinc-400 shrink-0" />
+                              <Coffee className="w-3 h-3 text-stone-500 dark:text-stone-400 shrink-0" />
                             )}
-                            <span className="font-bold text-[11px] font-mono">{session.time_slot}</span>
-                            <span className={`text-[10px] truncate ${isLunch ? 'font-bold text-amber-900 dark:text-amber-300' : 'text-slate-600 dark:text-zinc-400'}`}>
+                            <span className="font-semibold text-[11px] font-mono">{session.time_slot}</span>
+                            <span className={`text-[10px] truncate ${isLunch ? 'font-semibold text-amber-900 dark:text-amber-300' : 'text-stone-500'}`}>
                               {session.break_title || session.topic || (isLunch ? 'Öğle Arası' : 'Mola')}
                             </span>
                           </div>
@@ -1145,7 +1152,7 @@ export function WeeklySchedulerGrid({
                             <button
                               type="button"
                               onClick={(e) => handleFastNudgeSession(session, -15, e)}
-                              className="opacity-0 group-hover:opacity-100 px-1 py-0.2 rounded text-[9px] bg-white/[0.08] hover:bg-white/[0.15] text-zinc-300 transition-opacity"
+                              className="opacity-0 group-hover:opacity-100 px-1 py-0.2 rounded text-[9px] bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 transition-opacity"
                               title="15 dk geri kaydır"
                             >
                               -15
@@ -1153,7 +1160,7 @@ export function WeeklySchedulerGrid({
                             <button
                               type="button"
                               onClick={(e) => handleFastNudgeSession(session, 15, e)}
-                              className="opacity-0 group-hover:opacity-100 px-1 py-0.2 rounded text-[9px] bg-white/[0.08] hover:bg-white/[0.15] text-zinc-300 transition-opacity"
+                              className="opacity-0 group-hover:opacity-100 px-1 py-0.2 rounded text-[9px] bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 transition-opacity"
                               title="15 dk ileri kaydır"
                             >
                               +15
@@ -1165,7 +1172,7 @@ export function WeeklySchedulerGrid({
                                 onDeleteSession(session.id);
                                 onShowToast(isLunch ? 'Öğle Arası Silindi' : 'Mola Silindi', 'Mola takvimden kaldırıldı.', 'info');
                               }}
-                              className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-rose-500 transition-opacity cursor-pointer"
+                              className="opacity-0 group-hover:opacity-100 p-0.5 text-stone-400 hover:text-rose-500 transition-opacity cursor-pointer"
                               title={isLunch ? 'Öğle Arasını Kaldır' : 'Molayı Kaldır'}
                             >
                               <X className="w-3 h-3" />
@@ -1182,7 +1189,7 @@ export function WeeklySchedulerGrid({
                     // Case 2: Assigned Student Session
                     if (student) {
                       if (isPriority) {
-                        // HIGH-PRIORITY SESSION: Larger Card with Expressive Presence & Drag-Drop
+                        // HIGH-PRIORITY SESSION: Clean stone card with amber border
                         return (
                           <div
                             key={session.id}
@@ -1203,29 +1210,28 @@ export function WeeklySchedulerGrid({
                               e.stopPropagation();
                               setQuickEditingSession(session);
                             }}
-                            className={`group relative rounded-xl p-3 border transition-all cursor-pointer space-y-2 ${
+                            className={`group relative rounded-md p-2.5 border transition-all cursor-pointer space-y-1.5 ${
                               isDragOverThis
-                                ? 'border-emerald-400 bg-emerald-950/40 ring-2 ring-emerald-400 scale-[1.02] shadow-xl'
-                                : 'border-amber-500/30 bg-[#1c1f2e] hover:border-amber-500/50 hover:shadow-md'
+                                ? 'border-teal-500 bg-teal-50 dark:bg-stone-900 ring-1 ring-teal-500'
+                                : 'border-amber-300 dark:border-amber-800/60 bg-amber-50/40 dark:bg-stone-900 hover:border-amber-400'
                             }`}
                           >
-                            {/* Top Line: Grip Handle + Time Slot + Fast Nudge + Star Badge + Grade */}
                             <div className="flex items-center justify-between gap-1">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <GripVertical
-                                  className="w-3.5 h-3.5 text-zinc-500 hover:text-amber-300 cursor-grab active:cursor-grabbing shrink-0"
-                                  title="Sürükle ve Bırak (Başka Güne veya Saate Taşı)"
-                                />
-                                <span className="px-1.5 py-0.5 rounded-md bg-amber-400/15 text-amber-900 dark:text-amber-200 border border-amber-400/20 font-mono text-xs font-semibold">
+                                <span title="Sürükle ve Bırak" className="inline-flex shrink-0">
+                                  <GripVertical
+                                    className="w-3 h-3 text-stone-400 hover:text-stone-600 cursor-grab active:cursor-grabbing shrink-0"
+                                  />
+                                </span>
+                                <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 border border-amber-200 dark:border-amber-800 font-mono text-[11px] font-semibold">
                                   {session.time_slot}
                                 </span>
                                 
-                                {/* Quick Time Adjustment Buttons (-15 / +15 dk) */}
                                 <div className="flex items-center gap-0.5 opacity-70 group-hover:opacity-100 transition-opacity">
                                   <button
                                     type="button"
                                     onClick={(e) => handleFastNudgeSession(session, -15, e)}
-                                    className="px-1 py-0.2 rounded text-[9px] font-mono bg-white/[0.06] hover:bg-white/[0.15] text-zinc-300 transition-colors"
+                                    className="px-1 py-0.2 rounded text-[8px] font-mono bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
                                     title="15 dakika geri al"
                                   >
                                     -15
@@ -1233,15 +1239,15 @@ export function WeeklySchedulerGrid({
                                   <button
                                     type="button"
                                     onClick={(e) => handleFastNudgeSession(session, 15, e)}
-                                    className="px-1 py-0.2 rounded text-[9px] font-mono bg-white/[0.06] hover:bg-white/[0.15] text-zinc-300 transition-colors"
+                                    className="px-1 py-0.2 rounded text-[8px] font-mono bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100"
                                     title="15 dakika ileri al"
                                   >
                                     +15
                                   </button>
                                 </div>
 
-                                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[9px] font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/25">
-                                  <Star className="w-2.5 h-2.5 fill-amber-300/40 text-amber-300/80" />
+                                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[9px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                  <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
                                   Öncelikli
                                 </span>
                               </div>
@@ -1250,65 +1256,60 @@ export function WeeklySchedulerGrid({
                                 <button
                                   type="button"
                                   onClick={(e) => handleDuplicateSession(session, e)}
-                                  className="opacity-0 group-hover:opacity-100 p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.08] transition-all"
+                                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-all"
                                   title="Seansı Kopyala (+15 dk)"
                                 >
                                   <Copy className="w-3 h-3" />
                                 </button>
-                                <span className="text-[10px] font-mono font-medium text-zinc-400 bg-white/[0.05] px-1.5 py-0.5 rounded shrink-0">
+                                <span className="text-[10px] font-mono font-medium text-stone-500 bg-stone-100 dark:bg-stone-800 px-1.5 py-0.2 rounded shrink-0">
                                   {student.class_grade}
                                 </span>
                               </div>
                             </div>
 
-                            {/* Middle: Prominent Student Name & Flag */}
                             <div>
-                              <div className="text-sm font-bold text-zinc-100 group-hover:text-amber-200 transition-colors tracking-tight leading-snug">
+                              <div className="text-xs font-semibold text-stone-900 dark:text-stone-100 leading-snug">
                                 {student.full_name}
                               </div>
 
-                              {/* Risk or reason flag */}
                               {(student.status_flags?.length || session.status === 'Gelmedi') && (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {session.status === 'Gelmedi' ? (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-rose-950/40 text-rose-300 border border-rose-500/25 font-medium">
-                                      ❌ Son Randevuya Gelmedi
+                                    <span className="text-[9px] px-1 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/40 font-medium">
+                                      Randevuya Gelmedi
                                     </span>
                                   ) : (
                                     student.status_flags?.slice(0, 2).map((flag) => (
                                       <span
                                         key={flag}
-                                        className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/20 font-medium"
+                                        className="text-[9px] px-1 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-900 font-medium"
                                       >
-                                        ⚠️ {flag}
+                                        {flag}
                                       </span>
                                     ))
                                   )}
                                 </div>
                               )}
 
-                              {/* Clear Topic banner */}
                               {session.topic && (
-                                <div className="mt-1.5 p-1.5 rounded-lg bg-[#141622] border border-white/[0.06] text-xs text-zinc-300 leading-snug">
-                                  <span className="text-[10px] text-zinc-400 font-mono block mb-0.5">🎯 Görüşme Odağı:</span>
-                                  <span className="font-medium text-zinc-200">{session.topic}</span>
+                                <div className="mt-1 p-1 rounded bg-stone-50 dark:bg-stone-800/80 border border-stone-200 dark:border-stone-800 text-[11px] text-stone-700 dark:text-stone-300 leading-snug">
+                                  <span className="font-medium">{session.topic}</span>
                                 </div>
                               )}
                             </div>
 
-                            {/* Bottom Action Footer */}
-                            <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
+                            <div className="flex items-center justify-between pt-1 border-t border-amber-200 dark:border-stone-800">
                               <button
                                 type="button"
                                 onClick={(e) => handleToggleStatus(session, e)}
-                                className={`text-xs font-medium px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                                className={`text-[10px] font-medium px-1.5 py-0.2 rounded transition-all cursor-pointer ${
                                   session.status === 'Geldi'
-                                    ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/20'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
                                     : session.status === 'Gelmedi'
-                                    ? 'bg-rose-950/40 text-rose-300 border border-rose-500/20'
-                                    : 'bg-zinc-800 text-zinc-300 hover:text-white border border-white/[0.06]'
+                                    ? 'bg-rose-50 text-rose-700 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                                    : 'bg-stone-100 text-stone-700 hover:bg-stone-200 border border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700'
                                 }`}
-                                title="Durumu Değiştir (Bekliyor / Geldi / Gelmedi)"
+                                title="Durumu Değiştir"
                               >
                                 {session.status}
                               </button>
@@ -1317,19 +1318,19 @@ export function WeeklySchedulerGrid({
                                 <button
                                   type="button"
                                   onClick={(e) => handleTogglePriority(session, e)}
-                                  className="p-1 rounded-lg text-amber-300/80 bg-amber-400/10 hover:bg-amber-400/20 transition-colors cursor-pointer"
+                                  className="p-1 rounded text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors cursor-pointer"
                                   title="Öncelik İşaretini Değiştir"
                                 >
-                                  <Star className="w-3.5 h-3.5 fill-amber-300/40" />
+                                  <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
                                 </button>
 
                                 <button
                                   type="button"
                                   onClick={(e) => handleSendWhatsAppSummary(session, e)}
-                                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#18221d] hover:bg-[#1f2e27] text-emerald-300 border border-emerald-500/20 text-[11px] font-medium transition-colors cursor-pointer"
-                                  title="Öğrenciye WhatsApp Görüşme Özeti Gönder"
+                                  className="flex items-center gap-1 px-1.5 py-0.2 rounded bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-[10px] font-medium transition-colors cursor-pointer"
+                                  title="WhatsApp Mesajı"
                                 >
-                                  <MessageSquare className="w-3 h-3 text-emerald-400" />
+                                  <MessageSquare className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
                                   <span>WhatsApp</span>
                                 </button>
                               </div>
@@ -1338,7 +1339,7 @@ export function WeeklySchedulerGrid({
                         );
                       }
 
-                      // STANDARD SESSION: Sleek, compact card with Drag & Drop and Instant Time Adjusters
+                      // STANDARD SESSION: Crisp stone card
                       return (
                         <div
                           key={session.id}
@@ -1359,31 +1360,31 @@ export function WeeklySchedulerGrid({
                             e.stopPropagation();
                             setQuickEditingSession(session);
                           }}
-                          className={`group relative rounded-xl p-2.5 transition-all cursor-pointer border ${
+                          className={`group relative rounded-md p-2 transition-colors cursor-pointer border ${
                             isDragOverThis
-                              ? 'border-emerald-400 bg-emerald-950/40 ring-2 ring-emerald-400 scale-[1.02] shadow-xl'
+                              ? 'border-teal-500 bg-teal-50 dark:bg-stone-900 ring-1 ring-teal-500'
                               : session.status === 'Geldi'
-                              ? 'border-emerald-500/20 bg-[#161f1a] hover:border-emerald-500/40'
+                              ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/30 dark:bg-stone-900'
                               : session.status === 'Gelmedi'
-                              ? 'border-rose-500/20 bg-[#211618] hover:border-rose-500/40'
-                              : 'border-white/[0.08] bg-[#181a26] hover:border-white/20'
+                              ? 'border-rose-200 dark:border-rose-900/40 bg-rose-50/30 dark:bg-stone-900'
+                              : 'border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 hover:border-stone-300 dark:hover:border-stone-700'
                           }`}
                         >
                           <div className="flex items-center justify-between gap-1 mb-1">
                             <div className="flex items-center gap-1">
-                              <GripVertical
-                                className="w-3 h-3 text-zinc-500 hover:text-zinc-300 cursor-grab active:cursor-grabbing shrink-0"
-                                title="Sürükle ve Bırak (Başka Güne veya Saate Taşı)"
-                              />
-                              <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-white/[0.05] text-zinc-300">
+                              <span title="Sürükle ve Bırak" className="inline-flex shrink-0">
+                                <GripVertical
+                                  className="w-3 h-3 text-stone-400 hover:text-stone-600 cursor-grab active:cursor-grabbing shrink-0"
+                                />
+                              </span>
+                              <span className="text-[11px] font-mono font-medium px-1.5 py-0.2 rounded bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300">
                                 {session.time_slot}
                               </span>
-                              {/* Quick Time Nudge */}
                               <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                                 <button
                                   type="button"
                                   onClick={(e) => handleFastNudgeSession(session, -15, e)}
-                                  className="px-1 py-0.2 rounded text-[9px] font-mono bg-white/[0.06] hover:bg-white/[0.15] text-zinc-300"
+                                  className="px-1 py-0.2 rounded text-[8px] font-mono bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:text-stone-900"
                                   title="15 dk geri kaydır"
                                 >
                                   -15
@@ -1391,7 +1392,7 @@ export function WeeklySchedulerGrid({
                                 <button
                                   type="button"
                                   onClick={(e) => handleFastNudgeSession(session, 15, e)}
-                                  className="px-1 py-0.2 rounded text-[9px] font-mono bg-white/[0.06] hover:bg-white/[0.15] text-zinc-300"
+                                  className="px-1 py-0.2 rounded text-[8px] font-mono bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:text-stone-900"
                                   title="15 dk ileri kaydır"
                                 >
                                   +15
@@ -1403,34 +1404,34 @@ export function WeeklySchedulerGrid({
                               <button
                                 type="button"
                                 onClick={(e) => handleDuplicateSession(session, e)}
-                                className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-zinc-400 hover:text-white"
+                                className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
                                 title="Kopyala (+15 dk)"
                               >
                                 <Copy className="w-2.5 h-2.5" />
                               </button>
-                              <span className="text-[10px] font-mono text-zinc-400 bg-white/[0.04] px-1.5 py-0.2 rounded">
+                              <span className="text-[10px] font-mono text-stone-500 bg-stone-100 dark:bg-stone-800 px-1 py-0.2 rounded">
                                 {student.class_grade}
                               </span>
                             </div>
                           </div>
-                          <div className="font-semibold text-xs text-zinc-200 group-hover:text-white truncate">
+                          <div className="font-medium text-xs text-stone-900 dark:text-stone-100 truncate">
                             {student.full_name}
                           </div>
                           {session.topic && (
-                            <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                            <p className="text-[11px] text-stone-500 dark:text-stone-400 truncate mt-0.5">
                               {session.topic}
                             </p>
                           )}
-                          <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-white/[0.05]">
+                          <div className="flex items-center justify-between pt-1 mt-1 border-t border-stone-100 dark:border-stone-800">
                             <button
                               type="button"
                               onClick={(e) => handleToggleStatus(session, e)}
-                              className={`text-[10px] font-medium px-2 py-0.5 rounded transition-all cursor-pointer ${
+                              className={`text-[9px] font-medium px-1.5 py-0.2 rounded transition-all cursor-pointer ${
                                 session.status === 'Geldi'
-                                  ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/20'
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
                                   : session.status === 'Gelmedi'
-                                  ? 'bg-rose-950/40 text-rose-300 border border-rose-500/20'
-                                  : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                                  ? 'bg-rose-50 text-rose-700 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-300'
                               }`}
                             >
                               {session.status}
@@ -1439,7 +1440,7 @@ export function WeeklySchedulerGrid({
                               <button
                                 type="button"
                                 onClick={(e) => handleTogglePriority(session, e)}
-                                className="p-1 rounded text-zinc-500 hover:text-amber-300/80 hover:bg-zinc-800 transition-colors cursor-pointer"
+                                className="p-1 rounded text-stone-400 hover:text-amber-500 transition-colors cursor-pointer"
                                 title="Yüksek Öncelikli Yap"
                               >
                                 <Star className="w-3 h-3" />
@@ -1447,7 +1448,7 @@ export function WeeklySchedulerGrid({
                               <button
                                 type="button"
                                 onClick={(e) => handleSendWhatsAppSummary(session, e)}
-                                className="p-1 rounded text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 transition-colors cursor-pointer"
+                                className="p-1 rounded text-stone-400 hover:text-emerald-600 transition-colors cursor-pointer"
                                 title="WhatsApp"
                               >
                                 <MessageSquare className="w-3 h-3" />
@@ -1458,7 +1459,7 @@ export function WeeklySchedulerGrid({
                       );
                     }
 
-                    // Case 3: Empty Existing Slot (Minimal Dashed Strip with Drop Target)
+                    // Case 3: Empty Existing Slot
                     return (
                       <div
                         key={session.id}
@@ -1472,22 +1473,21 @@ export function WeeklySchedulerGrid({
                           if (dragOverSlotId === session.id) setDragOverSlotId(null);
                         }}
                         onDrop={(e) => handleSlotDrop(session, e)}
-                        className={`group relative p-1.5 px-2 rounded-lg border border-dashed transition-all flex items-center justify-between text-xs ${
+                        className={`group relative p-1.5 px-2 rounded border border-dashed transition-colors flex items-center justify-between text-xs ${
                           isDragOverThis
-                            ? 'border-emerald-400 bg-emerald-950/40 ring-2 ring-emerald-400'
-                            : 'border-white/[0.06] hover:border-white/20 hover:bg-white/[0.02]'
+                            ? 'border-teal-500 bg-teal-50 dark:bg-stone-900 ring-1 ring-teal-500'
+                            : 'border-stone-200 dark:border-stone-800 hover:border-stone-300 dark:hover:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-900/40'
                         }`}
                       >
                         <div className="flex items-center gap-1">
-                          <span className="font-mono text-[11px] text-zinc-400 font-medium px-1 py-0.5 rounded bg-white/[0.03]">
+                          <span className="font-mono text-[11px] text-stone-500 dark:text-stone-400 font-medium px-1 py-0.2 rounded bg-stone-100 dark:bg-stone-800">
                             {session.time_slot}
                           </span>
-                          {/* Nudge empty slot */}
                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               type="button"
                               onClick={(e) => handleFastNudgeSession(session, -15, e)}
-                              className="px-1 py-0.2 rounded text-[8px] font-mono bg-white/[0.06] hover:bg-white/[0.15] text-zinc-400"
+                              className="px-1 py-0.2 rounded text-[8px] font-mono bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:text-stone-900"
                               title="15 dk geri al"
                             >
                               -15
@@ -1495,7 +1495,7 @@ export function WeeklySchedulerGrid({
                             <button
                               type="button"
                               onClick={(e) => handleFastNudgeSession(session, 15, e)}
-                              className="px-1 py-0.2 rounded text-[8px] font-mono bg-white/[0.06] hover:bg-white/[0.15] text-zinc-400"
+                              className="px-1 py-0.2 rounded text-[8px] font-mono bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:text-stone-900"
                               title="15 dk ileri al"
                             >
                               +15
@@ -1514,7 +1514,7 @@ export function WeeklySchedulerGrid({
                                 sessionId: session.id,
                               });
                             }}
-                            className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.04] hover:bg-white/[0.1] text-zinc-400 hover:text-white text-[11px] transition-colors cursor-pointer"
+                            className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 text-[10px] font-medium transition-colors cursor-pointer"
                           >
                             <Plus className="w-2.5 h-2.5" />
                             <span>Öğrenci Ata</span>
@@ -1526,7 +1526,7 @@ export function WeeklySchedulerGrid({
                               e.stopPropagation();
                               onDeleteSession(session.id);
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-500 hover:text-rose-400 transition-opacity cursor-pointer"
+                            className="opacity-0 group-hover:opacity-100 p-0.5 text-stone-400 hover:text-rose-500 transition-opacity cursor-pointer"
                             title="Saati Sil"
                           >
                             <X className="w-3 h-3" />
@@ -2181,6 +2181,18 @@ export function WeeklySchedulerGrid({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Official Printable Weekly A4 Log Modal */}
+      {isPrintModalOpen && (
+        <DailyLogPrintModal
+          date={baseDate}
+          sessions={sessions}
+          students={students}
+          counselorName={counselorName}
+          initialScope="weekly"
+          onClose={() => setIsPrintModalOpen(false)}
+        />
       )}
     </div>
   );

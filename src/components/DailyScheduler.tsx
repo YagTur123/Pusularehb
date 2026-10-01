@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Session, Student, COMMON_TOPICS, ScheduleConfig, SessionFeedback } from '../types';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Session, Student, COMMON_TOPICS, ScheduleConfig, SessionFeedback, SessionStatus } from '../types';
 import {
   Calendar,
   Zap,
@@ -28,9 +28,11 @@ import {
   FileText,
   Star,
   CheckCircle2,
+  XCircle,
   Filter,
   Clock,
   Pencil,
+  Send,
 } from 'lucide-react';
 import {
   getTodayDateString,
@@ -47,6 +49,7 @@ import {
   generateMissedSessionReminderText,
   getWhatsAppDirectUrl,
   openExternalUrl,
+  copyToClipboard,
 } from '../lib/whatsapp';
 import { QuickNotePopover } from './QuickNotePopover';
 import { StudentHistoryModal } from './StudentHistoryModal';
@@ -57,6 +60,7 @@ import { ScheduleConfigModal } from './ScheduleConfigModal';
 import { DailyWhatsAppOfficialCard } from './DailyWhatsAppOfficialCard';
 import { SessionFeedbackModal } from './SessionFeedbackModal';
 import { BreakDurationModal, getBreakMinutes } from './BreakDurationModal';
+import { WhatsAppQueueModal } from './WhatsAppQueueModal';
 
 // 9 Noktalı Sürükleme Tutamacı (3x3 Izgara)
 function NineDotsGrip({ className = '' }: { className?: string }) {
@@ -91,7 +95,13 @@ interface DailySchedulerProps {
   onFillStandardSlots: (date: string) => void;
   onFillStandardWeek?: (baseDate: string) => void;
   onOpenBroadcast: (date?: string) => void;
-  onShowToast?: (title: string, desc?: string, type?: 'success' | 'info' | 'warning') => void;
+  onShowToast?: (
+    title: string,
+    desc?: string,
+    type?: 'success' | 'info' | 'warning',
+    action?: { label: string; onClick: () => void },
+    duration?: number
+  ) => void;
   onOpenStudentProfile: (student: Student) => void;
   onApplyScheduleConfig?: (dates: string[], config: ScheduleConfig, keepAssigned: boolean) => void;
   onShiftTime?: (dates: string[], deltaMinutes: number) => void;
@@ -121,14 +131,21 @@ export function DailyScheduler({
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [activeSlotSearchId, setActiveSlotSearchId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [emptySlotSearchIndex, setEmptySlotSearchIndex] = useState(0);
   const [activeQuickNoteSession, setActiveQuickNoteSession] = useState<Session | null>(null);
   const [historyStudent, setHistoryStudent] = useState<Student | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [isScheduleConfigOpen, setIsScheduleConfigOpen] = useState(false);
   const [slotFilter, setSlotFilter] = useState<'all' | 'assigned' | 'empty' | 'missed' | 'feedback'>('all');
 
-  // WhatsApp announcement modal state
+  // WhatsApp announcement & sequential queue modal states
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [isWhatsAppQueueOpen, setIsWhatsAppQueueOpen] = useState(false);
+
+  // Live timer for next session countdown & keyboard hover/focus tracking
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   // Drag & drop row reordering state (9 dots)
   const [draggedSessionId, setDraggedSessionId] = useState<string | null>(null);
@@ -165,6 +182,109 @@ export function DailyScheduler({
     if (slotFilter === 'feedback') return Boolean(s.feedback);
     return true;
   });
+
+  // Assigned sessions for selected date & unsent message count
+  const assignedDateSessions = dateSessions.filter((s) => s.student_id && !s.is_break);
+  const unsentMessagesCount = assignedDateSessions.filter((s) => !s.whatsapp_sent).length;
+
+  // Live timer tick every 10 seconds for real-time countdown
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 10000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Next session calculation: prioritize active/in-progress, then next upcoming pending
+  const nextSession = useMemo(() => {
+    // 1. Any session in progress
+    const inProgress = assignedDateSessions.find((s) => s.is_in_progress);
+    if (inProgress) return inProgress;
+
+    // 2. Pending sessions
+    const pending = assignedDateSessions.filter((s) => s.status === 'Bekliyor');
+    if (pending.length === 0) return null;
+
+    const todayStr = getTodayDateString();
+    if (selectedDate === todayStr) {
+      const currentH = currentTime.getHours();
+      const currentM = currentTime.getMinutes();
+      const currentTotalMin = currentH * 60 + currentM;
+
+      // Find first session whose end time hasn't passed (approx start + 40 mins)
+      const upcoming = pending.find((s) => {
+        const timePart = s.time_slot.split('-')[0].trim();
+        const [h, m] = timePart.split(':').map(Number);
+        if (isNaN(h) || isNaN(m)) return false;
+        return (h * 60 + m + 40) >= currentTotalMin;
+      });
+      return upcoming || pending[0];
+    }
+
+    return pending[0];
+  }, [assignedDateSessions, selectedDate, currentTime]);
+
+  const nextStudent = nextSession?.student_id ? studentMap.get(nextSession.student_id) : null;
+
+  // Countdown text for next session
+  const countdownInfo = useMemo(() => {
+    if (!nextSession) {
+      return { text: 'Tüm seanslar tamamlandı', isNow: false, minutes: null };
+    }
+    if (nextSession.is_in_progress) {
+      return { text: 'Şu an devam ediyor (Başladı)', isNow: true, minutes: 0 };
+    }
+
+    const todayStr = getTodayDateString();
+    if (selectedDate !== todayStr) {
+      return { text: `${nextSession.time_slot} planlandı`, isNow: false, minutes: null };
+    }
+
+    const timePart = nextSession.time_slot.split('-')[0].trim();
+    const [h, m] = timePart.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) {
+      return { text: nextSession.time_slot, isNow: false, minutes: null };
+    }
+
+    const currentTotalMin = currentTime.getHours() * 60 + currentTime.getMinutes();
+    const slotStartMin = h * 60 + m;
+    const diff = slotStartMin - currentTotalMin;
+
+    if (diff > 0) {
+      if (diff > 60) {
+        return {
+          text: `${Math.floor(diff / 60)} sa ${diff % 60} dk kaldı`,
+          isNow: false,
+          minutes: diff,
+        };
+      }
+      return { text: `${diff} dk kaldı`, isNow: false, minutes: diff };
+    } else if (diff >= -40) {
+      return { text: 'Vakti geldi (Devam ediyor)', isNow: true, minutes: diff };
+    } else {
+      return { text: 'Başlama saati geçti', isNow: false, minutes: diff };
+    }
+  }, [nextSession, selectedDate, currentTime]);
+
+  // Quick action: Start session (is_in_progress)
+  const handleQuickStartNext = (sess: Session) => {
+    const prev = { ...sess };
+    const updated: Session = {
+      ...sess,
+      is_in_progress: true,
+      status: 'Bekliyor',
+    };
+    onUpdateSession(updated);
+    const st = sess.student_id ? studentMap.get(sess.student_id) : null;
+    onShowToast?.(
+      'Seans Başlatıldı',
+      `${st?.full_name || 'Öğrenci'} seansı şu an devam ediyor olarak işaretlendi.`,
+      'success',
+      {
+        label: 'Geri Al',
+        onClick: () => onUpdateSession(prev),
+      },
+      6000
+    );
+  };
 
   // Reorder logic with automatic chronological time slot assignment
   const performReorder = (sourceId: string, targetId: string) => {
@@ -259,11 +379,88 @@ export function DailyScheduler({
     setDragOverSessionId(null);
 
     if (!sourceId || sourceId === targetId) return;
+
+    const sourceSession = dateSessions.find((s) => s.id === sourceId);
+    const targetSession = dateSessions.find((s) => s.id === targetId);
+    if (!sourceSession || !targetSession) return;
+
+    // Conflict check: if moving a session with student onto a slot that already has a different student
+    if (
+      sourceSession.student_id &&
+      targetSession.student_id &&
+      sourceSession.student_id !== targetSession.student_id
+    ) {
+      const targetStudent = studentMap.get(targetSession.student_id);
+      onShowToast?.(
+        'Çakışma Uyarısı: Taşıma Yapılmadı',
+        `${targetSession.time_slot} saatinde zaten ${targetStudent?.full_name || 'başka bir öğrenci'} seansı bulunmaktadır. Çakışma nedeniyle seans taşınamadı.`,
+        'warning'
+      );
+      return;
+    }
+
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       try {
         navigator.vibrate([15, 10]);
       } catch (_) {}
     }
+
+    // Moving session into an empty slot cleanly
+    if (sourceSession.student_id && !targetSession.student_id) {
+      const prevSource = { ...sourceSession };
+      const prevTarget = { ...targetSession };
+
+      const newTarget: Session = {
+        ...targetSession,
+        student_id: sourceSession.student_id,
+        topic: sourceSession.topic,
+        action_items: sourceSession.action_items,
+        tags: sourceSession.tags,
+        status: sourceSession.status,
+        next_followup_date: sourceSession.next_followup_date,
+        feedback: sourceSession.feedback,
+        whatsapp_sent: sourceSession.whatsapp_sent,
+      };
+
+      const newSource: Session = {
+        ...sourceSession,
+        student_id: null,
+        topic: '',
+        action_items: '',
+        tags: [],
+        status: 'Bekliyor',
+        feedback: undefined,
+        whatsapp_sent: false,
+      };
+
+      if (onUpdateMultipleSessions) {
+        onUpdateMultipleSessions([newTarget, newSource]);
+      } else {
+        onUpdateSession(newTarget);
+        onUpdateSession(newSource);
+      }
+
+      const stName = studentMap.get(sourceSession.student_id)?.full_name || 'Öğrenci';
+      onShowToast?.(
+        'Seans Taşındı',
+        `${stName}, ${sourceSession.time_slot} saatinden ${targetSession.time_slot} saatine taşındı.`,
+        'info',
+        {
+          label: 'Geri Al',
+          onClick: () => {
+            if (onUpdateMultipleSessions) {
+              onUpdateMultipleSessions([prevTarget, prevSource]);
+            } else {
+              onUpdateSession(prevTarget);
+              onUpdateSession(prevSource);
+            }
+          },
+        },
+        6000
+      );
+      return;
+    }
+
     performReorder(sourceId, targetId);
   };
 
@@ -453,10 +650,71 @@ export function DailyScheduler({
     });
   };
 
-  const handleStatusChange = (session: Session, newStatus: 'Bekliyor' | 'Geldi' | 'Gelmedi') => {
-    const updated: Session = { ...session, status: newStatus };
+  const handleStatusChange = (session: Session, newStatus: SessionStatus) => {
+    const prevSession = { ...session };
+    const updated: Session = {
+      ...session,
+      status: newStatus,
+      is_in_progress: newStatus === 'Bekliyor' ? session.is_in_progress : false,
+    };
     onUpdateSession(updated);
+
+    const studentName = session.student_id
+      ? studentMap.get(session.student_id)?.full_name || 'Öğrenci'
+      : 'Seans';
+
+    onShowToast?.(
+      `Durum: ${newStatus}`,
+      `${studentName} durumu "${newStatus}" yapıldı.`,
+      'info',
+      {
+        label: 'Geri Al',
+        onClick: () => {
+          onUpdateSession(prevSession);
+        },
+      },
+      6000
+    );
   };
+
+  // Global Keyboard 1-4 for instant status change (1: Bekliyor, 2: Geldi, 3: Gelmedi, 4: Ertelendi)
+  useEffect(() => {
+    const handleNumKey = (e: KeyboardEvent) => {
+      const targetTag = (e.target as HTMLElement)?.tagName?.toUpperCase();
+      if (
+        targetTag === 'INPUT' ||
+        targetTag === 'TEXTAREA' ||
+        (e.target as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      if (['1', '2', '3', '4'].includes(e.key)) {
+        const targetSession =
+          (hoveredSessionId && dateSessions.find((s) => s.id === hoveredSessionId)) ||
+          (selectedSessionId && dateSessions.find((s) => s.id === selectedSessionId)) ||
+          nextSession;
+
+        if (!targetSession) return;
+
+        e.preventDefault();
+        const statusMap: Record<string, SessionStatus> = {
+          '1': 'Bekliyor',
+          '2': 'Geldi',
+          '3': 'Gelmedi',
+          '4': 'Ertelendi',
+        };
+        const newStatus = statusMap[e.key];
+        if (newStatus) {
+          handleStatusChange(targetSession, newStatus);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleNumKey);
+    return () => window.removeEventListener('keydown', handleNumKey);
+  }, [hoveredSessionId, selectedSessionId, nextSession, dateSessions]);
 
   const handleSendIndividualSummary = (session: Session) => {
     if (!session.student_id) return;
@@ -464,6 +722,15 @@ export function DailyScheduler({
     if (!student) return;
 
     const text = generateIndividualSummaryText(session, student, counselorName);
+    copyToClipboard(text);
+    if (StorageService.isDemo()) {
+      onShowToast?.(
+        'Demo Modu: Mesaj Önizlemesi',
+        `Demo modunda WhatsApp bağlantısı açılmaz. Metin panoya kopyalandı: "${text.slice(0, 50)}..."`,
+        'info'
+      );
+      return;
+    }
     const url = getWhatsAppDirectUrl(student.phone, text);
     openExternalUrl(url);
   };
@@ -474,6 +741,15 @@ export function DailyScheduler({
     if (!student) return;
 
     const text = generateMissedSessionReminderText(student, session);
+    copyToClipboard(text);
+    if (StorageService.isDemo()) {
+      onShowToast?.(
+        'Demo Modu: Mesaj Önizlemesi',
+        `Demo modunda WhatsApp bağlantısı açılmaz. Hatırlatma metni panoya kopyalandı.`,
+        'info'
+      );
+      return;
+    }
     const url = getWhatsAppDirectUrl(student.phone, text);
     openExternalUrl(url);
   };
@@ -481,35 +757,35 @@ export function DailyScheduler({
   return (
     <div className="space-y-3">
       {/* Top Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 rounded-lg bg-white dark:bg-[#13151f] border border-slate-200/90 dark:border-white/[0.08] shadow-xs">
-        {/* Left: View Mode Switcher + Interactive Date Selector + Quick switches */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 p-2 rounded-lg bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 text-xs">
+        {/* Left: View Mode Switcher + Interactive Date Selector */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* View Mode Slider: [Günlük (Liste)] [Haftalık (Çizelge)] */}
-          <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-[#181a24] border border-slate-200 dark:border-white/15 shadow-2xs gap-1">
+          {/* View Mode Switcher */}
+          <div className="flex items-center p-0.5 rounded-md bg-stone-100 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 gap-0.5">
             <button
               type="button"
               onClick={() => setViewMode('daily')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-[5px] transition-colors cursor-pointer ${
                 viewMode === 'daily'
-                  ? 'bg-white text-slate-900 border border-slate-300/80 shadow-xs dark:bg-zinc-800 dark:text-blue-400 dark:border-blue-500/40'
-                  : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  ? 'bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-xs'
+                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
               }`}
               title="Günlük detaylı seans listesi"
             >
-              <LayoutList className="w-3.5 h-3.5 stroke-[2.2]" />
+              <LayoutList className="w-3.5 h-3.5" />
               <span>Günlük</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('weekly')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-[5px] transition-colors cursor-pointer ${
                 viewMode === 'weekly'
-                  ? 'bg-white text-slate-900 border border-slate-300/80 shadow-xs dark:bg-zinc-800 dark:text-blue-400 dark:border-blue-500/40'
-                  : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  ? 'bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-xs'
+                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
               }`}
               title="Haftalık ders ve seans çizelgesi matrisi"
             >
-              <Table className="w-3.5 h-3.5 stroke-[2.2]" />
+              <Table className="w-3.5 h-3.5" />
               <span>Haftalık Çizelge</span>
             </button>
           </div>
@@ -519,14 +795,14 @@ export function DailyScheduler({
             <button
               type="button"
               onClick={() => setShowMonthPicker(!showMonthPicker)}
-              className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-800 dark:bg-zinc-800 dark:hover:bg-zinc-750 dark:text-zinc-100 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-white/[0.08] cursor-pointer transition-colors group shadow-2xs"
+              className="flex items-center gap-2 bg-white hover:bg-stone-50 text-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700/80 dark:text-stone-100 px-2.5 py-1 rounded-md border border-stone-200 dark:border-stone-700 cursor-pointer transition-colors"
               title="Aylık takvim gezginini aç"
             >
-              <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span className="text-xs font-semibold text-slate-800 dark:text-zinc-100">
+              <Calendar className="w-3.5 h-3.5 text-teal-700 dark:text-teal-400" />
+              <span className="text-xs font-medium">
                 {formatTurkishDateWithoutDay(selectedDate)}
               </span>
-              <ChevronDown className="w-3 h-3 text-slate-500 dark:text-zinc-400" />
+              <ChevronDown className="w-3 h-3 text-stone-400" />
             </button>
 
             {showMonthPicker && (
@@ -552,16 +828,30 @@ export function DailyScheduler({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Program & Teneffüs Customizer Modal Trigger (Belirgin Sliders Butonu) */}
+          {/* WhatsApp Sıralı Gönderim */}
+          <button
+            type="button"
+            onClick={() => setIsWhatsAppQueueOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-medium transition-colors cursor-pointer"
+            title="Bugünkü seanslar için sıralı WhatsApp gönderim modu"
+          >
+            <Send className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Sıralı Mesaj</span>
+            {unsentMessagesCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-600 text-white font-mono font-bold">
+                {unsentMessagesCount}
+              </span>
+            )}
+          </button>
+
+          {/* Program & Teneffüs Planla */}
           <button
             type="button"
             onClick={() => setIsScheduleConfigOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 dark:bg-zinc-800 dark:text-zinc-100 border border-slate-300 dark:border-amber-500/50 text-xs font-semibold transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
-            title="Seans dakikası, teneffüs süresi belirle, tablo saatlerini kaydır veya teneffüs ekle"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white hover:bg-stone-50 text-stone-800 dark:bg-stone-800 dark:text-stone-200 border border-stone-200 dark:border-stone-700 text-xs font-medium transition-colors cursor-pointer"
+            title="Seans dakikası, teneffüs süresi belirle, saatleri kaydır"
           >
-            <div className="w-5 h-5 rounded-md bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 flex items-center justify-center shrink-0">
-              <Sliders className="w-3.5 h-3.5 stroke-[2.2]" />
-            </div>
+            <Sliders className="w-3.5 h-3.5 text-stone-500" />
             <span>Program & Teneffüs Planla</span>
           </button>
 
@@ -569,28 +859,29 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={() => setShowPrintModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 dark:bg-zinc-800 dark:hover:bg-zinc-750 border border-slate-300 dark:border-white/[0.08] text-xs font-semibold dark:text-zinc-200 transition-colors cursor-pointer shadow-2xs"
-            title="Resmi görüşme defteri ve A4 çıktısı"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white hover:bg-stone-50 text-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700/80 border border-stone-200 dark:border-stone-700 text-xs font-semibold dark:text-stone-100 transition-colors cursor-pointer"
+            title="Resmi görüşme defteri ve A4 çıktısı (Yazdır / PDF)"
           >
-            <Printer className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400" />
-            <span>Defter</span>
+            <Printer className="w-3.5 h-3.5 text-teal-700 dark:text-teal-400" />
+            <span>Yazdır / PDF</span>
           </button>
         </div>
       </div>
 
       {/* Interactive Week Navigation Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white dark:bg-[#13151f] border border-slate-200/90 dark:border-white/[0.08] shadow-xs">
-        <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 text-xs">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => setSelectedDate(shiftDateString(selectedDate, -7))}
-            className="p-1.5 rounded-md hover:bg-slate-100 text-slate-600 dark:hover:bg-zinc-800 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
+            className="p-1 rounded-md hover:bg-stone-100 text-stone-600 dark:hover:bg-stone-800 dark:text-stone-400 dark:hover:text-stone-100 transition-colors cursor-pointer"
             title="Önceki Hafta (7 gün önce)"
+            aria-label="Önceki Hafta"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
 
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1">
             {currentWeekDays.map((day) => {
               const isSelected = day.date === selectedDate;
               const daySessions = sessions.filter((s) => s.date === day.date);
@@ -602,30 +893,30 @@ export function DailyScheduler({
                   key={day.date}
                   type="button"
                   onClick={() => setSelectedDate(day.date)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-colors cursor-pointer ${
                     isSelected
-                      ? 'bg-blue-600 text-white font-semibold shadow-xs border border-blue-600 dark:bg-blue-600 dark:text-white'
-                      : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 dark:bg-white/[0.03] dark:text-zinc-400 dark:hover:text-zinc-200 dark:hover:bg-zinc-900 dark:border-transparent'
+                      ? 'bg-[#0F766E] text-white font-medium'
+                      : 'bg-stone-50 hover:bg-stone-100 text-stone-700 border border-stone-200 dark:bg-stone-900/60 dark:text-stone-300 dark:hover:text-stone-100 dark:border-stone-800'
                   }`}
                   title={`${day.shortDayName} gününü seç`}
                 >
-                  <span className="font-semibold">{day.shortDayName}</span>
+                  <span className="font-medium">{day.shortDayName}</span>
                   <span
                     className={`text-[11px] font-mono ${
-                      isSelected ? 'text-white font-bold' : 'text-slate-600 dark:text-zinc-400'
+                      isSelected ? 'text-white' : 'text-stone-500 dark:text-stone-400'
                     }`}
                   >
                     {day.dayNumber}
                   </span>
                   {day.isToday && (
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-white' : 'bg-emerald-500'}`} title="Bugün" />
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-white' : 'bg-teal-600'}`} title="Bugün" />
                   )}
                   {dayTotal > 0 && (
                     <span
-                      className={`text-[10px] font-mono px-1 py-0.5 rounded ${
+                      className={`text-[10px] font-mono px-1 py-0.2 rounded ${
                         isSelected
                           ? 'bg-white/20 text-white'
-                          : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-white/[0.06] dark:text-zinc-400 dark:border-transparent'
+                          : 'bg-stone-200/70 text-stone-600 dark:bg-stone-800 dark:text-stone-400'
                       }`}
                     >
                       {dayFilled}/{dayTotal}
@@ -639,8 +930,9 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={() => setSelectedDate(shiftDateString(selectedDate, 7))}
-            className="p-1.5 rounded-md hover:bg-slate-100 text-slate-600 dark:hover:bg-zinc-800 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
+            className="p-1 rounded-md hover:bg-stone-100 text-stone-600 dark:hover:bg-stone-800 dark:text-stone-400 dark:hover:text-stone-100 transition-colors cursor-pointer"
             title="Sonraki Hafta (7 gün sonra)"
+            aria-label="Sonraki Hafta"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -650,12 +942,12 @@ export function DailyScheduler({
           <button
             type="button"
             onClick={() => setSelectedDate(todayStr)}
-            className="text-black font-bold hover:underline cursor-pointer dark:text-blue-400"
+            className="text-stone-700 hover:text-teal-700 dark:text-stone-300 dark:hover:text-teal-400 font-medium cursor-pointer"
           >
             Bugüne Dön
           </button>
-          <span className="text-slate-400 dark:text-zinc-700">|</span>
-          <span className="text-black dark:text-zinc-400 font-mono text-[11px] font-medium">
+          <span className="text-stone-300 dark:text-stone-700">|</span>
+          <span className="text-stone-500 dark:text-stone-400 font-mono text-[11px]">
             {currentWeekDays[0]?.dayNumber} - {currentWeekDays[currentWeekDays.length - 1]?.dayNumber}{' '}
             {formatTurkishDate(selectedDate).split(' ')[1]}
           </span>
@@ -684,60 +976,261 @@ export function DailyScheduler({
         />
       ) : (
         /* Daily Detailed View */
-        <div className="space-y-4">
-          {/* Daily Detailed Table */}
-          <div className="border border-slate-200 dark:border-white/[0.08] rounded-xl overflow-hidden bg-white dark:bg-[#141622] shadow-sm dark:shadow-2xl transition-colors">
-            {dateSessions.length === 0 ? (
-              <div className="text-center py-16 px-4 bg-slate-50/50 dark:bg-[#10121c]/40">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-3.5 border border-indigo-200/80 dark:border-indigo-500/20 shadow-xs">
-                  <Calendar className="w-7 h-7" />
+        <div className="space-y-3">
+          {/* 1. "BUGÜN" ANA EKRANI: TEK BAKIŞTA DURUM ÖZETİ & SIRADAKİ SEANS KARTI */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+            {/* Kart 1: Bugünkü Seans Sayısı */}
+            <div className="p-3 rounded-lg bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 shadow-xs flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                  <span>Günün Seansları</span>
+                </span>
+                <span className="text-xs font-mono font-medium text-stone-400">
+                  {formatTurkishDateWithoutDay(selectedDate)}
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <div>
+                  <span className="text-xl font-bold font-mono text-stone-900 dark:text-stone-100">
+                    {dateSessions.length}
+                  </span>
+                  <span className="text-xs text-stone-500 ml-1.5">seans aralığı</span>
                 </div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Bu tarihte planlanmış seans yok
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 max-w-md mx-auto">
-                  Gününüzü tek tıkla standart çalışma saatlerine bölebilir veya ihtiyacınıza göre serbest aralıklar tanımlayabilirsiniz.
+                <span className="text-xs text-stone-600 dark:text-stone-400 font-mono">
+                  <span className="font-semibold text-teal-700 dark:text-teal-400">{assignedCount}</span> dolu · {emptyCount} boş
+                </span>
+              </div>
+              <div className="mt-2.5 pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  onClick={handleAddNewSessionRow}
+                  className="text-teal-700 dark:text-teal-400 hover:text-teal-800 font-medium inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Yeni Seans Ekle</span>
+                </button>
+                <kbd className="text-[10px] font-mono text-stone-400 bg-stone-100 dark:bg-stone-800 px-1 rounded border border-stone-200 dark:border-stone-700">⌘N</kbd>
+              </div>
+            </div>
+
+            {/* Kart 2: Sıradaki Seans (Canlı Geri Sayım & 1-Tık Aksiyonlar) */}
+            <div className="p-3 rounded-lg bg-teal-50/40 dark:bg-stone-900/80 border border-teal-200 dark:border-teal-900/60 shadow-xs flex flex-col justify-between sm:col-span-2 lg:col-span-1">
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-teal-900 dark:text-teal-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-teal-700 dark:text-teal-400" />
+                    <span>Sıradaki Seans</span>
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${
+                      countdownInfo.isNow
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 animate-pulse'
+                        : 'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300'
+                    }`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                    <span>{countdownInfo.text}</span>
+                  </span>
+                </div>
+
+                {nextSession && nextStudent ? (
+                  <div className="mt-1.5">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-mono font-bold text-teal-950 dark:text-teal-200">
+                        {nextSession.time_slot}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onOpenStudentProfile(nextStudent)}
+                        className="text-xs font-semibold text-stone-900 dark:text-stone-100 hover:text-teal-700 truncate cursor-pointer"
+                      >
+                        {nextStudent.full_name}
+                      </button>
+                      <span className="text-[11px] font-mono text-stone-500">
+                        {nextStudent.class_grade}
+                      </span>
+                    </div>
+                    {nextSession.topic && (
+                      <p className="text-[11px] text-stone-600 dark:text-stone-400 truncate mt-0.5">
+                        {nextSession.topic}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-2">
+                    Planlanmış bekleyen seans bulunmuyor.
+                  </p>
+                )}
+              </div>
+
+              {/* Tek Tıkla Aksiyonlar: Başladı, Geldi, Gelmedi, Not Ekle, Mesaj Gönder */}
+              {nextSession && nextStudent ? (
+                <div className="mt-2.5 pt-2 border-t border-teal-200/60 dark:border-teal-900/60 flex items-center justify-between gap-1 flex-wrap text-xs">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickStartNext(nextSession)}
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                        nextSession.is_in_progress
+                          ? 'bg-emerald-600 text-white font-semibold'
+                          : 'bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-stone-800 dark:text-emerald-300 dark:border-emerald-800'
+                      }`}
+                      title="Seansı başlat (Devam ediyor)"
+                    >
+                      {nextSession.is_in_progress ? '✓ Başladı' : 'Başlat'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(nextSession, 'Geldi')}
+                      className="px-2 py-0.5 rounded text-[11px] font-medium bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-stone-800 dark:text-emerald-300 dark:border-emerald-800 transition-colors cursor-pointer"
+                      title="Geldi olarak işaretle (Klavye: 2)"
+                    >
+                      Geldi <span className="text-[9px] opacity-60">2</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(nextSession, 'Gelmedi')}
+                      className="px-2 py-0.5 rounded text-[11px] font-medium bg-white hover:bg-rose-50 text-rose-800 border border-rose-300 dark:bg-stone-800 dark:text-rose-300 dark:border-rose-800 transition-colors cursor-pointer"
+                      title="Gelmedi olarak işaretle (Klavye: 3)"
+                    >
+                      Gelmedi <span className="text-[9px] opacity-60">3</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setActiveQuickNoteSession(nextSession)}
+                      className="p-1 rounded bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700 transition-colors cursor-pointer"
+                      title="Not ve takip planı ekle"
+                    >
+                      <Bookmark className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSendIndividualSummary(nextSession)}
+                      className="p-1 rounded bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-stone-800 dark:text-emerald-400 dark:border-emerald-800 transition-colors cursor-pointer"
+                      title="WhatsApp Seans Bildirimi Gönder"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-2.5 pt-2 border-t border-teal-200/60 dark:border-teal-900/60 text-xs">
+                  <span className="text-[11px] text-stone-500">Tüm seanslar güncel</span>
+                </div>
+              )}
+            </div>
+
+            {/* Kart 3: Mesajı Henüz Gönderilmemiş Öğrenciler */}
+            <div className="p-3 rounded-lg bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 shadow-xs flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Bekleyen WhatsApp</span>
+                </span>
+                <span className="text-xs font-mono font-medium text-stone-400">
+                  {assignedDateSessions.length} seans
+                </span>
+              </div>
+              <div className="mt-2">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xl font-bold font-mono text-stone-900 dark:text-stone-100">
+                    {unsentMessagesCount}
+                  </span>
+                  <span className="text-xs text-stone-500">öğrenciye mesaj gitmedi</span>
+                </div>
+                <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 truncate">
+                  {unsentMessagesCount === 0 ? 'Tüm bildirimler gönderildi ✓' : 'Sıralı gönderim ile hızlıca iletin'}
                 </p>
-                <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+              </div>
+              <div className="mt-2.5 pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  onClick={() => setIsWhatsAppQueueOpen(true)}
+                  className="text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 font-semibold inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Send className="w-3 h-3" />
+                  <span>Sıralı Gönderim ({unsentMessagesCount})</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Kart 4: Gelmeyip Tekrar Planlanması Gerekenler */}
+            <div className="p-3 rounded-lg bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 shadow-xs flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                  <span>Gelmeyenler & Telafi</span>
+                </span>
+                <span className="text-xs font-mono text-stone-400">
+                  {missedCount > 0 ? `${missedCount} kayıt` : 'Sorunsuz'}
+                </span>
+              </div>
+              <div className="mt-2">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400">
+                    {missedCount}
+                  </span>
+                  <span className="text-xs text-stone-500">öğrenci gelmedi</span>
+                </div>
+                <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5 truncate">
+                  {missedCount > 0 ? 'Yeniden planlama veya veli araması' : 'Bugün gelmeyen öğrenci yok'}
+                </p>
+              </div>
+              <div className="mt-2.5 pt-2 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-xs">
+                {missedCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setSlotFilter('missed')}
+                    className="text-rose-700 dark:text-rose-400 hover:text-rose-800 font-medium inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Gelmeyenleri Filtrele</span>
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-stone-400">Düzenli katılım</span>
+                )}
+              </div>
+            </div>
+          </div>
+          {/* Daily Detailed Table */}
+          <div className="border border-stone-200 dark:border-stone-800 rounded-lg overflow-hidden bg-white dark:bg-[#1F1F1F]">
+            {dateSessions.length === 0 ? (
+              <div className="text-center py-12 px-4 bg-stone-50/50 dark:bg-stone-900/30">
+                <div className="w-10 h-10 mx-auto rounded-md bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-teal-700 dark:text-teal-400 mb-3 border border-stone-200 dark:border-stone-700">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                  Bu tarihte seans planlanmamış
+                </h3>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 max-w-sm mx-auto">
+                  Standart çalışma saatlerini yükleyerek günlük seansları oluşturabilirsiniz.
+                </p>
+                <div className="mt-4 flex justify-center">
                   <button
                     type="button"
                     onClick={() => onFillStandardSlots(selectedDate)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-[#0F766E] hover:bg-[#0D645E] text-white text-xs font-semibold transition-colors cursor-pointer"
                   >
-                    <Zap className="w-4 h-4" />
-                    <span>Standart Saatleri Yükle (09:00 - 16:40)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAddNewSessionRow}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white hover:bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 border border-slate-300 dark:border-zinc-700 text-xs font-medium transition-colors cursor-pointer shadow-2xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Boş Seans Ekle</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsScheduleConfigOpen(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white hover:bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 border border-slate-300 dark:border-zinc-700 text-xs font-medium transition-colors cursor-pointer shadow-2xs"
-                  >
-                    <Sliders className="w-3.5 h-3.5" />
-                    <span>Zil & Mola Yapılandır</span>
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Standart Saatleri Yükle</span>
                   </button>
                 </div>
               </div>
             ) : (
             <div>
               {/* Professional Table Toolbar & Filters */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2.5 border-b border-slate-200/80 dark:border-white/[0.08] text-xs">
-                {/* Status Filter Tabs (Linear-inspired prominent segmented slider) */}
-                <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#181a24] border-2 border-black dark:border-white/20 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 py-2 border-b border-stone-200 dark:border-stone-800 text-xs">
+                {/* Status Filter Tabs (Clean Segmented Control) */}
+                <div className="flex items-center gap-0.5 p-0.5 rounded-md bg-stone-100 dark:bg-stone-900 border border-stone-200 dark:border-stone-800">
                   <button
                     type="button"
                     onClick={() => setSlotFilter('all')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-[5px] text-xs font-medium transition-colors cursor-pointer ${
                       slotFilter === 'all'
-                        ? 'bg-white text-black font-black border-2 border-black shadow-2xs dark:bg-zinc-800 dark:text-blue-400 dark:border-blue-500/40'
-                        : 'text-black hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                        ? 'bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-xs'
+                        : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
                     }`}
                   >
                     Tümü ({dateSessions.length})
@@ -745,10 +1238,10 @@ export function DailyScheduler({
                   <button
                     type="button"
                     onClick={() => setSlotFilter('assigned')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-[5px] text-xs font-medium transition-colors cursor-pointer ${
                       slotFilter === 'assigned'
-                        ? 'bg-white text-black font-black border-2 border-black shadow-2xs dark:bg-zinc-800 dark:text-blue-400 dark:border-blue-500/40'
-                        : 'text-black hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                        ? 'bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-xs'
+                        : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
                     }`}
                   >
                     Dolu ({assignedCount})
@@ -756,10 +1249,10 @@ export function DailyScheduler({
                   <button
                     type="button"
                     onClick={() => setSlotFilter('empty')}
-                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-[5px] text-xs font-medium transition-colors cursor-pointer ${
                       slotFilter === 'empty'
-                        ? 'bg-white text-black font-black border-2 border-black shadow-2xs dark:bg-zinc-800 dark:text-blue-400 dark:border-blue-500/40'
-                        : 'text-black hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                        ? 'bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-xs'
+                        : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
                     }`}
                   >
                     Boş ({emptyCount})
@@ -768,10 +1261,10 @@ export function DailyScheduler({
                     <button
                       type="button"
                       onClick={() => setSlotFilter('missed')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-[5px] text-xs font-medium transition-colors cursor-pointer ${
                         slotFilter === 'missed'
-                          ? 'bg-rose-500 text-white font-black border-2 border-black shadow-xs'
-                          : 'text-rose-600 hover:text-rose-700 dark:text-rose-400 font-bold hover:underline'
+                          ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 font-semibold'
+                          : 'text-rose-600 hover:text-rose-700 dark:text-rose-400'
                       }`}
                     >
                       Gelmedi ({missedCount})
@@ -780,8 +1273,8 @@ export function DailyScheduler({
                 </div>
 
                 {/* Day Summary Badge */}
-                <div className="flex items-center gap-2 text-xs font-medium text-black dark:text-zinc-400">
-                  <span className="px-2.5 py-1 rounded-md bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 text-black dark:text-zinc-300 font-mono shadow-2xs">
+                <div className="flex items-center gap-2 text-xs font-medium text-stone-600 dark:text-stone-400">
+                  <span className="font-mono text-[11px]">
                     Toplam {dateSessions.length} Seans / Aralık
                   </span>
                 </div>
@@ -789,32 +1282,30 @@ export function DailyScheduler({
 
               {/* Empty state when active filter has 0 results */}
               {displayedSessions.length === 0 ? (
-                <div className="text-center py-14 px-4 bg-slate-50/50 dark:bg-[#10121c]/50">
-                  <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 dark:text-zinc-400 mb-3 border border-slate-200 dark:border-white/[0.08]">
+                <div className="text-center py-12 px-4 bg-stone-50/50 dark:bg-stone-900/30">
+                  <div className="w-10 h-10 mx-auto rounded-md bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-stone-500 dark:text-stone-400 mb-2.5 border border-stone-200 dark:border-stone-700">
                     {slotFilter === 'missed' ? (
-                      <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                    ) : slotFilter === 'empty' ? (
-                      <Sparkles className="w-6 h-6 text-amber-500" />
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                     ) : (
-                      <Filter className="w-6 h-6 text-slate-400" />
+                      <Filter className="w-5 h-5 text-stone-500" />
                     )}
                   </div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                    {slotFilter === 'missed' && 'Harika! Bugün randevusuna gelmeyen öğrenci yok'}
-                    {slotFilter === 'empty' && 'Tüm seans saatleri dolu! Boş kontenjan kalmadı'}
+                  <h4 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                    {slotFilter === 'missed' && 'Bugün randevusuna gelmeyen öğrenci yok'}
+                    {slotFilter === 'empty' && 'Tüm seans saatleri dolu; boş kontenjan kalmadı'}
                     {slotFilter === 'assigned' && 'Bugün henüz öğrenci atanmış seans yok'}
                     {slotFilter === 'all' && 'Kayıtlı seans bulunamadı'}
                   </h4>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 max-w-sm mx-auto">
+                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 max-w-sm mx-auto">
                     {slotFilter === 'missed'
                       ? 'Planlanan tüm seanslara öğrenciler eksiksiz katılım sağladı.'
                       : 'Filtreleme kriterlerine uyan seans veya mola aralığı bulunamadı.'}
                   </p>
-                  <div className="mt-4">
+                  <div className="mt-3">
                     <button
                       type="button"
                       onClick={() => setSlotFilter('all')}
-                      className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 border border-slate-300 dark:border-zinc-700 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                      className="px-3 py-1.5 rounded-md bg-white hover:bg-stone-50 text-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-200 border border-stone-200 dark:border-stone-700 text-xs font-medium transition-colors cursor-pointer"
                     >
                       Tüm Seansları Göster ({dateSessions.length})
                     </button>
@@ -823,19 +1314,19 @@ export function DailyScheduler({
               ) : (
                 <>
                   {/* Desktop Table (hidden on mobile/tablet screens) */}
-                  <div className="hidden md:block overflow-x-auto">
+                  <div className="hidden md:block overflow-x-auto max-h-[calc(100vh-280px)]">
                     <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50/90 dark:bg-[#0c0e17] border-b border-slate-200 dark:border-white/[0.08] text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 select-none">
-                          <th className="align-middle py-3 px-2 w-14 text-center" title="Sıralama (9 Nokta ile Tutup Sürükleyin / Tablet / Oklar)"></th>
+                      <thead className="sticky top-0 z-10 bg-stone-50 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800">
+                        <tr className="text-[11px] font-semibold text-stone-500 dark:text-stone-400 select-none">
+                          <th className="align-middle py-2.5 px-2 w-12 text-center" title="Sıralama (Sürükleyin veya Okları Kullanın)"></th>
                           <th className="align-middle py-3 px-3 w-28 font-mono">Saat</th>
                           <th className="align-middle py-3 px-3.5 min-w-[220px]">Öğrenci</th>
                           <th className="align-middle py-3 px-3.5 min-w-[240px]">Görüşme Konusu & Teşhis</th>
-                          <th className="align-middle py-3 px-3.5 w-52">Durum & Değerlendirme</th>
+                          <th className="align-middle py-3 px-3.5 w-56">Durum</th>
                           <th className="align-middle py-3 px-3.5 text-right w-44">İşlemler</th>
                         </tr>
                       </thead>
-                      <tbody className="font-sans divide-y divide-slate-200/90 dark:divide-white/[0.07]">
+                      <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                         {displayedSessions.map((session) => {
                           const isBeingHeld = draggedSessionId === session.id;
                           const isDropTarget = dragOverSessionId === session.id;
@@ -854,22 +1345,17 @@ export function DailyScheduler({
                                   setDraggedSessionId(null);
                                   setDragOverSessionId(null);
                                 }}
-                                className={`group relative transition-colors duration-150 ${
+                                className={`transition-colors h-11 ${
                                   isBeingHeld
-                                    ? 'drag-held-card z-40 bg-indigo-50/95 dark:bg-[#1a1d32] border-indigo-400 dark:border-indigo-500'
+                                    ? 'bg-teal-50 dark:bg-stone-800 border-teal-600'
                                     : isDropTarget
-                                    ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-t-[3px] border-indigo-600 dark:border-indigo-400 drop-shelf-indicator'
-                                    : isLunch
-                                    ? 'bg-amber-50/60 hover:bg-amber-100/50 border-l-[3px] border-l-amber-500 dark:bg-amber-950/20 dark:border-l-amber-500'
-                                    : 'bg-slate-50/60 hover:bg-slate-100/60 border-l-[3px] border-l-slate-300 dark:bg-zinc-900/40 dark:border-l-zinc-700'
+                                    ? 'bg-stone-100 dark:bg-stone-800 border-t-2 border-teal-700'
+                                    : 'bg-stone-50/50 hover:bg-stone-100/50 dark:bg-stone-900/30 dark:hover:bg-stone-850/50'
                                 }`}
                               >
-                                {/* 9 Noktalı Sürükleme Tutamacı & Tablet Kontrolleri */}
-                                <td className="align-middle py-3 px-2 w-14 text-center select-none relative">
-                                  {isDropTarget && (
-                                    <span className="absolute -top-1.5 left-2 w-3 h-3 rounded-full bg-indigo-600 dark:bg-indigo-400 border-2 border-white dark:border-zinc-900 shadow-md z-30 animate-pulse pointer-events-none" />
-                                  )}
-                                  <div className="flex items-center justify-center gap-1">
+                                {/* Sürükleme Tutamacı & Oklar */}
+                                <td className="align-middle py-2 px-2 w-12 text-center select-none">
+                                  <div className="flex items-center justify-center gap-0.5">
                                     <div
                                       draggable
                                       onDragStart={(e) => handleDragStart(e, session.id)}
@@ -878,14 +1364,10 @@ export function DailyScheduler({
                                       onTouchEnd={handleTouchEnd}
                                       onTouchCancel={handleTouchEnd}
                                       style={{ touchAction: 'none' }}
-                                      className={`p-1.5 rounded-lg cursor-grab active:cursor-grabbing transition-all touch-none select-none ${
-                                        isBeingHeld
-                                          ? 'bg-indigo-600 text-white shadow-md scale-110 ring-2 ring-indigo-300'
-                                          : 'hover:bg-slate-200/80 dark:hover:bg-zinc-800 text-slate-400 hover:text-indigo-600 dark:text-zinc-500 dark:hover:text-zinc-200'
-                                      }`}
-                                      title="Sürükleyip sırayı değiştirmek için basılı tutun"
+                                      className="p-1 rounded cursor-grab active:cursor-grabbing text-stone-400 hover:text-stone-700 dark:text-stone-500 dark:hover:text-stone-300"
+                                      title="Sırayı değiştirmek için sürükleyin"
                                     >
-                                      <NineDotsGrip className={isBeingHeld ? 'text-white' : ''} />
+                                      <NineDotsGrip />
                                     </div>
                                     <div className="flex flex-col items-center -space-y-0.5">
                                       <button
@@ -895,8 +1377,9 @@ export function DailyScheduler({
                                           handleMoveRow(session.id, 'up');
                                         }}
                                         disabled={dateSessions.findIndex((s) => s.id === session.id) === 0}
-                                        className="p-0.5 text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400 dark:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                                        className="p-0.5 text-stone-400 hover:text-stone-700 disabled:opacity-20 dark:text-stone-500 dark:hover:text-stone-300 transition-colors cursor-pointer"
                                         title="Yukarı taşı"
+                                        aria-label="Yukarı taşı"
                                       >
                                         <ChevronUp className="w-3 h-3" />
                                       </button>
@@ -907,8 +1390,9 @@ export function DailyScheduler({
                                           handleMoveRow(session.id, 'down');
                                         }}
                                         disabled={dateSessions.findIndex((s) => s.id === session.id) === dateSessions.length - 1}
-                                        className="p-0.5 text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400 dark:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                                        className="p-0.5 text-stone-400 hover:text-stone-700 disabled:opacity-20 dark:text-stone-500 dark:hover:text-stone-300 transition-colors cursor-pointer"
                                         title="Aşağı taşı"
+                                        aria-label="Aşağı taşı"
                                       >
                                         <ChevronDown className="w-3 h-3" />
                                       </button>
@@ -917,68 +1401,52 @@ export function DailyScheduler({
                                 </td>
 
                                 {/* Saat Column */}
-                                <td className="align-middle py-3 px-3 font-mono whitespace-nowrap">
+                                <td className="align-middle py-2 px-3 font-mono whitespace-nowrap">
                                   <button
                                     type="button"
                                     onClick={() => setEditingBreakSession(session)}
-                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold font-mono transition-all cursor-pointer ${
-                                      isLunch
-                                        ? 'bg-amber-100 text-amber-950 border border-amber-300/80 dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-500/30 hover:ring-2 hover:ring-amber-400/60'
-                                        : 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700 hover:bg-slate-200/80'
-                                    }`}
+                                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 hover:bg-stone-200/80 cursor-pointer"
                                     title="Teneffüs süresini değiştirmek için tıklayın"
                                   >
                                     {isLunch ? (
-                                      <Utensils className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
+                                      <Utensils className="w-3.5 h-3.5 text-stone-600 dark:text-stone-400" />
                                     ) : (
-                                      <Coffee className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400" />
+                                      <Coffee className="w-3.5 h-3.5 text-stone-600 dark:text-stone-400" />
                                     )}
-                                    {session.time_slot}
+                                    <span>{session.time_slot}</span>
                                   </button>
                                 </td>
 
-                                <td colSpan={3} className="align-middle py-3 px-3.5">
-                                  <div className="flex items-center gap-2.5">
+                                <td colSpan={3} className="align-middle py-2 px-3.5">
+                                  <div className="flex items-center gap-2">
                                     <button
                                       type="button"
                                       onClick={() => setEditingBreakSession(session)}
-                                      className={`group/break inline-flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all cursor-pointer text-left shadow-2xs ${
-                                        isLunch
-                                          ? 'bg-amber-100/80 hover:bg-amber-200/90 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-950 dark:text-amber-100 border border-amber-300/80 dark:border-amber-500/30'
-                                          : 'bg-slate-100/90 hover:bg-slate-200/80 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700'
-                                      }`}
+                                      className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md text-xs font-medium text-stone-800 dark:text-stone-200 bg-stone-100 hover:bg-stone-200/80 dark:bg-stone-800 dark:hover:bg-stone-700 transition-colors cursor-pointer text-left"
                                       title="Teneffüs süresini değiştirmek için tıklayın"
                                     >
-                                      <span className="text-xs font-bold">
+                                      <span>
                                         {session.break_title ||
                                           session.topic ||
                                           (isLunch ? 'Öğle Arası' : 'Teneffüs')}
                                       </span>
-                                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold font-mono ${
-                                        isLunch
-                                          ? 'bg-white/85 dark:bg-black/40 text-amber-900 dark:text-amber-200 border border-amber-300/70 dark:border-amber-500/30'
-                                          : 'bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700'
-                                      }`}>
-                                        <Clock className={`w-3 h-3 ${isLunch ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-zinc-400'}`} />
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-mono text-stone-600 dark:text-stone-300 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700">
+                                        <Clock className="w-3 h-3 text-stone-400" />
                                         <span>{getBreakMinutes(session)} dk</span>
                                       </span>
                                     </button>
-                                    {isLunch && (
-                                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-200/80 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200 border border-amber-300/80 dark:border-amber-500/30">
-                                        Yemek & Dinlenme
-                                      </span>
-                                    )}
                                   </div>
                                 </td>
 
-                                <td className="align-middle py-3 px-3.5 text-right">
+                                <td className="align-middle py-2 px-3.5 text-right">
                                   <button
                                     type="button"
                                     onClick={() => onDeleteSession(session.id)}
-                                    className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                                    className="p-1.5 rounded-md text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                                     title={isLunch ? 'Öğle Arasını Kaldır' : 'Teneffüsü Kaldır'}
+                                    aria-label="Molayı kaldır"
                                   >
-                                    <Trash2 className="w-4 h-4" />
+                                    <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </td>
                               </tr>
@@ -992,35 +1460,41 @@ export function DailyScheduler({
                           const isCompleted = session.status === 'Geldi';
                           const isMissed = session.status === 'Gelmedi';
                           const isPending = session.status === 'Bekliyor';
+                          const isPostponed = session.status === 'Ertelendi';
+                          const isHoveredOrSelected = hoveredSessionId === session.id || selectedSessionId === session.id;
 
                           return (
                             <tr
                               key={session.id}
                               data-session-id={session.id}
+                              onMouseEnter={() => setHoveredSessionId(session.id)}
+                              onMouseLeave={() => setHoveredSessionId(null)}
+                              onClick={() => setSelectedSessionId(session.id)}
                               onDragOver={(e) => handleDragOver(e, session.id)}
                               onDrop={(e) => handleDrop(e, session.id)}
                               onDragEnd={() => {
                                 setDraggedSessionId(null);
                                 setDragOverSessionId(null);
                               }}
-                              className={`group relative transition-colors duration-150 ${
+                              className={`transition-colors h-11 ${
                                 isBeingHeld
-                                  ? 'drag-held-card z-40 bg-indigo-50/95 dark:bg-[#1a1d32] border-indigo-400 dark:border-indigo-500'
+                                  ? 'bg-teal-50 dark:bg-stone-800'
                                   : isDropTarget
-                                  ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-t-[3px] border-indigo-600 dark:border-indigo-400 drop-shelf-indicator'
+                                  ? 'bg-stone-100 dark:bg-stone-800 border-t-2 border-teal-700'
                                   : isCompleted
-                                  ? 'bg-emerald-50/35 hover:bg-emerald-50/60 border-l-[3px] border-l-emerald-600 dark:bg-emerald-950/[0.08] dark:hover:bg-emerald-950/[0.14] dark:border-l-emerald-500'
+                                  ? 'bg-emerald-50/20 hover:bg-emerald-50/40 dark:bg-emerald-950/[0.04]'
                                   : isMissed
-                                  ? 'bg-rose-50/35 hover:bg-rose-50/60 border-l-[3px] border-l-rose-600 dark:bg-rose-950/[0.08] dark:hover:bg-rose-950/[0.14] dark:border-l-rose-500'
-                                  : 'bg-white hover:bg-indigo-50/30 border-l-[3px] border-l-transparent dark:bg-[#141622] dark:hover:bg-[#181b2a]'
+                                  ? 'bg-rose-50/20 hover:bg-rose-50/40 dark:bg-rose-950/[0.04]'
+                                  : isPostponed
+                                  ? 'bg-amber-50/20 hover:bg-amber-50/40 dark:bg-amber-950/[0.04]'
+                                  : isHoveredOrSelected
+                                  ? 'bg-stone-100/70 dark:bg-stone-800/60'
+                                  : 'hover:bg-stone-50/80 dark:hover:bg-stone-800/40'
                               }`}
                             >
-                              {/* 9 Noktalı Sürükleme Tutamacı & Tablet Kontrolleri */}
-                              <td className="align-middle py-3 px-2 w-14 text-center select-none relative">
-                                {isDropTarget && (
-                                  <span className="absolute -top-1.5 left-2 w-3 h-3 rounded-full bg-indigo-600 dark:bg-indigo-400 border-2 border-white dark:border-zinc-900 shadow-md z-30 animate-pulse pointer-events-none" />
-                                )}
-                                <div className="flex items-center justify-center gap-1">
+                              {/* Sürükleme Tutamacı & Oklar */}
+                              <td className="align-middle py-2 px-2 w-12 text-center select-none">
+                                <div className="flex items-center justify-center gap-0.5">
                                   <div
                                     draggable
                                     onDragStart={(e) => handleDragStart(e, session.id)}
@@ -1029,14 +1503,10 @@ export function DailyScheduler({
                                     onTouchEnd={handleTouchEnd}
                                     onTouchCancel={handleTouchEnd}
                                     style={{ touchAction: 'none' }}
-                                    className={`p-1.5 rounded-lg cursor-grab active:cursor-grabbing transition-all touch-none select-none ${
-                                      isBeingHeld
-                                        ? 'bg-indigo-600 text-white shadow-md scale-110 ring-2 ring-indigo-300'
-                                        : 'hover:bg-slate-200/80 dark:hover:bg-zinc-800 text-slate-400 hover:text-indigo-600 dark:text-zinc-500 dark:hover:text-zinc-200'
-                                    }`}
-                                    title="Sürükleyip sırayı değiştirmek için basılı tutun"
+                                    className="p-1 rounded cursor-grab active:cursor-grabbing text-stone-400 hover:text-stone-700 dark:text-stone-500 dark:hover:text-stone-300"
+                                    title="Sırayı değiştirmek için sürükleyin"
                                   >
-                                    <NineDotsGrip className={isBeingHeld ? 'text-white' : ''} />
+                                    <NineDotsGrip />
                                   </div>
                                   <div className="flex flex-col items-center -space-y-0.5">
                                     <button
@@ -1046,8 +1516,9 @@ export function DailyScheduler({
                                         handleMoveRow(session.id, 'up');
                                       }}
                                       disabled={dateSessions.findIndex((s) => s.id === session.id) === 0}
-                                      className="p-0.5 text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400 dark:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                                      className="p-0.5 text-stone-400 hover:text-stone-700 disabled:opacity-20 dark:text-stone-500 dark:hover:text-stone-300 transition-colors cursor-pointer"
                                       title="Yukarı taşı"
+                                      aria-label="Yukarı taşı"
                                     >
                                       <ChevronUp className="w-3 h-3" />
                                     </button>
@@ -1058,8 +1529,9 @@ export function DailyScheduler({
                                         handleMoveRow(session.id, 'down');
                                       }}
                                       disabled={dateSessions.findIndex((s) => s.id === session.id) === dateSessions.length - 1}
-                                      className="p-0.5 text-slate-400 hover:text-slate-900 disabled:opacity-20 disabled:hover:text-slate-400 dark:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-pointer disabled:cursor-not-allowed"
+                                      className="p-0.5 text-stone-400 hover:text-stone-700 disabled:opacity-20 dark:text-stone-500 dark:hover:text-stone-300 transition-colors cursor-pointer"
                                       title="Aşağı taşı"
+                                      aria-label="Aşağı taşı"
                                     >
                                       <ChevronDown className="w-3 h-3" />
                                     </button>
@@ -1068,38 +1540,38 @@ export function DailyScheduler({
                               </td>
 
                               {/* Saat Column */}
-                              <td className="align-middle py-3 px-3 font-mono text-xs whitespace-nowrap">
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 font-bold font-mono tracking-tight">
+                              <td className="align-middle py-2 px-3 font-mono text-xs whitespace-nowrap">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono text-stone-700 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700">
                                   {session.time_slot}
                                 </span>
                               </td>
 
                               {/* Öğrenci */}
-                              <td className="align-middle py-3 px-3.5">
+                              <td className="align-middle py-2 px-3.5">
                                 {student ? (
-                                  <div className="flex items-center justify-between gap-2.5">
+                                  <div className="flex items-center justify-between gap-2">
                                     <div className="min-w-0">
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-1.5">
                                         <button
                                           type="button"
                                           onClick={() => onOpenStudentProfile(student)}
-                                          className="font-bold text-sm text-slate-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate hover:underline text-left cursor-pointer transition-colors"
+                                          className="font-medium text-xs text-stone-900 dark:text-stone-100 hover:text-teal-700 dark:hover:text-teal-400 truncate text-left cursor-pointer transition-colors"
                                         >
                                           {student.full_name}
                                         </button>
-                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 border border-slate-200/80 dark:border-zinc-700 shrink-0">
+                                        <span className="font-mono text-[11px] text-stone-500 dark:text-stone-400">
                                           {student.class_grade}
                                         </span>
                                       </div>
-                                      <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 dark:text-zinc-400 font-mono">
-                                        <span className="font-semibold text-slate-800 dark:text-zinc-200">{displayPhone(student.phone)}</span>
+                                      <div className="flex items-center gap-1 text-[11px] text-stone-500 dark:text-stone-400">
+                                        <span className="font-mono">{displayPhone(student.phone)}</span>
                                         {student.target_goal && (
-                                          <span
-                                            className="text-slate-500 dark:text-zinc-400 font-sans truncate max-w-[140px]"
-                                            title={student.target_goal}
-                                          >
-                                            &bull; {student.target_goal}
-                                          </span>
+                                          <>
+                                            <span aria-hidden="true">·</span>
+                                            <span className="truncate max-w-[140px] text-stone-500" title={student.target_goal}>
+                                              {student.target_goal}
+                                            </span>
+                                          </>
                                         )}
                                       </div>
                                     </div>
@@ -1107,14 +1579,15 @@ export function DailyScheduler({
                                     <button
                                       type="button"
                                       onClick={() => handleUnassignStudent(session.id)}
-                                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer shrink-0"
+                                      className="p-1 rounded-md text-stone-400 hover:text-rose-600 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer shrink-0"
                                       title="Seansı boşalt"
+                                      aria-label="Öğrenciyi seansından ayır"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
                                 ) : (
-                                  /* Fast Slot Assignment Input with autocomplete */
+                                  /* Fast Slot Assignment Input */
                                   <div className="relative">
                                     {activeSlotSearchId === session.id ? (
                                       <div className="relative">
@@ -1122,42 +1595,57 @@ export function DailyScheduler({
                                           type="text"
                                           autoFocus
                                           value={searchQuery}
-                                          onChange={(e) => setSearchQuery(e.target.value)}
+                                          onChange={(e) => {
+                                            setSearchQuery(e.target.value);
+                                            setEmptySlotSearchIndex(0);
+                                          }}
                                           onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && filteredStudents.length > 0) {
-                                              handleAssignStudent(session.id, filteredStudents[0].id);
-                                            }
-                                            if (e.key === 'Escape') {
+                                            if (e.key === 'ArrowDown') {
+                                              e.preventDefault();
+                                              setEmptySlotSearchIndex((prev) =>
+                                                Math.min(prev + 1, Math.max(filteredStudents.length - 1, 0))
+                                              );
+                                            } else if (e.key === 'ArrowUp') {
+                                              e.preventDefault();
+                                              setEmptySlotSearchIndex((prev) => Math.max(prev - 1, 0));
+                                            } else if (e.key === 'Enter') {
+                                              e.preventDefault();
+                                              if (filteredStudents.length > 0) {
+                                                const chosen = filteredStudents[emptySlotSearchIndex] || filteredStudents[0];
+                                                handleAssignStudent(session.id, chosen.id);
+                                              }
+                                            } else if (e.key === 'Escape') {
                                               setActiveSlotSearchId(null);
                                               setSearchQuery('');
                                             }
                                           }}
                                           placeholder="Öğrenci adı yazıp Enter'a basın..."
-                                          className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#07080b] border border-indigo-500 dark:border-indigo-400 text-xs text-slate-900 dark:text-white focus:outline-none font-mono shadow-xs"
+                                          className="w-full px-2.5 py-1 rounded-md bg-white dark:bg-stone-900 border-2 border-teal-600 dark:border-teal-500 text-xs text-stone-900 dark:text-stone-100 focus:outline-none shadow-sm"
                                         />
 
-                                        {/* Suggestions dropdown */}
+                                        {/* Suggestions popover */}
                                         {filteredStudents.length > 0 && (
-                                          <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-lg bg-white dark:bg-[#0e1015] border border-slate-300 dark:border-white/[0.08] shadow-2xl z-40 p-1 divide-y divide-slate-100 dark:divide-white/[0.04]">
+                                          <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-md bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xl z-50 p-1 divide-y divide-stone-100 dark:divide-stone-800">
                                             {filteredStudents.map((st, idx) => (
                                               <button
                                                 key={st.id}
                                                 type="button"
+                                                onMouseEnter={() => setEmptySlotSearchIndex(idx)}
                                                 onClick={() => handleAssignStudent(session.id, st.id)}
-                                                className={`w-full text-left px-2.5 py-2 rounded text-xs flex items-center justify-between hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer ${
-                                                  idx === 0
-                                                    ? 'bg-slate-100 text-slate-950 dark:bg-white/[0.08] dark:text-white font-semibold'
-                                                    : 'text-slate-800 dark:text-zinc-300'
+                                                className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                                                  idx === emptySlotSearchIndex
+                                                    ? 'bg-teal-50 text-teal-900 dark:bg-teal-950/60 dark:text-teal-200 font-medium'
+                                                    : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800'
                                                 }`}
                                               >
                                                 <div className="flex items-center gap-2">
-                                                  <span className="font-bold text-slate-900 dark:text-white">{st.full_name}</span>
-                                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 dark:bg-zinc-800 dark:text-zinc-300 font-semibold">
+                                                  <span className="font-medium text-stone-900 dark:text-stone-100">{st.full_name}</span>
+                                                  <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400">
                                                     {st.class_grade}
                                                   </span>
                                                 </div>
-                                                <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono">
-                                                  {st.phone}
+                                                <span className="text-[10px] text-stone-400 font-mono">
+                                                  {displayPhone(st.phone)}
                                                 </span>
                                               </button>
                                             ))}
@@ -1170,12 +1658,13 @@ export function DailyScheduler({
                                         onClick={() => {
                                           setActiveSlotSearchId(session.id);
                                           setSearchQuery('');
+                                          setEmptySlotSearchIndex(0);
                                         }}
-                                        className="w-full text-left px-3 py-2 rounded-lg border border-dashed border-slate-300 dark:border-zinc-700 hover:border-indigo-500 dark:hover:border-indigo-400 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 text-slate-500 hover:text-indigo-700 dark:text-zinc-400 dark:hover:text-indigo-300 transition-colors flex items-center justify-between cursor-pointer"
+                                        className="w-full text-left px-2 py-1 rounded-md border border-dashed border-stone-300 dark:border-stone-700 hover:border-teal-600 dark:hover:border-teal-400 hover:bg-stone-50 dark:hover:bg-stone-900 text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200 transition-colors flex items-center justify-between cursor-pointer text-xs"
                                       >
-                                        <span className="text-xs font-semibold">+ Randevu Ata</span>
-                                        <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400 font-semibold">
-                                          Seç
+                                        <span>+ Randevu Ata</span>
+                                        <kbd className="text-[10px] font-mono px-1 py-0.2 rounded bg-stone-100 border border-stone-200 text-stone-500 dark:bg-stone-800 dark:border-stone-700">
+                                          Tıkla / Enter
                                         </kbd>
                                       </button>
                                     )}
@@ -1184,9 +1673,8 @@ export function DailyScheduler({
                               </td>
 
                               {/* Konu & Teşhis Notu */}
-                              <td className="align-middle py-3 px-3.5">
+                              <td className="align-middle py-2 px-3.5">
                                 <div className="space-y-1">
-                                  {/* Topic Input with suggestion dropdown trigger */}
                                   <div className="relative">
                                     <input
                                       type="text"
@@ -1195,14 +1683,14 @@ export function DailyScheduler({
                                         onUpdateSession({ ...session, topic: e.target.value });
                                       }}
                                       onFocus={() => setActiveTopicDropdownId(session.id)}
-                                      placeholder="Görüşme konusu veya teşhis..."
-                                      className="w-full bg-slate-50/70 hover:bg-slate-100 focus:bg-white dark:bg-[#0e1017] dark:hover:bg-zinc-800/60 dark:focus:bg-[#090a0f] border border-slate-200/80 focus:border-indigo-500 dark:border-zinc-700/80 dark:focus:border-indigo-400 rounded-md text-xs font-medium text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 px-2.5 py-1.5 focus:outline-none transition-all"
+                                      placeholder="Görüşme konusu..."
+                                      className="w-full bg-stone-50 hover:bg-stone-100/70 focus:bg-white dark:bg-stone-900 dark:hover:bg-stone-850 dark:focus:bg-stone-900 border border-stone-200 focus:border-stone-400 dark:border-stone-700 rounded-md text-xs text-stone-900 dark:text-stone-100 placeholder-stone-400 px-2.5 py-1 focus:outline-none transition-colors"
                                     />
 
-                                    {/* Dropdown with suggested common topics */}
+                                    {/* Suggested topics dropdown */}
                                     {activeTopicDropdownId === session.id && (
                                       <div
-                                        className="absolute left-0 top-full mt-1 w-56 rounded-lg bg-white dark:bg-[#0e1015] border border-slate-300 dark:border-white/[0.08] shadow-2xl p-1 z-30 animate-in fade-in"
+                                        className="absolute left-0 top-full mt-1 w-56 rounded-md bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-md p-1 z-30"
                                         onMouseLeave={() => setActiveTopicDropdownId(null)}
                                       >
                                         {COMMON_TOPICS.map((top) => (
@@ -1213,7 +1701,7 @@ export function DailyScheduler({
                                               onUpdateSession({ ...session, topic: top });
                                               setActiveTopicDropdownId(null);
                                             }}
-                                            className="w-full text-left px-2.5 py-1.5 rounded text-xs text-slate-800 hover:bg-indigo-50 hover:text-indigo-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white truncate cursor-pointer font-medium"
+                                            className="w-full text-left px-2 py-1 rounded text-xs text-stone-700 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-stone-100 truncate cursor-pointer"
                                           >
                                             {top}
                                           </button>
@@ -1222,48 +1710,39 @@ export function DailyScheduler({
                                     )}
                                   </div>
 
-                                  {/* Quick Tag Chips / Action Item preview */}
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    {session.tags && session.tags.length > 0 ? (
-                                      <>
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700/80">
-                                          {session.tags[0]}
-                                        </span>
-                                        {session.tags.length > 1 && (
-                                          <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[150px]">
-                                            {session.tags.slice(1).join(', ')}
-                                          </span>
-                                        )}
-                                      </>
-                                    ) : null}
+                                  {/* Quick Tag preview */}
+                                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-stone-500">
+                                    {session.tags && session.tags.length > 0 && (
+                                      <span>{session.tags.join(', ')}</span>
+                                    )}
                                     {session.action_items && (
-                                      <span
-                                        className="text-[10px] text-slate-600 dark:text-zinc-400 font-normal truncate max-w-[150px]"
-                                        title={session.action_items}
-                                      >
-                                        &bull; {session.action_items}
+                                      <span className="truncate max-w-[150px]" title={session.action_items}>
+                                        · {session.action_items}
                                       </span>
                                     )}
                                   </div>
                                 </div>
                               </td>
 
-                              {/* Durum Toggle: [Bekliyor] [Geldi] [Gelmedi] */}
-                              <td className="align-middle py-3 px-3.5">
-                                <div className="inline-flex items-center rounded-lg p-0.5 bg-white dark:bg-[#090a0f] border border-slate-300 dark:border-white/[0.06] text-[11px]">
+                              {/* Durum Toggle: [Bekliyor (1)] [Geldi (2)] [Gelmedi (3)] [Ertelendi (4)] */}
+                              <td className="align-middle py-2 px-3.5">
+                                <div className="inline-flex items-center rounded-md p-0.5 bg-stone-100 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-xs gap-0.5">
                                   <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleStatusChange(session, 'Bekliyor');
                                     }}
-                                    className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-xs transition-colors cursor-pointer ${
                                       isPending
-                                        ? 'bg-white text-black shadow-xs font-bold border-2 border-black dark:bg-zinc-800 dark:text-zinc-100 dark:border-transparent'
-                                        : 'text-black hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium'
+                                        ? 'bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 font-medium shadow-xs'
+                                        : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
                                     }`}
+                                    title="Bekliyor (Klavye: 1)"
                                   >
+                                    <Clock className="w-3 h-3 text-stone-400" />
                                     <span>Bekliyor</span>
+                                    <span className="text-[9px] opacity-50 font-mono">1</span>
                                   </button>
                                   <button
                                     type="button"
@@ -1271,14 +1750,16 @@ export function DailyScheduler({
                                       e.stopPropagation();
                                       handleTriggerFeedback(session, 'Geldi');
                                     }}
-                                    className={`px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-xs transition-colors cursor-pointer ${
                                       isCompleted
-                                        ? 'bg-white text-black font-bold border-2 border-black shadow-xs dark:bg-emerald-600 dark:text-white dark:border-transparent'
-                                        : 'text-black hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium'
+                                        ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-medium border border-emerald-200 dark:border-emerald-800'
+                                        : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
                                     }`}
-                                    title="Seansı tamamla ve geri bildirim ekranını aç"
+                                    title="Seansı tamamla ve geri bildirim ekle (Klavye: 2)"
                                   >
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                                     <span>Geldi</span>
+                                    <span className="text-[9px] opacity-50 font-mono">2</span>
                                   </button>
                                   <button
                                     type="button"
@@ -1286,25 +1767,39 @@ export function DailyScheduler({
                                       e.stopPropagation();
                                       handleTriggerFeedback(session, 'Gelmedi');
                                     }}
-                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all cursor-pointer ${
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-xs transition-colors cursor-pointer ${
                                       isMissed
-                                        ? 'bg-white text-black font-bold border-2 border-black shadow-xs dark:bg-rose-600 dark:text-white dark:border-transparent'
-                                        : 'text-black hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 font-medium'
+                                        ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 font-medium border border-rose-200 dark:border-rose-800'
+                                        : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
                                     }`}
-                                    title="Gelmedi işaretle ve mazeret/telafi formunu aç"
+                                    title="Gelmedi olarak işaretle (Klavye: 3)"
                                   >
-                                    <span
-                                      className={`w-1.5 h-1.5 rounded-full ${
-                                        isMissed ? 'bg-black dark:bg-white' : 'bg-slate-400 dark:bg-zinc-600'
-                                      }`}
-                                    />
+                                    <XCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" />
                                     <span>Gelmedi</span>
+                                    <span className="text-[9px] opacity-50 font-mono">3</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStatusChange(session, 'Ertelendi');
+                                    }}
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-xs transition-colors cursor-pointer ${
+                                      isPostponed
+                                        ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-medium border border-amber-200 dark:border-amber-800'
+                                        : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
+                                    }`}
+                                    title="Ertelendi olarak işaretle (Klavye: 4)"
+                                  >
+                                    <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                                    <span>Ertelendi</span>
+                                    <span className="text-[9px] opacity-50 font-mono">4</span>
                                   </button>
                                 </div>
 
                                 {/* Geri Bildirim Özeti Rozeti */}
                                 {session.feedback && (
-                                  <div className="mt-1.5 flex items-center">
+                                  <div className="mt-1 flex items-center">
                                     <button
                                       type="button"
                                       onClick={(e) => {
@@ -1314,11 +1809,11 @@ export function DailyScheduler({
                                           status: session.status === 'Gelmedi' ? 'Gelmedi' : 'Geldi',
                                         });
                                       }}
-                                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold border transition-all cursor-pointer bg-white text-black border-slate-300 hover:bg-white dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40`}
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[11px] font-medium border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-50 cursor-pointer"
                                       title="Geri bildirim detayını incele veya düzenle"
                                     >
-                                      <FileText className="w-3 h-3 shrink-0" />
-                                      <span className="truncate max-w-[140px]">
+                                      <FileText className="w-3 h-3 shrink-0 text-stone-500" />
+                                      <span className="truncate max-w-[130px]">
                                         {session.feedback.status === 'Geldi'
                                           ? `${session.feedback.efficiency || 'Verimli'} (${session.feedback.rating || 5}★)`
                                           : `Mazeret: ${session.feedback.reason || 'Gelmedi'}`}
@@ -1328,32 +1823,34 @@ export function DailyScheduler({
                                 )}
                               </td>
 
-                              {/* İşlemler (Temiz, çerçevesiz, hover-vurgulu butonlar) */}
-                              <td className="align-middle py-3 px-3.5 text-right">
+                              {/* İşlemler */}
+                              <td className="align-middle py-2 px-3.5 text-right">
                                 <div className="flex items-center justify-end gap-1">
-                                  {/* Quick Note / Teşhis Popover trigger */}
+                                  {/* Quick Note */}
                                   <button
                                     type="button"
                                     onClick={() => setActiveQuickNoteSession(session)}
-                                    className={`p-2 rounded-lg text-xs transition-colors cursor-pointer ${
+                                    className={`p-1.5 rounded-md text-xs transition-colors cursor-pointer ${
                                       session.tags?.length || session.action_items
-                                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300'
-                                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800'
+                                        ? 'text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40'
+                                        : 'text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800'
                                     }`}
                                     title="Not ve Etiketler"
+                                    aria-label="Seans notu ve etiketleri aç"
                                   >
-                                    <Bookmark className="w-4 h-4" />
+                                    <Bookmark className="w-3.5 h-3.5" />
                                   </button>
 
-                                  {/* 1-on-1 WhatsApp Summary Card Engine */}
+                                  {/* 1-on-1 WhatsApp Summary */}
                                   {student && (
                                     <button
                                       type="button"
                                       onClick={() => handleSendIndividualSummary(session)}
-                                      className="p-2 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                                      className="p-1.5 rounded-md text-stone-500 hover:text-teal-700 dark:hover:text-teal-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
                                       title="WhatsApp Seans Kartı Gönder"
+                                      aria-label={`${student.full_name} için WhatsApp seans kartı`}
                                     >
-                                      <MessageSquare className="w-4 h-4" />
+                                      <MessageSquare className="w-3.5 h-3.5" />
                                     </button>
                                   )}
 
@@ -1362,10 +1859,11 @@ export function DailyScheduler({
                                     <button
                                       type="button"
                                       onClick={() => handleSendMissedReminder(session)}
-                                      className="flex items-center gap-1 px-2 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200/90 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 dark:text-rose-300 text-xs font-bold transition-colors cursor-pointer"
+                                      className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 text-[11px] font-medium transition-colors cursor-pointer"
                                       title="Randevu Hatırlatması Gönder"
+                                      aria-label="Randevu Hatırlatması Gönder"
                                     >
-                                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                                      <AlertTriangle className="w-3 h-3" />
                                       <span className="hidden sm:inline">Uyar</span>
                                     </button>
                                   )}
@@ -1375,10 +1873,11 @@ export function DailyScheduler({
                                     <button
                                       type="button"
                                       onClick={() => setHistoryStudent(student)}
-                                      className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                                      className="p-1.5 rounded-md text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
                                       title="Görüşme geçmişi"
+                                      aria-label={`${student.full_name} geçmiş görüşmeleri`}
                                     >
-                                      <History className="w-4 h-4" />
+                                      <History className="w-3.5 h-3.5" />
                                     </button>
                                   )}
 
@@ -1386,10 +1885,11 @@ export function DailyScheduler({
                                   <button
                                     type="button"
                                     onClick={() => onDeleteSession(session.id)}
-                                    className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                    className="p-1.5 rounded-md text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                                     title="Seansı sil"
+                                    aria-label="Seansı sil"
                                   >
-                                    <Trash2 className="w-4 h-4" />
+                                    <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
                               </td>
@@ -1401,7 +1901,7 @@ export function DailyScheduler({
                   </div>
 
               {/* Mobile & Tablet Card View: block on screens below md */}
-              <div className="block md:hidden p-3 space-y-3 bg-slate-50/70 dark:bg-[#0e1017]">
+              <div className="block md:hidden p-3 space-y-2.5 bg-stone-50/50 dark:bg-stone-900/30">
                 {displayedSessions.map((session, index) => {
                   if (session.is_break) {
                     const isLunch =
@@ -1410,29 +1910,28 @@ export function DailyScheduler({
                     return (
                       <div
                         key={session.id}
-                        className="p-3 rounded-xl bg-amber-50/80 dark:bg-amber-950/25 border border-amber-200/90 dark:border-amber-800/30 border-l-4 border-l-amber-500 flex items-center justify-between gap-3 shadow-2xs"
+                        className="p-2.5 rounded-lg bg-stone-100/80 dark:bg-stone-850 border border-stone-200 dark:border-stone-800 flex items-center justify-between gap-2.5"
                       >
                         <button
                           type="button"
                           onClick={() => setEditingBreakSession(session)}
-                          className="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer group/mbreak"
+                          className="flex items-center gap-2 min-w-0 flex-1 text-left cursor-pointer"
                           title="Teneffüs süresini değiştirmek için dokunun"
                         >
-                          <span className="font-mono text-xs font-bold text-amber-900 dark:text-amber-300 px-2 py-1 rounded bg-amber-100/90 dark:bg-amber-900/40 shrink-0">
+                          <span className="font-mono text-xs text-stone-700 dark:text-stone-300 px-1.5 py-0.5 rounded bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 shrink-0">
                             {session.time_slot}
                           </span>
                           <div className="flex items-center gap-1.5 truncate">
                             {isLunch ? (
-                              <Utensils className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                              <Utensils className="w-3.5 h-3.5 text-stone-600 dark:text-stone-400 shrink-0" />
                             ) : (
-                              <Coffee className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                              <Coffee className="w-3.5 h-3.5 text-stone-600 dark:text-stone-400 shrink-0" />
                             )}
-                            <span className="text-xs font-semibold text-amber-900 dark:text-amber-200 truncate group-hover/mbreak:underline">
+                            <span className="text-xs font-medium text-stone-800 dark:text-stone-200 truncate">
                               {session.break_title || session.topic || 'Mola / Teneffüs'}
                             </span>
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-amber-200/90 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 shrink-0">
-                              <Clock className="w-2.5 h-2.5" />
-                              <span>{getBreakMinutes(session)} dk</span>
+                            <span className="text-[11px] font-mono text-stone-500 shrink-0">
+                              ({getBreakMinutes(session)} dk)
                             </span>
                           </div>
                         </button>
@@ -1441,8 +1940,9 @@ export function DailyScheduler({
                             type="button"
                             onClick={() => handleMoveRow(session.id, 'up')}
                             disabled={index === 0}
-                            className="p-2 rounded-lg bg-amber-100/80 hover:bg-amber-200 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 disabled:opacity-30 transition-colors"
+                            className="p-1.5 rounded-md hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-20 transition-colors"
                             title="Yukarı taşı"
+                            aria-label="Yukarı taşı"
                           >
                             <ChevronUp className="w-3.5 h-3.5" />
                           </button>
@@ -1450,16 +1950,18 @@ export function DailyScheduler({
                             type="button"
                             onClick={() => handleMoveRow(session.id, 'down')}
                             disabled={index === displayedSessions.length - 1}
-                            className="p-2 rounded-lg bg-amber-100/80 hover:bg-amber-200 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 disabled:opacity-30 transition-colors"
+                            className="p-1.5 rounded-md hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 disabled:opacity-20 transition-colors"
                             title="Aşağı taşı"
+                            aria-label="Aşağı taşı"
                           >
                             <ChevronDown className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() => onDeleteSession(session.id)}
-                            className="p-2 rounded-lg text-amber-700 hover:text-rose-600 hover:bg-rose-50 dark:text-amber-400 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-md text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                             title="Molayı sil"
+                            aria-label="Molayı sil"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1472,42 +1974,23 @@ export function DailyScheduler({
                   const isPending = session.status === 'Bekliyor';
                   const isCompleted = session.status === 'Geldi';
                   const isMissed = session.status === 'Gelmedi';
-
-                  const borderAccent = isMissed
-                    ? 'border-l-4 border-l-rose-500'
-                    : isCompleted
-                    ? 'border-l-4 border-l-emerald-500'
-                    : student
-                    ? 'border-l-4 border-l-indigo-500'
-                    : 'border-l-4 border-l-slate-300 dark:border-l-zinc-700';
-
-                  const hasRisk = student?.status_flags?.some((f) =>
-                    f.toLowerCase().includes('kırmızı') ||
-                    f.toLowerCase().includes('risk') ||
-                    f.toLowerCase().includes('kaygı')
-                  );
+                  const isPostponed = session.status === 'Ertelendi';
 
                   return (
                     <div
                       key={session.id}
-                      className={`p-3.5 rounded-xl bg-white dark:bg-[#141622] border border-slate-200/90 dark:border-white/[0.08] ${borderAccent} shadow-xs space-y-3`}
+                      className="p-3 rounded-lg bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 space-y-2.5"
                     >
-                      {/* Top Row: Time Badge + Risk Indicator + Quick Reorder + Delete */}
+                      {/* Top Row: Time Badge + Quick Reorder + Delete */}
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold px-2 py-1 rounded bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200/80 dark:border-zinc-700">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs px-2 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 border border-stone-200 dark:border-stone-700">
                             {session.time_slot}
                           </span>
-                          {hasRisk && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40 animate-pulse">
-                              <AlertTriangle className="w-2.5 h-2.5" />
-                              <span>Öncelikli</span>
-                            </span>
-                          )}
                           {session.tags?.slice(0, 2).map((tag) => (
                             <span
                               key={tag}
-                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300"
+                              className="text-[11px] text-stone-500 dark:text-stone-400"
                             >
                               {tag}
                             </span>
@@ -1519,8 +2002,9 @@ export function DailyScheduler({
                             type="button"
                             onClick={() => handleMoveRow(session.id, 'up')}
                             disabled={index === 0}
-                            className="p-1.5 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 disabled:opacity-25 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-md text-stone-400 hover:text-stone-800 hover:bg-stone-100 dark:hover:bg-stone-800 disabled:opacity-20 transition-colors cursor-pointer"
                             title="Yukarı taşı"
+                            aria-label="Yukarı taşı"
                           >
                             <ChevronUp className="w-3.5 h-3.5" />
                           </button>
@@ -1528,16 +2012,18 @@ export function DailyScheduler({
                             type="button"
                             onClick={() => handleMoveRow(session.id, 'down')}
                             disabled={index === displayedSessions.length - 1}
-                            className="p-1.5 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 disabled:opacity-25 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-md text-stone-400 hover:text-stone-800 hover:bg-stone-100 dark:hover:bg-stone-800 disabled:opacity-20 transition-colors cursor-pointer"
                             title="Aşağı taşı"
+                            aria-label="Aşağı taşı"
                           >
                             <ChevronDown className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() => onDeleteSession(session.id)}
-                            className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-md text-stone-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                             title="Seansı sil"
+                            aria-label="Seansı sil"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1549,20 +2035,20 @@ export function DailyScheduler({
                         {student ? (
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => onOpenStudentProfile(student)}
-                                  className="font-bold text-sm text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 text-left transition-colors cursor-pointer"
+                                  className="font-medium text-xs text-stone-900 dark:text-stone-100 hover:text-teal-700 dark:hover:text-teal-400 text-left transition-colors cursor-pointer"
                                 >
                                   {student.full_name}
                                 </button>
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/40">
+                                <span className="font-mono text-[11px] text-stone-500">
                                   {student.class_grade}
                                 </span>
                               </div>
                               {student.target_goal && (
-                                <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                                <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">
                                   Hedef: {student.target_goal}
                                 </p>
                               )}
@@ -1571,7 +2057,7 @@ export function DailyScheduler({
                             <button
                               type="button"
                               onClick={() => handleUnassignStudent(session.id)}
-                              className="text-[11px] text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                              className="text-[11px] text-stone-400 hover:text-rose-600 transition-colors cursor-pointer"
                               title="Öğrenciyi kaldır"
                             >
                               Kaldır
@@ -1580,7 +2066,7 @@ export function DailyScheduler({
                         ) : (
                           <div>
                             {activeSlotSearchId === session.id ? (
-                              <div className="space-y-2">
+                              <div className="space-y-1.5">
                                 <div className="relative">
                                   <input
                                     type="text"
@@ -1588,7 +2074,7 @@ export function DailyScheduler({
                                     placeholder="Öğrenci adı veya sınıf ara..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-indigo-400 dark:border-indigo-500 text-xs text-slate-900 dark:text-white focus:outline-none"
+                                    className="w-full px-2.5 py-1.5 rounded-md bg-stone-50 dark:bg-stone-900 border border-teal-600 dark:border-teal-500 text-xs text-stone-900 dark:text-stone-100 focus:outline-none"
                                   />
                                   <button
                                     type="button"
@@ -1596,22 +2082,22 @@ export function DailyScheduler({
                                       setActiveSlotSearchId(null);
                                       setSearchQuery('');
                                     }}
-                                    className="absolute right-2 top-2 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                                    className="absolute right-2 top-2 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 cursor-pointer"
                                   >
-                                    <X className="w-4 h-4" />
+                                    <X className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
                                 {filteredStudents.length > 0 && (
-                                  <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-md divide-y divide-slate-100 dark:divide-zinc-800">
+                                  <div className="max-h-36 overflow-y-auto rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 shadow-sm divide-y divide-stone-100 dark:divide-stone-800">
                                     {filteredStudents.map((s) => (
                                       <button
                                         key={s.id}
                                         type="button"
                                         onClick={() => handleAssignStudent(session.id, s.id)}
-                                        className="w-full px-3 py-2 text-left text-xs hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center justify-between text-slate-800 dark:text-zinc-200 cursor-pointer"
+                                        className="w-full px-2.5 py-1.5 text-left text-xs hover:bg-stone-50 dark:hover:bg-stone-800 flex items-center justify-between text-stone-800 dark:text-stone-200 cursor-pointer"
                                       >
                                         <span className="font-medium">{s.full_name}</span>
-                                        <span className="text-[10px] text-slate-400">{s.class_grade}</span>
+                                        <span className="text-[10px] text-stone-400 font-mono">{s.class_grade}</span>
                                       </button>
                                     ))}
                                   </div>
@@ -1624,7 +2110,7 @@ export function DailyScheduler({
                                   setActiveSlotSearchId(session.id);
                                   setSearchQuery('');
                                 }}
-                                className="w-full py-2 px-3 rounded-lg border border-dashed border-slate-300 dark:border-zinc-700 hover:border-indigo-400 dark:hover:border-indigo-500 text-xs font-semibold text-slate-600 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                                className="w-full py-1.5 px-2.5 rounded-md border border-dashed border-stone-300 dark:border-stone-700 hover:border-teal-600 text-xs text-stone-500 hover:text-stone-800 dark:text-stone-400 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                               >
                                 <Plus className="w-3.5 h-3.5" />
                                 <span>Öğrenci Seç / Randevu Ata</span>
@@ -1634,82 +2120,90 @@ export function DailyScheduler({
                         )}
                       </div>
 
-                      {/* Topic & Notes display */}
-                      <div className="bg-slate-50 dark:bg-zinc-900/60 rounded-lg p-2.5 text-xs">
+                      {/* Topic display */}
+                      <div className="bg-stone-50 dark:bg-stone-900/50 rounded-md p-2 text-xs">
                         <div className="flex items-center justify-between gap-1">
-                          <span className="font-medium text-slate-800 dark:text-zinc-200 truncate">
+                          <span className="text-stone-800 dark:text-stone-200 truncate">
                             {session.topic || 'Konu belirtilmemiş'}
                           </span>
                           <button
                             type="button"
                             onClick={() => setActiveQuickNoteSession(session)}
-                            className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline shrink-0 cursor-pointer"
+                            className="text-[11px] text-teal-700 dark:text-teal-400 hover:underline shrink-0 cursor-pointer"
                           >
                             Düzenle
                           </button>
                         </div>
-                        {session.action_items && (
-                          <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1 line-clamp-2">
-                            Hedef: {session.action_items}
-                          </p>
-                        )}
                         {session.feedback && (
-                          <div className="mt-1.5 pt-1.5 border-t border-slate-200/60 dark:border-white/[0.04] flex items-center justify-between text-[11px]">
-                            <span className={session.feedback.status === 'Geldi' ? 'text-emerald-700 dark:text-emerald-400 font-medium' : 'text-rose-700 dark:text-rose-400 font-medium'}>
-                              {session.feedback.status === 'Geldi'
-                                ? `✓ Değerlendirme: ${session.feedback.efficiency || 'Verimli'} (${session.feedback.rating || 5}★)`
-                                : `✗ Mazeret: ${session.feedback.reason || 'Gelmedi'}`}
-                            </span>
+                          <div className="mt-1 pt-1 border-t border-stone-200 dark:border-stone-800 text-[11px] text-stone-600 dark:text-stone-400">
+                            {session.feedback.status === 'Geldi'
+                              ? `Değerlendirme: ${session.feedback.efficiency || 'Verimli'} (${session.feedback.rating || 5}★)`
+                              : `Mazeret: ${session.feedback.reason || 'Gelmedi'}`}
                           </div>
                         )}
                       </div>
 
-                      {/* Mobile Touch-Friendly Status Switcher (Min 40px touch height) */}
-                      <div className="grid grid-cols-3 gap-1 bg-slate-100 dark:bg-[#090a0f] p-1 rounded-xl border border-slate-200/90 dark:border-white/[0.06] text-xs">
+                      {/* Mobile Status Switcher */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-stone-100 dark:bg-stone-900 p-1 rounded-md border border-stone-200 dark:border-stone-800 text-xs">
                         <button
                           type="button"
                           onClick={() => handleStatusChange(session, 'Bekliyor')}
-                          className={`min-h-[40px] rounded-lg font-semibold transition-all flex items-center justify-center cursor-pointer ${
+                          className={`min-h-[44px] rounded-[5px] text-xs font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
                             isPending
-                              ? 'bg-white text-slate-900 shadow-2xs border border-slate-200/90 dark:bg-zinc-800 dark:text-white dark:border-transparent'
-                              : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
+                              ? 'bg-white text-stone-900 dark:bg-stone-800 dark:text-stone-100 shadow-xs'
+                              : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
                           }`}
                         >
-                          Bekliyor
+                          <Clock className="w-3.5 h-3.5 text-stone-400" />
+                          <span>Bekliyor</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleTriggerFeedback(session, 'Geldi')}
-                          className={`min-h-[40px] rounded-lg font-semibold transition-all flex items-center justify-center cursor-pointer ${
+                          className={`min-h-[44px] rounded-[5px] text-xs font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
                             isCompleted
-                              ? 'bg-emerald-600 text-white shadow-2xs dark:bg-emerald-600 dark:text-white'
-                              : 'text-slate-600 hover:text-emerald-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                              : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
                           }`}
                         >
-                          Geldi
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <span>Geldi</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleTriggerFeedback(session, 'Gelmedi')}
-                          className={`min-h-[40px] rounded-lg font-semibold transition-all flex items-center justify-center cursor-pointer ${
+                          className={`min-h-[44px] rounded-[5px] text-xs font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
                             isMissed
-                              ? 'bg-rose-600 text-white shadow-2xs dark:bg-rose-600 dark:text-white'
-                              : 'text-slate-600 hover:text-rose-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                              ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                              : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
                           }`}
                         >
-                          Gelmedi
+                          <XCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                          <span>Gelmedi</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleStatusChange(session, 'Ertelendi')}
+                          className={`min-h-[44px] rounded-[5px] text-xs font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
+                            isPostponed
+                              ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                              : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
+                          }`}
+                        >
+                          <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          <span>Ertelendi</span>
                         </button>
                       </div>
 
-                      {/* Mobile Action Bar: Quick Drawer + WhatsApp + Call + History */}
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-white/[0.04]">
+                      {/* Mobile Action Bar (Min 44px Touch Targets) */}
+                      <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-stone-100 dark:border-stone-800">
                         <button
                           type="button"
                           onClick={() => setActiveQuickNoteSession(session)}
-                          className="flex-1 py-2 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                          className="flex-1 min-h-[44px] px-2 rounded-md bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                         >
-                          <Bookmark className="w-3.5 h-3.5 text-indigo-500" />
-                          <span>Not & Çekmece</span>
+                          <Bookmark className="w-4 h-4 text-stone-500" />
+                          <span>Not</span>
                         </button>
 
                         {student && (
@@ -1717,18 +2211,20 @@ export function DailyScheduler({
                             <button
                               type="button"
                               onClick={() => handleSendIndividualSummary(session)}
-                              className="py-2 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/40 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                              className="min-h-[44px] px-3 rounded-md bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-300 text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                               title="WhatsApp Kartı Gönder"
+                              aria-label="WhatsApp Kartı Gönder"
                             >
-                              <MessageSquare className="w-3.5 h-3.5" />
+                              <MessageSquare className="w-4 h-4 text-teal-700 dark:text-teal-400" />
                               <span>WhatsApp</span>
                             </button>
 
                             {student.phone && (
                               <a
                                 href={`tel:${student.phone}`}
-                                className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-zinc-800 dark:text-zinc-200 transition-colors"
+                                className="min-h-[44px] min-w-[44px] rounded-md bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-300 flex items-center justify-center transition-colors"
                                 title="Ara"
+                                aria-label="Telefonla ara"
                               >
                                 <Phone className="w-4 h-4" />
                               </a>
@@ -1737,8 +2233,9 @@ export function DailyScheduler({
                             <button
                               type="button"
                               onClick={() => setHistoryStudent(student)}
-                              className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-zinc-800 dark:text-zinc-200 transition-colors cursor-pointer"
+                              className="min-h-[44px] min-w-[44px] rounded-md bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:text-stone-300 flex items-center justify-center transition-colors cursor-pointer"
                               title="Geçmiş seanslar"
+                              aria-label="Geçmiş seanslar"
                             >
                               <History className="w-4 h-4" />
                             </button>
@@ -1753,23 +2250,19 @@ export function DailyScheduler({
           )}
 
               {/* Table Footer Status Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-slate-50 dark:bg-[#0c0d14] border-t border-slate-200 dark:border-white/[0.08] text-xs select-none">
-                <div className="flex items-center gap-3 text-[11px] text-slate-600 dark:text-zinc-400 font-medium">
-                  <span className="text-slate-900 dark:text-white font-semibold">
+              <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 bg-stone-50 dark:bg-stone-900/60 border-t border-stone-200 dark:border-stone-800 text-xs select-none">
+                <div className="flex items-center gap-2 text-[11px] text-stone-600 dark:text-stone-400">
+                  <span className="font-medium text-stone-900 dark:text-stone-100">
                     Toplam: {dateSessions.length} Seans
                   </span>
-                  <span>&bull;</span>
-                  <span className="text-emerald-700 dark:text-emerald-400">
-                    Dolu: {assignedCount}
-                  </span>
-                  <span>&bull;</span>
-                  <span className="text-slate-500 dark:text-zinc-400">
-                    Boş: {emptyCount}
-                  </span>
+                  <span>·</span>
+                  <span>Dolu: {assignedCount}</span>
+                  <span>·</span>
+                  <span>Boş: {emptyCount}</span>
                   {missedCount > 0 && (
                     <>
-                      <span>&bull;</span>
-                      <span className="text-rose-600 dark:text-rose-400 font-bold">
+                      <span>·</span>
+                      <span className="text-rose-600 dark:text-rose-400 font-medium">
                         Gelmedi: {missedCount}
                       </span>
                     </>
@@ -1780,17 +2273,17 @@ export function DailyScheduler({
                   <button
                     type="button"
                     onClick={handleAddNewSessionRow}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800/40 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-stone-800 dark:text-stone-200 bg-white hover:bg-stone-50 dark:bg-stone-800 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 transition-colors cursor-pointer"
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-3 h-3 text-teal-700 dark:text-teal-400" />
                     <span>Boş Seans Ekle</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleAddNewBreakRow('teneffus_10')}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 dark:text-amber-300 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-800/40 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-stone-700 dark:text-stone-300 bg-white hover:bg-stone-50 dark:bg-stone-800 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 transition-colors cursor-pointer"
                   >
-                    <Coffee className="w-3 h-3 text-amber-600" />
+                    <Coffee className="w-3 h-3 text-stone-500" />
                     <span>Mola Ekle</span>
                   </button>
                 </div>
@@ -1841,9 +2334,10 @@ export function DailyScheduler({
             const merged = { ...activeQuickNoteSession, ...updatedFields };
             onUpdateSession(merged);
             setActiveQuickNoteSession(null);
-            onShowToast('Seans Notu Kaydedildi', 'Teşhis ve hedefler güncellendi.', 'success');
+            onShowToast?.('Seans Notu Kaydedildi', 'Teşhis ve hedefler güncellendi.', 'success');
           }}
           onClose={() => setActiveQuickNoteSession(null)}
+          onShowToast={onShowToast}
         />
       )}
 
@@ -1857,37 +2351,40 @@ export function DailyScheduler({
         />
       )}
 
-      {/* Floating Bottom-Right Trigger: Günün WhatsApp İlanı (Belirgin WhatsApp Logosu) */}
-      <div className="fixed bottom-6 right-6 z-40 flex items-center group">
-        <button
-          type="button"
-          onClick={() => setIsWhatsAppModalOpen(true)}
-          className="flex items-center gap-2.5 px-4 py-3 rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-2xl hover:shadow-[0_10px_25px_rgba(37,211,102,0.45)] active:scale-95 transition-all cursor-pointer border-2 border-black dark:border-white/40 group relative"
-          title="Günün WhatsApp Seans İlanını Aç"
-          aria-label="WhatsApp İlanı"
-        >
-          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-            <MessageCircle className="w-5 h-5 text-white fill-white transition-transform group-hover:scale-110 stroke-[2]" />
-          </div>
-          <span className="font-black text-xs tracking-wide text-white drop-shadow-xs">
-            WhatsApp İlanı
-          </span>
-          {assignedCount > 0 && (
-            <span className="min-w-[22px] h-5 px-1.5 rounded-full bg-black text-white text-[11px] font-mono font-black border-2 border-white flex items-center justify-center shadow-md">
-              {assignedCount}
-            </span>
-          )}
-        </button>
-      </div>
+      {/* WhatsApp Sıralı Gönderim Modalı (Sequential 1-by-1 Queue) */}
+      {isWhatsAppQueueOpen && (
+        <WhatsAppQueueModal
+          isOpen={isWhatsAppQueueOpen}
+          onClose={() => setIsWhatsAppQueueOpen(false)}
+          date={selectedDate}
+          sessions={sessions}
+          students={students}
+          counselorName={counselorName}
+          onMarkSent={async (sessionId, sent) => {
+            const sess = sessions.find((s) => s.id === sessionId);
+            if (sess) {
+              onUpdateSession({
+                ...sess,
+                whatsapp_sent: sent,
+                whatsapp_sent_at: sent ? new Date().toISOString() : undefined,
+              });
+            }
+          }}
+          onShowToast={onShowToast || (() => {})}
+        />
+      )}
 
       {/* Modal: Günün WhatsApp İlanı Popup */}
       {isWhatsAppModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 dark:bg-black/80 backdrop-blur-xs animate-in fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="whatsapp-card-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 modal-backdrop"
           onClick={() => setIsWhatsAppModalOpen(false)}
         >
           <div
-            className="max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl animate-in zoom-in-95 duration-150"
+            className="max-w-4xl w-full max-h-[90vh] overflow-y-auto rounded-lg shadow-md animate-dialog"
             onClick={(e) => e.stopPropagation()}
           >
             <DailyWhatsAppOfficialCard

@@ -1,4 +1,4 @@
-export type SessionStatus = 'Bekliyor' | 'Geldi' | 'Gelmedi';
+export type SessionStatus = 'Bekliyor' | 'Geldi' | 'Gelmedi' | 'Ertelendi';
 
 export type ColorPalette = 'corporate';
 export type ThemeMode = 'light' | 'dark';
@@ -16,7 +16,7 @@ export interface Student {
 }
 
 export interface SessionFeedback {
-  status: 'Geldi' | 'Gelmedi';
+  status: 'Geldi' | 'Gelmedi' | 'Ertelendi';
   submitted_at: string; // ISO timestamp
   // If 'Geldi'
   rating?: number; // 1 to 5
@@ -46,6 +46,16 @@ export interface Session {
   break_title?: string; // e.g. "10 dk Teneffüs", "Öğle Arası"
   break_duration?: number; // Teneffüs / mola süresi (dakika)
   feedback?: SessionFeedback;
+  whatsapp_sent?: boolean; // Mesaj gönderildi mi?
+  whatsapp_sent_at?: string;
+  is_in_progress?: boolean; // Seans şu an devam ediyor mu (Başladı)
+}
+
+export interface MessageTemplate {
+  id: string;
+  title: string;
+  type: 'reminder' | 'missed' | 'thank_you' | 'parent_call' | 'custom';
+  content: string; // {ad}, {saat}, {tarih}, {danisman}
 }
 
 export interface ScheduleConfig {
@@ -109,6 +119,8 @@ export interface User {
   phone?: string;
   created_at: string;
   avatar_color?: string;
+  kvkk_accepted?: boolean;
+  kvkk_accepted_at?: string;
 }
 
 export interface AuthState {

@@ -1,5 +1,67 @@
-import { Session, Student } from '../types';
+import { Session, Student, MessageTemplate } from '../types';
 import { formatTurkishDate, getWeekDays } from './storage';
+
+export const DEFAULT_TEMPLATES: MessageTemplate[] = [
+  {
+    id: 'tpl_reminder',
+    title: 'Seans Hatırlatma',
+    type: 'reminder',
+    content: 'Sayın Veli / Sevgili {ad}, bugün saat {saat} için planlanan rehberlik seansınız bulunmaktadır. Görüşme saatinden 5 dakika önce hazır bulunmanızı rica ederiz. — {danisman}',
+  },
+  {
+    id: 'tpl_missed',
+    title: 'Gelmedi / Telafi',
+    type: 'missed',
+    content: 'Sayın Veli / Sevgili {ad}, {tarih} günü saat {saat} randevusuna katılım sağlanamadığı tespit edilmiştir. Telafi görüşmesi için lütfen rehberlik servisine başvurunuz. — {danisman}',
+  },
+  {
+    id: 'tpl_thank_you',
+    title: 'Görüşme Teşekkürü',
+    type: 'thank_you',
+    content: 'Sevgili {ad}, bugün saat {saat} seansındaki verimli katılımın için teşekkür ederim. Belirlediğimiz hedefleri haftalık olarak takip etmeni dilerim. İyi çalışmalar! — {danisman}',
+  },
+  {
+    id: 'tpl_parent_call',
+    title: 'Veli Görüşmeye Çağırma',
+    type: 'parent_call',
+    content: 'Sayın {ad} Velisi, öğrencimizin akademik ve psikolojik gelişim sürecini değerlendirmek üzere rehberlik servisimize görüşmeye davetlisiniz. Uygun olduğunuz zamanı belirlemek için lütfen iletişime geçiniz. — {danisman}',
+  },
+];
+
+const TEMPLATES_STORAGE_KEY = 'pusula_whatsapp_templates';
+
+export function getStoredTemplates(): MessageTemplate[] {
+  try {
+    const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (_) {}
+  return DEFAULT_TEMPLATES;
+}
+
+export function saveStoredTemplates(templates: MessageTemplate[]): void {
+  try {
+    localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+  } catch (_) {}
+}
+
+export function formatMessageWithTemplate(
+  templateContent: string,
+  params: {
+    ad?: string;
+    saat?: string;
+    tarih?: string;
+    danisman?: string;
+  }
+): string {
+  return templateContent
+    .replace(/\{ad\}/gi, params.ad || '')
+    .replace(/\{saat\}/gi, params.saat || '')
+    .replace(/\{tarih\}/gi, params.tarih || '')
+    .replace(/\{danisman\}/gi, params.danisman || 'Rehberlik Servisi');
+}
 
 // Helper to pad string taking visual width into account
 function padEndVis(str: string, targetLen: number): string {

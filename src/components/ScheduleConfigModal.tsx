@@ -55,6 +55,14 @@ export function ScheduleConfigModal({
     }
   }, [isOpen]);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Time Shift State
   const [shiftScope, setShiftScope] = useState<'day' | 'week'>('week');
   const [customShiftMinutes, setCustomShiftMinutes] = useState<number>(10);
@@ -113,75 +121,79 @@ export function ScheduleConfigModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/75 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="schedule-config-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xl bg-white dark:bg-[#181a26] border border-slate-200 dark:border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-slate-800 dark:text-zinc-200"
+        className="w-full max-w-xl bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 rounded-lg shadow-lg overflow-hidden flex flex-col max-h-[90vh] text-stone-800 dark:text-stone-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 border-b border-slate-200 dark:border-white/[0.08] flex items-center justify-between bg-white dark:bg-[#141622]">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 flex items-center justify-center shadow-xs">
-              <Sliders className="w-5 h-5 stroke-[2.2]" />
+        <div className="p-4 border-b border-stone-200 dark:border-stone-800 flex items-center justify-between bg-stone-50 dark:bg-stone-900/50">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-md bg-stone-100 text-stone-700 border border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700 flex items-center justify-center">
+              <Sliders className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
+              <h2 id="schedule-config-title" className="text-sm font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
                 Program, Periyot & Teneffüs Ayarları
               </h2>
-              <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium">
-                Seans süresini, teneffüs aralarını ve tablo saatlerini dilediğiniz gibi özelleştirin.
+              <p className="text-[11px] text-stone-500 dark:text-stone-400">
+                Seans süresini, teneffüs aralarını ve saatleri özelleştirin.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/[0.06] transition-colors cursor-pointer border border-transparent hover:border-slate-200"
+            aria-label="Kapat"
+            className="p-1.5 rounded text-stone-400 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
           >
-            <X className="w-4 h-4 stroke-[2]" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200 dark:border-white/[0.08] bg-slate-50/80 dark:bg-[#12141e] px-4 pt-2 gap-2 text-xs">
+        <div className="flex border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/40 px-4 pt-2 gap-2 text-xs">
           <button
             type="button"
             onClick={() => setActiveTab('generate')}
-            className={`pb-2.5 px-3 font-medium flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
+            className={`pb-2 px-3 font-medium flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
               activeTab === 'generate'
-                ? 'border-emerald-600 text-slate-900 dark:border-emerald-400 dark:text-white font-semibold'
-                : 'border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                ? 'border-teal-600 text-teal-700 dark:border-teal-400 dark:text-teal-400 font-semibold'
+                : 'border-transparent text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
             }`}
           >
-            <Clock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Süre & Ara Belirle</span>
+            <Clock className="w-3.5 h-3.5" />
+            <span>Süre & Ara</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('shift')}
-            className={`pb-2.5 px-3 font-medium flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
+            className={`pb-2 px-3 font-medium flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
               activeTab === 'shift'
-                ? 'border-sky-600 text-slate-900 dark:border-sky-400 dark:text-white font-semibold'
-                : 'border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                ? 'border-teal-600 text-teal-700 dark:border-teal-400 dark:text-teal-400 font-semibold'
+                : 'border-transparent text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
             }`}
           >
-            <ArrowRight className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-            <span>Saatleri Kaydır (± Dk)</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+            <span>Saatleri Kaydır</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('break')}
-            className={`pb-2.5 px-3 font-medium flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
+            className={`pb-2 px-3 font-medium flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
               activeTab === 'break'
-                ? 'border-amber-600 text-slate-900 dark:border-amber-400 dark:text-white font-semibold'
-                : 'border-transparent text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                ? 'border-teal-600 text-teal-700 dark:border-teal-400 dark:text-teal-400 font-semibold'
+                : 'border-transparent text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
             }`}
           >
-            <Coffee className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            <Coffee className="w-3.5 h-3.5" />
             <span>Teneffüs / Mola Ekle</span>
           </button>
         </div>
@@ -191,15 +203,15 @@ export function ScheduleConfigModal({
           {activeTab === 'generate' && (
             <div className="space-y-4 text-xs">
               {/* Session Duration */}
-              <div className="space-y-2 p-3.5 rounded-xl bg-slate-50 dark:bg-[#12141e] border-2 border-black dark:border-white/10">
-                <label className="text-xs font-black text-black dark:text-zinc-200 flex items-center justify-between">
+              <div className="space-y-2 p-3.5 rounded-lg bg-stone-50 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800">
+                <label className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center justify-between">
                   <span>Rehberlik Seansı Kaç Dakika Olsun?</span>
-                  <span className="font-mono text-black dark:text-emerald-400 font-black text-sm px-2.5 py-0.5 rounded-md bg-white dark:bg-zinc-800 border-2 border-black dark:border-emerald-500/40 shadow-xs">
+                  <span className="font-mono text-teal-700 dark:text-teal-400 font-semibold text-xs px-2.5 py-0.5 rounded bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 shadow-xs">
                     {config.sessionDuration} Dakika
                   </span>
                 </label>
 
-                {/* Belirgin Range Slider Kontrolü */}
+                {/* Range Slider */}
                 <div className="pt-1.5 pb-1">
                   <input
                     type="range"
@@ -213,9 +225,9 @@ export function ScheduleConfigModal({
                         sessionDuration: parseInt(e.target.value, 10),
                       })
                     }
-                    className="w-full accent-black dark:accent-blue-500 cursor-pointer"
+                    className="w-full accent-teal-600 dark:accent-teal-500 cursor-pointer"
                   />
-                  <div className="flex justify-between text-[10px] font-mono text-black dark:text-zinc-400 mt-1 font-bold">
+                  <div className="flex justify-between text-[10px] font-mono text-stone-500 dark:text-stone-400 mt-1">
                     <span>5 dk</span>
                     <span>15 dk (Standart)</span>
                     <span>30 dk</span>
@@ -230,10 +242,10 @@ export function ScheduleConfigModal({
                       key={mins}
                       type="button"
                       onClick={() => setConfig({ ...config, sessionDuration: mins })}
-                      className={`px-3 py-1.5 rounded-lg border-2 text-xs font-black transition-all cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
                         config.sessionDuration === mins
-                          ? 'bg-black text-white border-black shadow-xs dark:bg-emerald-500 dark:text-white dark:border-emerald-400'
-                          : 'bg-white border-black text-black hover:bg-slate-100 dark:bg-zinc-900 dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-zinc-200'
+                          ? 'bg-teal-700 text-white border-teal-700 shadow-xs dark:bg-teal-600 dark:border-teal-600'
+                          : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-100 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-300 dark:hover:text-stone-100'
                       }`}
                     >
                       {mins} dk {mins === 15 && '★ (Önerilen)'}
@@ -243,15 +255,15 @@ export function ScheduleConfigModal({
               </div>
 
               {/* Break Duration */}
-              <div className="space-y-2 p-3.5 rounded-xl bg-slate-50 dark:bg-[#12141e] border-2 border-black dark:border-white/10">
-                <label className="text-xs font-black text-black dark:text-zinc-200 flex items-center justify-between">
+              <div className="space-y-2 p-3.5 rounded-lg bg-stone-50 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800">
+                <label className="text-xs font-semibold text-stone-900 dark:text-stone-100 flex items-center justify-between">
                   <span>Teneffüs / Geçiş Arası Kaç Dakika Olsun?</span>
-                  <span className="font-mono text-black dark:text-amber-400 font-black text-sm px-2.5 py-0.5 rounded-md bg-white dark:bg-zinc-800 border-2 border-black dark:border-amber-500/40 shadow-xs">
+                  <span className="font-mono text-amber-700 dark:text-amber-400 font-semibold text-xs px-2.5 py-0.5 rounded bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 shadow-xs">
                     {config.breakDuration} Dakika
                   </span>
                 </label>
 
-                {/* Belirgin Range Slider Kontrolü */}
+                {/* Range Slider */}
                 <div className="pt-1.5 pb-1">
                   <input
                     type="range"
@@ -265,9 +277,9 @@ export function ScheduleConfigModal({
                         breakDuration: parseInt(e.target.value, 10),
                       })
                     }
-                    className="w-full accent-black dark:accent-amber-500 cursor-pointer"
+                    className="w-full accent-amber-600 dark:accent-amber-500 cursor-pointer"
                   />
-                  <div className="flex justify-between text-[10px] font-mono text-black dark:text-zinc-400 mt-1 font-bold">
+                  <div className="flex justify-between text-[10px] font-mono text-stone-500 dark:text-stone-400 mt-1">
                     <span>0 dk (Peş Peşe)</span>
                     <span>5 dk (Standart)</span>
                     <span>10 dk</span>
@@ -282,10 +294,10 @@ export function ScheduleConfigModal({
                       key={mins}
                       type="button"
                       onClick={() => setConfig({ ...config, breakDuration: mins })}
-                      className={`px-3 py-1.5 rounded-lg border-2 text-xs font-black transition-all cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
                         config.breakDuration === mins
-                          ? 'bg-black text-white border-black shadow-xs dark:bg-amber-500 dark:text-white dark:border-amber-400'
-                          : 'bg-white border-black text-black hover:bg-slate-100 dark:bg-zinc-900 dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-zinc-200'
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-xs dark:bg-amber-600 dark:border-amber-600'
+                          : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-100 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-300 dark:hover:text-stone-100'
                       }`}
                     >
                       {mins === 0 ? '0 dk (Peş Peşe)' : `${mins} dk ${mins === 5 ? '(Standart)' : ''}`}
@@ -297,23 +309,23 @@ export function ScheduleConfigModal({
               {/* Grid: Start Time & Session Count */}
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-black dark:text-zinc-300">İlk Seans Başlangıç Saati</label>
+                  <label className="text-xs font-medium text-stone-700 dark:text-stone-300">İlk Seans Başlangıç Saati</label>
                   <input
                     type="time"
                     value={config.startTime}
                     onChange={(e) => setConfig({ ...config, startTime: e.target.value })}
-                    className="w-full px-3 py-1.5 bg-white dark:bg-[#090a0f] border-2 border-black dark:border-white/[0.1] rounded-lg text-black dark:text-white font-mono text-xs focus:outline-none focus:border-black"
+                    className="w-full px-3 py-1.5 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-md text-stone-900 dark:text-stone-100 font-mono text-xs focus:border-stone-500 focus:outline-hidden"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-black dark:text-zinc-300">Günlük Seans Sayısı</label>
+                  <label className="text-xs font-medium text-stone-700 dark:text-stone-300">Günlük Seans Sayısı</label>
                   <select
                     value={config.sessionCount}
                     onChange={(e) =>
                       setConfig({ ...config, sessionCount: parseInt(e.target.value, 10) || 16 })
                     }
-                    className="w-full px-3 py-1.5 bg-white dark:bg-[#090a0f] border-2 border-black dark:border-white/[0.1] rounded-lg text-black dark:text-white font-mono text-xs focus:outline-none focus:border-black"
+                    className="w-full px-3 py-1.5 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-md text-stone-900 dark:text-stone-100 font-mono text-xs focus:border-stone-500 focus:outline-hidden"
                   >
                     <option value={8}>8 Seans (~2.5 Saat)</option>
                     <option value={10}>10 Seans (~3.5 Saat)</option>
@@ -328,9 +340,9 @@ export function ScheduleConfigModal({
               </div>
 
               {/* Lunch Break Toggle */}
-              <div className="p-3 bg-white dark:bg-white/[0.02] border-2 border-black dark:border-white/[0.06] rounded-xl space-y-2">
+              <div className="p-3 bg-stone-50 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800 rounded-lg space-y-2">
                 <label className="flex items-center justify-between cursor-pointer">
-                  <span className="font-black text-black dark:text-zinc-200">
+                  <span className="font-semibold text-stone-900 dark:text-stone-100">
                     Öğle Arası / Yemek Molası Eklensin mi?
                   </span>
                   <input
@@ -339,14 +351,14 @@ export function ScheduleConfigModal({
                     onChange={(e) =>
                       setConfig({ ...config, includeLunchBreak: e.target.checked })
                     }
-                    className="w-4 h-4 rounded border-2 border-black dark:border-white/20 bg-white dark:bg-zinc-800 text-black focus:ring-0 cursor-pointer"
+                    className="w-4 h-4 rounded border-stone-300 dark:border-stone-700 text-teal-600 focus:ring-0 cursor-pointer"
                   />
                 </label>
 
                 {config.includeLunchBreak && (
-                  <div className="grid grid-cols-2 gap-2.5 pt-1 text-[11px] text-black dark:text-zinc-400">
+                  <div className="grid grid-cols-2 gap-2.5 pt-1 text-[11px] text-stone-700 dark:text-stone-300">
                     <div>
-                      <span className="font-bold">Kaçıncı seanstan sonra?</span>
+                      <span className="font-medium">Kaçıncı seanstan sonra?</span>
                       <select
                         value={config.lunchBreakAfter}
                         onChange={(e) =>
@@ -355,7 +367,7 @@ export function ScheduleConfigModal({
                             lunchBreakAfter: parseInt(e.target.value, 10) || 8,
                           })
                         }
-                        className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-[#090a0f] border-2 border-black dark:border-white/[0.1] rounded text-black dark:text-white font-mono text-xs"
+                        className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded text-stone-900 dark:text-stone-100 font-mono text-xs"
                       >
                         <option value={6}>6. Seanstan sonra (~11:00)</option>
                         <option value={7}>7. Seanstan sonra (~11:20)</option>
@@ -366,7 +378,7 @@ export function ScheduleConfigModal({
                     </div>
 
                     <div>
-                      <span className="font-bold">Öğle Arası Süresi</span>
+                      <span className="font-medium">Öğle Arası Süresi</span>
                       <select
                         value={config.lunchBreakDuration}
                         onChange={(e) =>
@@ -375,7 +387,7 @@ export function ScheduleConfigModal({
                             lunchBreakDuration: parseInt(e.target.value, 10) || 45,
                           })
                         }
-                        className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-[#090a0f] border border-slate-300 dark:border-white/[0.1] rounded text-slate-900 dark:text-white font-mono text-xs"
+                        className="w-full mt-1 px-2.5 py-1 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded text-stone-900 dark:text-stone-100 font-mono text-xs"
                       >
                         <option value={30}>30 Dakika</option>
                         <option value={40}>40 Dakika</option>
@@ -390,18 +402,18 @@ export function ScheduleConfigModal({
 
               {/* Timeline Live Preview */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
-                  <span className="font-medium text-slate-700 dark:text-zinc-300">Oluşacak Seans Çizelgesi Önizleme:</span>
+                <div className="flex items-center justify-between text-[11px] text-stone-500 dark:text-stone-400">
+                  <span className="font-medium text-stone-700 dark:text-stone-300">Oluşacak Seans Çizelgesi Önizleme:</span>
                   <span>{previewSlots.filter((s) => !s.is_break).length} Seans • {previewSlots.filter((s) => s.is_break).length} Mola</span>
                 </div>
-                <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50 dark:bg-[#08090d] border border-slate-200 dark:border-white/[0.06] rounded-xl max-h-36 overflow-y-auto">
+                <div className="flex flex-wrap gap-1.5 p-2.5 bg-stone-50 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800 rounded-lg max-h-36 overflow-y-auto">
                   {previewSlots.map((slot, idx) => (
                     <span
                       key={idx}
                       className={`px-2 py-0.5 rounded text-[11px] font-mono flex items-center gap-1 ${
                         slot.is_break
-                          ? 'bg-amber-50 border border-amber-300 text-amber-800 dark:bg-amber-950/40 dark:border-amber-500/30 dark:text-amber-300'
-                          : 'bg-white text-slate-800 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-white/[0.08]'
+                          ? 'bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300'
+                          : 'bg-white text-stone-800 border border-stone-200 dark:bg-stone-800 dark:text-stone-200 dark:border-stone-700'
                       }`}
                     >
                       {slot.is_break && <Coffee className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />}
@@ -418,28 +430,28 @@ export function ScheduleConfigModal({
                   type="checkbox"
                   checked={keepAssigned}
                   onChange={(e) => setKeepAssigned(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 dark:border-white/20 bg-white dark:bg-zinc-800 text-emerald-600 focus:ring-0 cursor-pointer"
+                  className="w-4 h-4 rounded border-stone-300 dark:border-stone-700 text-teal-600 focus:ring-0 cursor-pointer"
                 />
-                <span className="text-slate-700 dark:text-zinc-300 text-xs">
+                <span className="text-stone-700 dark:text-stone-300 text-xs">
                   Mevcut atanmış öğrencileri koru ve yeni saatlere sırasıyla aktar
                 </span>
               </label>
 
               {/* Apply Action Buttons */}
-              <div className="pt-2 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 dark:border-white/[0.08]">
+              <div className="pt-2 flex flex-wrap items-center justify-end gap-2 border-t border-stone-200 dark:border-stone-800">
                 <button
                   type="button"
                   onClick={handleApplyToDay}
-                  className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 dark:hover:text-white font-medium text-xs transition-colors cursor-pointer border border-slate-200 dark:border-white/[0.06]"
+                  className="px-3 py-2 rounded-md bg-stone-100 hover:bg-stone-200 text-stone-800 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-200 font-medium text-xs transition-colors cursor-pointer border border-stone-200 dark:border-stone-700"
                 >
                   Yalnızca Seçili Güne ({selectedDate}) Uygula
                 </button>
                 <button
                   type="button"
                   onClick={handleApplyToWeek}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-md bg-stone-900 hover:bg-stone-800 text-white dark:bg-stone-100 dark:hover:bg-white dark:text-stone-950 font-medium text-xs transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
                 >
-                  <Zap className="w-3.5 h-3.5" />
+                  <Zap className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600" />
                   <span>Tüm Haftaya Uygula (Pzt-Cum)</span>
                 </button>
               </div>
@@ -448,57 +460,57 @@ export function ScheduleConfigModal({
 
           {activeTab === 'shift' && (
             <div className="space-y-4 text-xs">
-              <div className="p-3 bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-500/20 rounded-xl text-sky-800 dark:text-sky-200 leading-relaxed">
+              <div className="p-3 bg-stone-100 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800 rounded-lg text-stone-700 dark:text-stone-300 leading-relaxed">
                 Tablodaki mevcut tüm seans ve mola saatlerini tek tıkla ileriye veya geriye kaydırabilirsiniz.
                 Öğrenci randevuları ve notları aynen korunur.
               </div>
 
               {/* Scope Selector */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-700 dark:text-zinc-200">Kaydırma Kapsamı:</label>
+                <label className="text-xs font-medium text-stone-700 dark:text-stone-300">Kaydırma Kapsamı:</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setShiftScope('week')}
-                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                    className={`p-2.5 rounded-md border text-left cursor-pointer transition-colors ${
                       shiftScope === 'week'
-                        ? 'bg-sky-50 border-sky-400 text-sky-900 font-semibold dark:bg-sky-950/30 dark:border-sky-400 dark:text-white'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 dark:bg-zinc-900/60 dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-white'
+                        ? 'bg-stone-200 border-stone-400 text-stone-900 font-semibold dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100'
+                        : 'bg-stone-50 border-stone-200 text-stone-600 hover:text-stone-900 dark:bg-stone-900/40 dark:border-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
                     }`}
                   >
                     <div className="text-xs">Tüm Hafta</div>
-                    <div className="text-[11px] text-slate-500 dark:text-zinc-500 font-normal">Pazartesi - Cuma</div>
+                    <div className="text-[11px] text-stone-500 dark:text-stone-400 font-normal">Pazartesi - Cuma</div>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setShiftScope('day')}
-                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                    className={`p-2.5 rounded-md border text-left cursor-pointer transition-colors ${
                       shiftScope === 'day'
-                        ? 'bg-sky-50 border-sky-400 text-sky-900 font-semibold dark:bg-sky-950/30 dark:border-sky-400 dark:text-white'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 dark:bg-zinc-900/60 dark:border-white/[0.08] dark:text-zinc-400 dark:hover:text-white'
+                        ? 'bg-stone-200 border-stone-400 text-stone-900 font-semibold dark:bg-stone-800 dark:border-stone-600 dark:text-stone-100'
+                        : 'bg-stone-50 border-stone-200 text-stone-600 hover:text-stone-900 dark:bg-stone-900/40 dark:border-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
                     }`}
                   >
                     <div className="text-xs">Seçili Gün</div>
-                    <div className="text-[11px] text-slate-500 dark:text-zinc-500 font-normal">{formatTurkishDate(selectedDate)}</div>
+                    <div className="text-[11px] text-stone-500 dark:text-stone-400 font-normal">{formatTurkishDate(selectedDate)}</div>
                   </button>
                 </div>
               </div>
 
               {/* Quick Shift Presets */}
               <div className="space-y-2">
-                <label className="text-xs font-medium text-slate-700 dark:text-zinc-200">Hızlı Kaydırma Butonları:</label>
+                <label className="text-xs font-medium text-stone-700 dark:text-stone-300">Hızlı Kaydırma Butonları:</label>
 
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="w-24 text-[11px] text-slate-600 dark:text-zinc-400">İleri Kaydır (+):</span>
+                    <span className="w-24 text-[11px] text-stone-600 dark:text-stone-400">İleri Kaydır (+):</span>
                     <div className="flex items-center gap-1.5 flex-1 flex-wrap">
                       {[5, 10, 15, 30].map((mins) => (
                         <button
                           key={mins}
                           type="button"
                           onClick={() => handleQuickShift(mins)}
-                          className="px-3 py-1.5 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 dark:bg-sky-950/40 dark:hover:bg-sky-900/60 dark:text-sky-300 dark:border-sky-500/30 text-xs font-mono font-medium transition-all cursor-pointer"
+                          className="px-3 py-1.5 rounded-md bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-200 dark:border-stone-700 text-xs font-mono font-medium transition-colors cursor-pointer"
                         >
                           +{mins} dk
                         </button>
@@ -507,14 +519,14 @@ export function ScheduleConfigModal({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="w-24 text-[11px] text-slate-600 dark:text-zinc-400">Geri Kaydır (-):</span>
+                    <span className="w-24 text-[11px] text-stone-600 dark:text-stone-400">Geri Kaydır (-):</span>
                     <div className="flex items-center gap-1.5 flex-1 flex-wrap">
                       {[5, 10, 15, 30].map((mins) => (
                         <button
                           key={mins}
                           type="button"
                           onClick={() => handleQuickShift(-mins)}
-                          className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:hover:bg-rose-900/50 dark:text-rose-300 dark:border-rose-500/30 text-xs font-mono font-medium transition-all cursor-pointer"
+                          className="px-3 py-1.5 rounded-md bg-stone-100 hover:bg-stone-200 text-rose-700 border border-rose-200 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-rose-400 dark:border-stone-700 text-xs font-mono font-medium transition-colors cursor-pointer"
                         >
                           -{mins} dk
                         </button>
@@ -525,8 +537,8 @@ export function ScheduleConfigModal({
               </div>
 
               {/* Custom Shift Minutes */}
-              <div className="pt-2 border-t border-slate-200 dark:border-white/[0.08] flex items-center justify-between gap-2">
-                <span className="text-xs text-slate-700 dark:text-zinc-300">Özel Dakika Miktarı ile Kaydır:</span>
+              <div className="pt-2 border-t border-stone-200 dark:border-stone-800 flex items-center justify-between gap-2">
+                <span className="text-xs text-stone-700 dark:text-stone-300">Özel Dakika Miktarı ile Kaydır:</span>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
@@ -534,19 +546,19 @@ export function ScheduleConfigModal({
                     max={180}
                     value={customShiftMinutes}
                     onChange={(e) => setCustomShiftMinutes(parseInt(e.target.value, 10) || 10)}
-                    className="w-16 px-2 py-1 bg-slate-50 dark:bg-[#090a0f] border border-slate-300 dark:border-white/[0.1] rounded text-slate-900 dark:text-white text-center font-mono text-xs"
+                    className="w-16 px-2 py-1 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded text-stone-900 dark:text-stone-100 text-center font-mono text-xs"
                   />
                   <button
                     type="button"
                     onClick={() => handleQuickShift(-customShiftMinutes)}
-                    className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-rose-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-rose-300 text-xs font-medium cursor-pointer"
+                    className="px-2.5 py-1 rounded-md bg-stone-100 hover:bg-stone-200 text-rose-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-rose-400 text-xs font-medium cursor-pointer"
                   >
                     -{customShiftMinutes} dk
                   </button>
                   <button
                     type="button"
                     onClick={() => handleQuickShift(customShiftMinutes)}
-                    className="px-2.5 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium cursor-pointer"
+                    className="px-2.5 py-1 rounded-md bg-stone-900 hover:bg-stone-800 text-white dark:bg-stone-100 dark:hover:bg-white dark:text-stone-950 text-xs font-medium cursor-pointer"
                   >
                     +{customShiftMinutes} dk
                   </button>
@@ -557,42 +569,42 @@ export function ScheduleConfigModal({
 
           {activeTab === 'break' && (
             <form onSubmit={handleAddBreakSubmit} className="space-y-4 text-xs">
-              <div className="p-3 bg-amber-50 dark:bg-[#1e1c18] border border-amber-200 dark:border-amber-500/20 rounded-xl text-amber-800 dark:text-amber-200/90 leading-relaxed">
+              <div className="p-3 bg-amber-50/70 dark:bg-stone-900/60 border border-amber-200 dark:border-amber-800/60 rounded-lg text-amber-900 dark:text-amber-300 leading-relaxed">
                 Tabloya özel teneffüs, mola, öğle arası veya rehberlik toplantısı bloğu ekleyin.
                 Teneffüsler haftalık çizelgede özel mola kartı olarak görüntülenir.
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700 dark:text-zinc-300">Tarih</label>
+                  <label className="text-xs font-medium text-stone-700 dark:text-stone-300">Tarih</label>
                   <input
                     type="date"
                     value={breakDate}
                     onChange={(e) => setBreakDate(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] rounded-lg text-slate-900 dark:text-white font-mono text-xs focus:outline-none"
+                    className="w-full px-3 py-1.5 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-md text-stone-900 dark:text-stone-100 font-mono text-xs focus:border-stone-500 focus:outline-hidden"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700 dark:text-zinc-300">Teneffüs Saati</label>
+                  <label className="text-xs font-medium text-stone-700 dark:text-stone-300">Teneffüs Saati</label>
                   <input
                     type="time"
                     value={breakTime}
                     onChange={(e) => setBreakTime(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-slate-50 dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] rounded-lg text-slate-900 dark:text-white font-mono text-xs focus:outline-none"
+                    className="w-full px-3 py-1.5 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-md text-stone-900 dark:text-stone-100 font-mono text-xs focus:border-stone-500 focus:outline-hidden"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-700 dark:text-zinc-300">Mola Başlığı & Açıklaması</label>
+                <label className="text-xs font-medium text-stone-700 dark:text-stone-300">Mola Başlığı & Açıklaması</label>
                 <input
                   type="text"
                   value={breakTitle}
                   onChange={(e) => setBreakTitle(e.target.value)}
                   placeholder="Örn: 15 dk Teneffüs, Öğle Arası & Yemek, Zümre Toplantısı..."
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] rounded-lg text-slate-900 dark:text-white text-xs placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-amber-500"
+                  className="w-full px-3 py-2 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-md text-stone-900 dark:text-stone-100 text-xs placeholder-stone-400 dark:placeholder-stone-500 focus:border-stone-500 focus:outline-hidden"
                   required
                 />
               </div>
@@ -609,24 +621,24 @@ export function ScheduleConfigModal({
                     key={preset}
                     type="button"
                     onClick={() => setBreakTitle(preset)}
-                    className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-[#1f1e24] dark:hover:bg-[#282732] dark:text-zinc-300 dark:hover:text-white border border-slate-200 dark:border-white/[0.06] text-[11px] transition-colors cursor-pointer"
+                    className="px-2.5 py-1 rounded bg-stone-100 hover:bg-stone-200 text-stone-700 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300 dark:hover:text-stone-100 border border-stone-200 dark:border-stone-700 text-[11px] transition-colors cursor-pointer"
                   >
                     {preset}
                   </button>
                 ))}
               </div>
 
-              <div className="pt-3 border-t border-slate-200 dark:border-white/[0.08] flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-stone-200 dark:border-stone-800 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
+                  className="px-3 py-1.5 text-xs text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200 transition-colors cursor-pointer"
                 >
                   İptal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-medium text-xs transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-md bg-stone-900 hover:bg-stone-800 text-white dark:bg-stone-100 dark:hover:bg-white dark:text-stone-950 font-medium text-xs transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
                 >
                   <Coffee className="w-3.5 h-3.5" />
                   <span>Teneffüsü Tabloya Ekle</span>

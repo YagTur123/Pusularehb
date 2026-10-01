@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Student, DIAGNOSTIC_TAGS } from '../types';
 import { autoFormatPhone, displayPhone } from '../lib/storage';
 import { X, Check, User, Phone, GraduationCap, Target, Tag, FileText } from 'lucide-react';
@@ -22,6 +22,14 @@ export function StudentProfileModal({
   const [targetGoal, setTargetGoal] = useState(student?.target_goal || '');
   const [notes, setNotes] = useState(student?.notes || '');
   const [statusFlags, setStatusFlags] = useState<string[]>(student?.status_flags || []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const toggleTag = (tag: string) => {
     if (statusFlags.includes(tag)) {
@@ -59,26 +67,32 @@ export function StudentProfileModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-[#181a26] border border-slate-200 dark:border-white/[0.1] rounded-xl shadow-2xl max-w-lg w-full overflow-hidden text-slate-800 dark:text-zinc-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="student-profile-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+    >
+      <div className="bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 rounded-lg shadow-lg max-w-lg w-full overflow-hidden text-stone-800 dark:text-stone-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-white/[0.08] bg-slate-50/80 dark:bg-[#141622]">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/50">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:border-white/[0.08]">
-              <User className="w-5 h-5" />
+            <div className="p-1.5 rounded-md bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300 border border-stone-200 dark:border-stone-700">
+              <User className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+              <h3 id="student-profile-title" className="text-sm font-semibold text-stone-900 dark:text-stone-100">
                 {isEditing ? 'Öğrenci Profilini Düzenle' : 'Yeni Öğrenci Kaydı'}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+              <p className="text-xs text-stone-500 dark:text-stone-400">
                 Rehberlik CRM veri tabanı öğrenci kartı
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-white rounded-md hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+            aria-label="Kapat"
+            className="p-1.5 text-stone-400 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 rounded hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -186,8 +200,8 @@ export function StudentProfileModal({
 
           {/* Rehberlik Notları */}
           <div>
-            <label className="block text-slate-700 dark:text-zinc-400 font-medium mb-1 flex items-center gap-1">
-              <FileText className="w-3 h-3 text-slate-500 dark:text-zinc-400" />
+            <label className="block text-stone-700 dark:text-stone-300 font-medium mb-1 flex items-center gap-1">
+              <FileText className="w-3 h-3 text-stone-500" />
               <span>Rehber Öğretmen Özel Notu:</span>
             </label>
             <textarea
@@ -196,24 +210,24 @@ export function StudentProfileModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Öğrencinin çalışma alışkanlıkları, deneme durumu, aile veya veli iletişim notları..."
-              className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-slate-500 dark:focus:border-zinc-500 text-xs resize-none"
+              className="w-full px-3 py-1.5 rounded-md bg-stone-50 dark:bg-stone-900 border border-stone-300 dark:border-stone-700 text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 focus:outline-hidden focus:ring-1 focus:ring-teal-600 focus:border-teal-600 text-xs resize-none"
             />
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-white/[0.08]">
+          <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-stone-200 dark:border-stone-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-md text-stone-600 hover:text-stone-900 hover:bg-stone-100 dark:text-stone-400 dark:hover:text-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
             >
               İptal
             </button>
             <button
               type="submit"
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-md font-medium bg-slate-900 hover:bg-slate-800 text-white dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-white border border-slate-900 dark:border-white/[0.1] shadow-xs transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-md font-medium bg-teal-600 hover:bg-teal-700 text-white shadow-xs transition-colors cursor-pointer"
             >
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              <Check className="w-3.5 h-3.5 text-white" />
               <span>{isEditing ? 'Güncelle' : 'Öğrenciyi Kaydet'}</span>
             </button>
           </div>

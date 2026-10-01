@@ -17,7 +17,7 @@ import {
   Sun,
   Moon,
 } from 'lucide-react';
-import { getTodayDateString } from '../lib/storage';
+import { getTodayDateString, StorageService } from '../lib/storage';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -197,29 +197,31 @@ export function CommandPalette({
       },
     });
 
-    list.push({
-      id: 'act_export_json',
-      category: 'İşlemler',
-      title: 'JSON Yedeği İndir',
-      subtitle: 'Tüm veri tabanını dışa aktar',
-      icon: <Download className="w-4 h-4 text-slate-400" />,
-      action: () => {
-        onClose();
-        onExportJson();
-      },
-    });
+    if (!StorageService.isDemo()) {
+      list.push({
+        id: 'act_export_json',
+        category: 'İşlemler',
+        title: 'JSON Yedeği İndir',
+        subtitle: 'Tüm veri tabanını dışa aktar',
+        icon: <Download className="w-4 h-4 text-slate-400" />,
+        action: () => {
+          onClose();
+          onExportJson();
+        },
+      });
 
-    list.push({
-      id: 'act_export_csv',
-      category: 'İşlemler',
-      title: 'Excel (CSV) Öğrenci Listesi İndir',
-      subtitle: 'Öğrenci tablosunu Excel uyumlu CSV olarak kaydet',
-      icon: <Download className="w-4 h-4 text-slate-400" />,
-      action: () => {
-        onClose();
-        onExportCsv();
-      },
-    });
+      list.push({
+        id: 'act_export_csv',
+        category: 'İşlemler',
+        title: 'Excel (CSV) Öğrenci Listesi İndir',
+        subtitle: 'Öğrenci tablosunu Excel uyumlu CSV olarak kaydet',
+        icon: <Download className="w-4 h-4 text-slate-400" />,
+        action: () => {
+          onClose();
+          onExportCsv();
+        },
+      });
+    }
 
     // Student items
     students.forEach((st) => {
@@ -281,11 +283,20 @@ export function CommandPalette({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/40 dark:bg-black/70 backdrop-blur-xs animate-in fade-in duration-100">
-      <div className="bg-white dark:bg-[#181a26] border border-slate-200 dark:border-white/[0.1] rounded-xl shadow-2xl max-w-xl w-full overflow-hidden text-slate-800 dark:text-zinc-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Komut Paleti"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 rounded-lg shadow-lg max-w-xl w-full overflow-hidden text-stone-800 dark:text-stone-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3.5 border-b border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-[#141622]">
-          <Search className="w-4 h-4 text-slate-400 dark:text-zinc-500 mr-3 shrink-0" />
+        <div className="flex items-center px-4 py-3 border-b border-stone-200 dark:border-stone-800 bg-stone-50/50 dark:bg-stone-900/50">
+          <Search className="w-4 h-4 text-stone-400 mr-2.5 shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -296,17 +307,17 @@ export function CommandPalette({
             }}
             onKeyDown={handleKeyDown}
             placeholder="Bir komut yazın veya öğrenci arayın..."
-            className="w-full bg-transparent text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none"
+            className="w-full bg-transparent text-xs text-stone-900 dark:text-stone-100 placeholder-stone-400 dark:placeholder-stone-500 focus:outline-hidden"
           />
-          <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 text-[10px] font-mono text-slate-600 dark:text-zinc-400">
+          <kbd className="px-1.5 py-0.5 rounded bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-[10px] font-mono text-stone-500">
             ESC
           </kbd>
         </div>
 
         {/* Results List */}
-        <div className="max-h-80 overflow-y-auto p-1.5 divide-y divide-slate-100 dark:divide-white/[0.04]">
+        <div className="max-h-80 overflow-y-auto p-1.5 divide-y divide-stone-100 dark:divide-stone-800/60">
           {items.length === 0 ? (
-            <div className="py-8 text-center text-xs text-slate-400 dark:text-zinc-500">
+            <div className="py-8 text-center text-xs text-stone-400 dark:text-stone-500">
               Sonuç bulunamadı.
             </div>
           ) : (
@@ -318,20 +329,20 @@ export function CommandPalette({
                   type="button"
                   onClick={item.action}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`w-full text-left px-3 py-2 rounded-lg flex items-center justify-between text-xs transition-colors cursor-pointer ${
+                  className={`w-full text-left px-3 py-2 rounded-md flex items-center justify-between text-xs transition-colors cursor-pointer ${
                     isSelected
-                      ? 'bg-slate-100 dark:bg-white/[0.08] text-slate-900 dark:text-white'
-                      : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/[0.04]'
+                      ? 'bg-stone-100 dark:bg-stone-800 text-stone-900 dark:text-stone-100'
+                      : 'text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800/50'
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={isSelected ? 'text-emerald-600 dark:text-white' : 'text-slate-500 dark:text-zinc-400'}>{item.icon}</div>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={isSelected ? 'text-teal-600 dark:text-teal-400' : 'text-stone-400'}>{item.icon}</div>
                     <div className="min-w-0">
-                      <p className="font-semibold truncate">{item.title}</p>
+                      <p className="font-medium truncate">{item.title}</p>
                       {item.subtitle && (
                         <p
                           className={`text-[11px] truncate ${
-                            isSelected ? 'text-slate-600 dark:text-zinc-300' : 'text-slate-500 dark:text-zinc-400'
+                            isSelected ? 'text-stone-600 dark:text-stone-400' : 'text-stone-400 dark:text-stone-500'
                           }`}
                         >
                           {item.subtitle}
@@ -340,17 +351,17 @@ export function CommandPalette({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
                     <span
                       className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
                         isSelected
-                          ? 'bg-slate-200 border-slate-300 text-slate-800 dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-200'
-                          : 'bg-slate-50 border-slate-200 text-slate-500 dark:bg-[#12141e] dark:border-white/[0.06] dark:text-zinc-500'
+                          ? 'bg-stone-200 border-stone-300 text-stone-800 dark:bg-stone-700 dark:border-stone-600 dark:text-stone-200'
+                          : 'bg-stone-50 border-stone-200 text-stone-500 dark:bg-stone-800/80 dark:border-stone-700 dark:text-stone-400'
                       }`}
                     >
                       {item.category}
                     </span>
-                    {isSelected && <ArrowRight className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300" />}
+                    {isSelected && <ArrowRight className="w-3.5 h-3.5 text-stone-500" />}
                   </div>
                 </button>
               );
@@ -359,7 +370,7 @@ export function CommandPalette({
         </div>
 
         {/* Footer info */}
-        <div className="px-4 py-2 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-[#141622] text-[11px] text-slate-500 dark:text-zinc-500 flex items-center justify-between">
+        <div className="px-4 py-2 border-t border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/50 text-[11px] text-stone-500 flex items-center justify-between">
           <span>Seçmek için &uarr; &darr; tuşlarını, çalıştırmak için Enter'ı kullanın</span>
           <span className="font-mono">{items.length} kayıt</span>
         </div>

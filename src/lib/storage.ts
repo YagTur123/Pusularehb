@@ -1,54 +1,34 @@
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  writeBatch,
+  Unsubscribe,
+} from 'firebase/firestore';
+import { db, auth } from './firebase';
 import { Student, Session, ScheduleConfig } from '../types';
-import { cloudSync } from './firebaseSync';
-import { AuthService } from './auth';
-
-const STORAGE_KEYS = {
-  STUDENTS: 'pusula_students_v1',
-  SESSIONS: 'pusula_sessions_v1',
-  INITIALIZED: 'pusula_initialized_v1',
-  COUNSELOR_NAME: 'pusula_counselor_name_v1',
-  SCHEDULE_CONFIG: 'pusula_schedule_config_v1',
-};
-
-// Helper to get active user id for storage key isolation
-export function getActiveUserId(): string {
-  try {
-    const user = AuthService.getCurrentUser();
-    return user?.id || 'demo_rehberlik';
-  } catch {
-    return 'demo_rehberlik';
-  }
-}
-
-// Scoped key helper: if key already contains user ID or for specific user
-export function getUserStorageKey(baseKey: string, userId?: string): string {
-  const uid = userId || getActiveUserId();
-  return `${baseKey}_${uid}`;
-}
-
-// Debounce cloud sync calls to prevent spamming Firestore
-let cloudSyncTimeout: any = null;
-function scheduleCloudSync() {
-  if (cloudSyncTimeout) clearTimeout(cloudSyncTimeout);
-  cloudSyncTimeout = setTimeout(() => {
-    cloudSync.syncLocalToCloud().catch(() => {});
-  }, 400);
-}
+import {
+  StudentSchema,
+  SessionSchema,
+  ScheduleConfigSchema,
+  BackupImportSchema,
+} from './schemas';
 
 export function autoFormatPhone(raw: string): string {
   if (!raw) return '';
-  // Strip all non-digits
   let digits = raw.replace(/\D/g, '');
 
   if (digits.startsWith('0')) {
     digits = '9' + digits;
   } else if (digits.startsWith('5')) {
     digits = '90' + digits;
-  } else if (digits.startsWith('90')) {
-    // already starts with 90
   }
 
-  // Cap at 12 digits (905xxxxxxxxx)
   return digits.slice(0, 12);
 }
 
@@ -86,15 +66,16 @@ export function formatTurkishDate(dateStr: string): string {
     const day = date.getDate();
     const months = [
       'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
     ];
     const days = [
-      'Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'
+      'Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi',
     ];
     const monthName = months[date.getMonth()];
     const dayName = days[date.getDay()];
     return `${day} ${monthName} ${y}, ${dayName}`;
-  } catch {
+  } catch (e) {
+    console.error('Date format error:', e);
     return dateStr;
   }
 }
@@ -106,20 +87,21 @@ export function formatTurkishDateWithoutDay(dateStr: string): string {
     const day = date.getDate();
     const months = [
       'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
     ];
     const monthName = months[date.getMonth()];
     return `${day} ${monthName} ${y}`;
-  } catch {
+  } catch (e) {
+    console.error('Date format error:', e);
     return dateStr;
   }
 }
 
 export interface WeekDayInfo {
-  date: string; // YYYY-MM-DD
-  dayName: string; // Pazartesi, Salı...
-  shortDayName: string; // Pzt, Sal...
-  dayNumber: number; // 8
+  date: string;
+  dayName: string;
+  shortDayName: string;
+  dayNumber: number;
   isToday: boolean;
   isPast: boolean;
 }
@@ -127,7 +109,7 @@ export interface WeekDayInfo {
 export function getWeekDays(baseDate: string, includeWeekend = false): WeekDayInfo[] {
   const [y, m, d] = baseDate.split('-').map(Number);
   const current = new Date(y, m - 1, d);
-  const dayOfWeek = current.getDay(); // 0=Sun, 1=Mon...
+  const dayOfWeek = current.getDay();
   const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   const monday = new Date(current);
   monday.setDate(current.getDate() + diffToMonday);
@@ -168,7 +150,7 @@ export function getMonthDays(
 
   const days: { date: string; dayNumber: number; isCurrentMonth: boolean; isToday: boolean }[] = [];
 
-  const firstDayWeekDay = firstDay.getDay(); // 0=Sun, 1=Mon...
+  const firstDayWeekDay = firstDay.getDay();
   const startOffset = firstDayWeekDay === 0 ? 6 : firstDayWeekDay - 1;
 
   for (let i = startOffset; i > 0; i--) {
@@ -245,7 +227,6 @@ export function addMinutesToTime(timeStr: string, minutes: number): string {
   const m = parseInt(mStr, 10);
   if (isNaN(h) || isNaN(m)) return timeStr;
   let totalMins = h * 60 + m + minutes;
-  // keep within positive 24h
   while (totalMins < 0) totalMins += 1440;
   totalMins = totalMins % 1440;
   const newH = Math.floor(totalMins / 60);
@@ -276,13 +257,11 @@ export function generateSlotsFromScheduleConfig(config: ScheduleConfig): {
 
   for (let i = 1; i <= config.sessionCount; i++) {
     const sessionEnd = addMinutesToTime(currentTime, config.sessionDuration);
-    // Add guidance counseling slot
     slots.push({
       time_slot: currentTime,
     });
 
     if (i < config.sessionCount) {
-      // Check lunch break
       if (config.includeLunchBreak && i === config.lunchBreakAfter) {
         const lunchEnd = addMinutesToTime(sessionEnd, config.lunchBreakDuration);
         slots.push({
@@ -292,7 +271,6 @@ export function generateSlotsFromScheduleConfig(config: ScheduleConfig): {
         });
         currentTime = lunchEnd;
       } else if (config.breakDuration > 0) {
-        // Standard recess / break
         const breakEnd = addMinutesToTime(sessionEnd, config.breakDuration);
         slots.push({
           time_slot: sessionEnd,
@@ -309,645 +287,730 @@ export function generateSlotsFromScheduleConfig(config: ScheduleConfig): {
   return slots;
 }
 
-// Generate default 15-min guidance session slots
 export function generateDefaultTimeSlots(): string[] {
   return [
-    '09:00',
-    '09:20',
-    '09:40',
-    '10:00',
-    '10:20',
-    '10:40',
-    '11:00',
-    '11:20',
-    '11:40',
-    '13:00',
-    '13:20',
-    '13:40',
-    '14:00',
-    '14:20',
-    '14:40',
-    '15:00',
-    '15:20',
-    '15:40',
-  ];
-}
-
-const INITIAL_STUDENTS: Student[] = [
-  {
-    id: 'std_1',
-    full_name: 'Ahmet Yılmaz',
-    class_grade: '12-A',
-    phone: '905324182914',
-    last_meeting_date: getTodayDateString(),
-    status_flags: ['Net Düşüşü', 'Geometri Eksiği'],
-    target_goal: 'İTÜ Bilgisayar Mühendisliği',
-    notes: 'TYT Fen ve Geometri kaynaklarını bitirme aşamasında.',
-    created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
-  },
-  {
-    id: 'std_2',
-    full_name: 'Ayşe Demir',
-    class_grade: 'Mezun',
-    phone: '905438201945',
-    last_meeting_date: getTodayDateString(),
-    status_flags: ['Motivasyon', 'Paragraf Rutini'],
-    target_goal: '',
-    notes: 'Mezun psikolojisi, deneme sıklığı haftada 2 olacak.',
-    created_at: new Date(Date.now() - 40 * 86400000).toISOString(),
-  },
-  {
-    id: 'std_3',
-    full_name: 'Emre Can Öztürk',
-    class_grade: '12-B',
-    phone: '905056714289',
-    last_meeting_date: getTodayDateString(),
-    status_flags: ['AYT Matematik', 'Zaman Yönetimi'],
-    target_goal: 'ODTÜ Elektrik-Elektronik',
-    notes: 'Türev-İntegral fasikülü ödevi verildi.',
-    created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
-  },
-  {
-    id: 'std_4',
-    full_name: 'Zeynep Kaya',
-    class_grade: '11-A',
-    phone: '905359124038',
-    last_meeting_date: shiftDateString(getTodayDateString(), -25), // 25 gün önce (Risk Radarı)
-    status_flags: ['Sınav Kaygısı', 'Net Düşüşü'],
-    target_goal: '',
-    notes: '20+ gündür görüşülmedi. Acil randevu atanmalı.',
-    created_at: new Date(Date.now() - 60 * 86400000).toISOString(),
-  },
-  {
-    id: 'std_5',
-    full_name: 'Berkay Şahin',
-    class_grade: '12-C',
-    phone: '905362948172',
-    last_meeting_date: shiftDateString(getTodayDateString(), -22), // 22 gün önce (Risk Radarı)
-    status_flags: ['Program Aksatması'],
-    target_goal: '',
-    notes: 'Program aksatıyor, veli görüşmesi gerekebilir.',
-    created_at: new Date(Date.now() - 45 * 86400000).toISOString(),
-  },
-  {
-    id: 'std_6',
-    full_name: 'Selin Arslan',
-    class_grade: 'Mezun',
-    phone: '905447193825',
-    last_meeting_date: shiftDateString(getTodayDateString(), -2),
-    status_flags: ['Paragraf Rutini', 'Deneme Analizi'],
-    target_goal: '',
-    notes: 'Son seansa gelmedi.',
-    created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
-  },
-  {
-    id: 'std_7',
-    full_name: 'Kaan Yıldırım',
-    class_grade: '12-A',
-    phone: '905336021874',
-    last_meeting_date: shiftDateString(getTodayDateString(), -10),
-    status_flags: ['FKB Çalışması', 'AYT Matematik'],
-    target_goal: '',
-    notes: 'AYT Fizik denemeleri incelenecek.',
-    created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
-  },
-];
-
-function getInitialSessions(): Session[] {
-  const today = getTodayDateString();
-  const yesterday = shiftDateString(today, -1);
-  const nextWeek = shiftDateString(today, 7);
-
-  return [
-    {
-      id: 'sess_1',
-      date: today,
-      time_slot: '09:30',
-      student_id: 'std_1',
-      topic: 'TYT Analiz & Net Takibi',
-      action_items: 'Geometri soru bankası taraması.',
-      tags: ['Net Düşüşü', 'Geometri Eksiği'],
-      status: 'Geldi',
-      next_followup_date: nextWeek,
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'sess_2',
-      date: today,
-      time_slot: '10:15',
-      student_id: 'std_2',
-      topic: 'Hedef Belirleme & Mezun Rutini',
-      action_items: '',
-      tags: ['Motivasyon', 'Paragraf Rutini'],
-      status: 'Bekliyor',
-      next_followup_date: nextWeek,
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'sess_3',
-      date: today,
-      time_slot: '11:10',
-      student_id: 'std_3',
-      topic: 'AYT Matematik & Soru Kampı',
-      action_items: 'Fonksiyonlar ve Polinomlar soru bankası taraması.',
-      tags: ['AYT Matematik'],
-      status: 'Bekliyor',
-      next_followup_date: nextWeek,
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'sess_break_recess_1',
-      date: today,
-      time_slot: '11:50',
-      student_id: null,
-      topic: '15 dk Teneffüs',
-      action_items: '',
-      tags: ['Teneffüs'],
-      status: 'Bekliyor',
-      is_break: true,
-      break_title: '15 dk Teneffüs',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'sess_break_lunch_1',
-      date: today,
-      time_slot: '12:10',
-      student_id: null,
-      topic: 'Öğle Arası',
-      action_items: '',
-      tags: ['Öğle Arası'],
-      status: 'Bekliyor',
-      is_break: true,
-      break_title: '50 dk Öğle Arası & Yemek',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'sess_4',
-      date: today,
-      time_slot: '13:30',
-      student_id: 'std_6',
-      topic: 'Randevu Telafisi & Deneme Analizi',
-      action_items: '',
-      tags: ['Deneme Analizi'],
-      status: 'Gelmedi',
-      next_followup_date: nextWeek,
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'sess_5',
-      date: today,
-      time_slot: '14:20',
-      student_id: null,
-      topic: '',
-      action_items: '',
-      tags: [],
-      status: 'Bekliyor',
-      created_at: new Date().toISOString(),
-    },
-    // Dünkü görüşmeler
-    {
-      id: 'sess_past_1',
-      date: yesterday,
-      time_slot: '10:00',
-      student_id: 'std_6',
-      topic: 'YKS Haftalık Çizelge',
-      action_items: '',
-      tags: ['Program Aksatması'],
-      status: 'Gelmedi',
-      created_at: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      id: 'sess_past_2',
-      date: yesterday,
-      time_slot: '11:00',
-      student_id: 'std_7',
-      topic: 'AYT Fen Programı',
-      action_items: 'Fizik optik tekrarı yapıldı.',
-      tags: ['FKB Çalışması'],
-      status: 'Geldi',
-      created_at: new Date(Date.now() - 86400000).toISOString(),
-    },
-  ];
-}
-
-function getCoachInitialStudents(): Student[] {
-  const today = getTodayDateString();
-  return [
-    {
-      id: 'koc_std_1',
-      full_name: 'Burak Tan',
-      class_grade: '12-SAY',
-      phone: '905331122334',
-      last_meeting_date: today,
-      status_flags: ['Haftalık Plan', 'AYT Matematik'],
-      target_goal: 'Boğaziçi Makine Mühendisliği',
-      notes: 'Haftalık soru hedefi 800 soru. Deneme takip tablosu dolduruldu.',
-      created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
-    },
-    {
-      id: 'koc_std_2',
-      full_name: 'Derya Çetin',
-      class_grade: 'Mezun-EA',
-      phone: '905442233445',
-      last_meeting_date: shiftDateString(today, -3),
-      status_flags: ['Paragraf Rutini', 'Edebiyat Ezber'],
-      target_goal: 'Galatasaray Hukuk Fakültesi',
-      notes: 'Edebiyat yazar-eser kartları çalışması haftalık kontrol edilecek.',
-      created_at: new Date(Date.now() - 18 * 86400000).toISOString(),
-    },
-    {
-      id: 'koc_std_3',
-      full_name: 'Caner Aksoy',
-      class_grade: '12-EA',
-      phone: '905553344556',
-      last_meeting_date: shiftDateString(today, -21), // Risk Radarı (>20 gün)
-      status_flags: ['Zaman Yönetimi', 'Net Düşüşü'],
-      target_goal: 'Bilkent İktisat',
-      notes: 'Koçluk seansını aksattı, acil takip görüşmesi yapılmalı.',
-      created_at: new Date(Date.now() - 35 * 86400000).toISOString(),
-    },
-  ];
-}
-
-function getCoachInitialSessions(): Session[] {
-  const today = getTodayDateString();
-  const nextWeek = shiftDateString(today, 7);
-
-  return [
-    {
-      id: 'koc_sess_1',
-      date: today,
-      time_slot: '10:00',
-      student_id: 'koc_std_1',
-      topic: 'Haftalık Soru Analizi & Kamp Programı',
-      action_items: 'Limit-Türev fasikülü bitirilecek.',
-      tags: ['Haftalık Plan', 'AYT Matematik'],
-      status: 'Geldi',
-      next_followup_date: nextWeek,
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'koc_sess_2',
-      date: today,
-      time_slot: '10:40',
-      student_id: 'koc_std_2',
-      topic: 'Deneme Stratejisi & Edebiyat Takibi',
-      action_items: 'Günde 30 paragraf rutini kontrolü.',
-      tags: ['Paragraf Rutini'],
-      status: 'Bekliyor',
-      next_followup_date: nextWeek,
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'koc_sess_break_1',
-      date: today,
-      time_slot: '11:20',
-      student_id: null,
-      topic: 'Teneffüs / Kahve Arası',
-      action_items: '',
-      tags: ['Teneffüs'],
-      status: 'Bekliyor',
-      is_break: true,
-      break_title: '15 dk Koçluk Molası',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'koc_sess_3',
-      date: today,
-      time_slot: '11:35',
-      student_id: 'koc_std_3',
-      topic: 'Kriz Görüşmesi & Takip Seansı',
-      action_items: 'Aksayan program yeniden yapılandırıldı.',
-      tags: ['Net Düşüşü'],
-      status: 'Bekliyor',
-      next_followup_date: nextWeek,
-      created_at: new Date().toISOString(),
-    },
+    '09:00', '09:20', '09:40', '10:00', '10:20', '10:40',
+    '11:00', '11:20', '11:40', '13:00', '13:20', '13:40',
+    '14:00', '14:20', '14:40', '15:00', '15:20', '15:40',
   ];
 }
 
 function sanitizeCsvCell(value: string | undefined | null): string {
   if (!value) return '""';
   let str = String(value).trim();
-  // Neutralize CSV/Formula Injection if starting with =, +, -, @, \t, \r
   if (/^[=+\-@\t\r]/.test(str)) {
     str = "'" + str;
   }
-  // Escape internal double quotes by doubling them
   return `"${str.replace(/"/g, '""')}"`;
 }
 
+// Global in-memory cache for ultra-responsive synchronous reads
+let cachedStudents: Student[] = [];
+let cachedSessions: Session[] = [];
+let cachedScheduleConfig: ScheduleConfig = DEFAULT_SCHEDULE_CONFIG;
+let cachedCounselorName: string = 'Rehberlik & Psikolojik Danışmanlık Birimi';
+let activeUserId: string | null = null;
+let isDemoMode: boolean = false;
+let errorListeners: Set<(message: string) => void> = new Set();
+let dataChangeListeners: Set<() => void> = new Set();
+let activeUnsubscribers: Unsubscribe[] = [];
+
+export function isDemoModeActive(): boolean {
+  return isDemoMode;
+}
+
+function emitError(message: string) {
+  console.error('StorageService error:', message);
+  errorListeners.forEach((fn) => fn(message));
+}
+
+function emitChange() {
+  dataChangeListeners.forEach((fn) => fn());
+}
+
+export function getActiveUserId(): string {
+  if (isDemoMode) return 'demo-local-counselor';
+  return activeUserId || auth.currentUser?.uid || '';
+}
+
+/**
+ * StorageService handles individual document CRUD operations to Firestore,
+ * real-time onSnapshot synchronization, crypto.randomUUID() ID generation,
+ * Zod validation, and one-time legacy localStorage migration.
+ */
 export const StorageService = {
-  getStudents(userId?: string): Student[] {
-    const key = getUserStorageKey(STORAGE_KEYS.STUDENTS, userId);
-    const activeUid = userId || getActiveUserId();
-    try {
-      let data = localStorage.getItem(key);
-      // Seamless migration: if this is demo_rehberlik and no scoped key exists yet, try migrating legacy un-scoped key
-      if (!data && (activeUid === 'demo_rehberlik' || activeUid === 'counselor_1' || activeUid === 'usr_counselor_1')) {
-        const legacyData = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-        if (legacyData) {
-          localStorage.setItem(key, legacyData);
-          data = legacyData;
-        }
-      }
-
-      if (!data) {
-        // Initial seed based on user role/persona
-        const isCoach = activeUid === 'demo_koc' || activeUid === 'usr_coach_2';
-        const initial = isCoach ? getCoachInitialStudents() : INITIAL_STUDENTS;
-        this.saveStudents(initial, activeUid);
-        return initial;
-      }
-      const parsed: Student[] = JSON.parse(data);
-      let migrated = false;
-      const realisticMap: Record<string, string> = {
-        std_1: '905324182914',
-        std_2: '905438201945',
-        std_3: '905056714289',
-        std_4: '905359124038',
-        std_5: '905362948172',
-        std_6: '905447193825',
-        std_7: '905336021874',
-      };
-      const cleaned = parsed.map((s) => {
-        if (s.phone && (s.phone.includes('1112233') || s.phone.includes('2223344') || s.phone.includes('3334455') || s.phone.includes('4445566') || s.phone.includes('6667788') || s.phone.includes('7778899') || s.phone.includes('8889900'))) {
-          migrated = true;
-          return { ...s, phone: realisticMap[s.id] || ('9053' + Math.floor(10000000 + Math.random() * 90000000).toString().slice(0, 8)) };
-        }
-        return s;
-      });
-      if (migrated) {
-        this.saveStudents(cleaned, activeUid);
-        return cleaned;
-      }
-      return parsed;
-    } catch {
-      return activeUid === 'demo_koc' ? getCoachInitialStudents() : INITIAL_STUDENTS;
-    }
+  isDemo(): boolean {
+    return isDemoMode;
   },
 
-  saveStudents(students: Student[], userId?: string) {
-    const key = getUserStorageKey(STORAGE_KEYS.STUDENTS, userId);
-    localStorage.setItem(key, JSON.stringify(students));
-    scheduleCloudSync();
+  /**
+   * Initializes in-memory demo mode without Firestore or localStorage writes.
+   * Completely isolated from Firebase Auth and remote databases.
+   */
+  initDemo(students: Student[], sessions: Session[], counselorName = 'Demo Danışman') {
+    this.cleanupListeners();
+    isDemoMode = true;
+    activeUserId = 'demo-local-counselor';
+    cachedStudents = [...students];
+    cachedSessions = [...sessions];
+    cachedCounselorName = counselorName;
+    cachedScheduleConfig = DEFAULT_SCHEDULE_CONFIG;
+    emitChange();
   },
 
-  getSessions(userId?: string): Session[] {
-    const key = getUserStorageKey(STORAGE_KEYS.SESSIONS, userId);
-    const activeUid = userId || getActiveUserId();
-    try {
-      let data = localStorage.getItem(key);
-      // Migration from legacy un-scoped key
-      if (!data && (activeUid === 'demo_rehberlik' || activeUid === 'counselor_1' || activeUid === 'usr_counselor_1')) {
-        const legacyData = localStorage.getItem(STORAGE_KEYS.SESSIONS);
-        if (legacyData) {
-          localStorage.setItem(key, legacyData);
-          data = legacyData;
-        }
-      }
-
-      if (!data) {
-        const isCoach = activeUid === 'demo_koc' || activeUid === 'usr_coach_2';
-        const initial = isCoach ? getCoachInitialSessions() : getInitialSessions();
-        this.saveSessions(initial, activeUid);
-        return initial;
-      }
-      const parsed: Session[] = JSON.parse(data);
-      // If user has existing sessions but no breaks at all, seed today's break and lunch break
-      const hasAnyBreak = parsed.some((s) => s.is_break);
-      if (!hasAnyBreak && parsed.length > 0) {
-        const today = getTodayDateString();
-        parsed.push({
-          id: 'sess_break_recess_1',
-          date: today,
-          time_slot: '11:50',
-          student_id: null,
-          topic: '15 dk Teneffüs',
-          action_items: '',
-          tags: ['Teneffüs'],
-          status: 'Bekliyor',
-          is_break: true,
-          break_title: '15 dk Teneffüs',
-          created_at: new Date().toISOString(),
-        });
-        parsed.push({
-          id: 'sess_break_lunch_1',
-          date: today,
-          time_slot: '12:10',
-          student_id: null,
-          topic: 'Öğle Arası',
-          action_items: '',
-          tags: ['Öğle Arası'],
-          status: 'Bekliyor',
-          is_break: true,
-          break_title: '50 dk Öğle Arası & Yemek',
-          created_at: new Date().toISOString(),
-        });
-        parsed.sort((a, b) => {
-          if (a.date !== b.date) return a.date.localeCompare(b.date);
-          return a.time_slot.localeCompare(b.time_slot);
-        });
-        this.saveSessions(parsed, activeUid);
-      }
-      return parsed;
-    } catch {
-      const isCoach = activeUid === 'demo_koc' || activeUid === 'usr_coach_2';
-      return isCoach ? getCoachInitialSessions() : getInitialSessions();
-    }
-  },
-
-  saveSessions(sessions: Session[], userId?: string) {
-    const key = getUserStorageKey(STORAGE_KEYS.SESSIONS, userId);
-    localStorage.setItem(key, JSON.stringify(sessions));
-    scheduleCloudSync();
-  },
-
-  getCounselorName(userId?: string): string {
-    const activeUid = userId || getActiveUserId();
-    const key = getUserStorageKey(STORAGE_KEYS.COUNSELOR_NAME, activeUid);
-    const stored = localStorage.getItem(key);
-    if (stored) return stored;
-
-    // Check legacy key for demo_rehberlik
-    if (activeUid === 'demo_rehberlik' || activeUid === 'counselor_1' || activeUid === 'usr_counselor_1') {
-      const legacy = localStorage.getItem(STORAGE_KEYS.COUNSELOR_NAME);
-      if (legacy) return legacy;
-    }
-
-    if (activeUid === 'demo_koc' || activeUid === 'usr_coach_2') {
-      return 'Merve Aydın (YKS Koçu)';
-    }
-    return 'Rehberlik & Psikolojik Danışmanlık Birimi';
-  },
-
-  setCounselorName(name: string, userId?: string) {
-    const key = getUserStorageKey(STORAGE_KEYS.COUNSELOR_NAME, userId);
-    localStorage.setItem(key, name);
-    scheduleCloudSync();
-  },
-
-  addStudent(student: Omit<Student, 'id' | 'created_at'>): Student {
-    const students = this.getStudents();
-    const newStudent: Student = {
-      ...student,
-      id: 'std_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-      phone: autoFormatPhone(student.phone),
-      created_at: new Date().toISOString(),
+  onError(callback: (message: string) => void): () => void {
+    errorListeners.add(callback);
+    return () => {
+      errorListeners.delete(callback);
     };
-    students.push(newStudent);
-    this.saveStudents(students);
+  },
+
+  onChange(callback: () => void): () => void {
+    dataChangeListeners.add(callback);
+    return () => {
+      dataChangeListeners.delete(callback);
+    };
+  },
+
+  /**
+   * Initializes real-time Firestore listeners for the authenticated counselor:
+   * - counselors/{uid}/students/{studentId}
+   * - counselors/{uid}/sessions/{sessionId}
+   * - counselors/{uid}/settings/schedule
+   */
+  init(userId: string) {
+    if (!userId) {
+      this.clear();
+      return;
+    }
+
+    if (activeUserId === userId && activeUnsubscribers.length > 0) {
+      return;
+    }
+
+    // Clean up previous listeners
+    this.cleanupListeners();
+    activeUserId = userId;
+
+    // 1. One-time migration from legacy localStorage if present
+    this.migrateLegacyLocalStorage(userId);
+
+    // 2. Real-time Students subcollection listener: counselors/{uid}/students
+    try {
+      const studentsColl = collection(db, 'counselors', userId, 'students');
+      const unsubStudents = onSnapshot(
+        studentsColl,
+        (snapshot) => {
+          const list: Student[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const parseResult = StudentSchema.safeParse({ ...data, id: docSnap.id });
+            if (parseResult.success) {
+              list.push(parseResult.data as Student);
+            } else {
+              console.warn('Student doc validation warning:', parseResult.error);
+              list.push({ ...data, id: docSnap.id } as Student);
+            }
+          });
+          cachedStudents = list;
+          emitChange();
+        },
+        (err) => {
+          emitError(`Öğrenci verileri senkronizasyon hatası: ${err.message}`);
+        }
+      );
+      activeUnsubscribers.push(unsubStudents);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Öğrenci dinleyicisi başlatılamadı: ${msg}`);
+    }
+
+    // 3. Real-time Sessions subcollection listener: counselors/{uid}/sessions
+    try {
+      const sessionsColl = collection(db, 'counselors', userId, 'sessions');
+      const unsubSessions = onSnapshot(
+        sessionsColl,
+        (snapshot) => {
+          const list: Session[] = [];
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const parseResult = SessionSchema.safeParse({ ...data, id: docSnap.id });
+            if (parseResult.success) {
+              list.push(parseResult.data as Session);
+            } else {
+              console.warn('Session doc validation warning:', parseResult.error);
+              list.push({ ...data, id: docSnap.id } as Session);
+            }
+          });
+          list.sort((a, b) => {
+            if (a.date !== b.date) return a.date.localeCompare(b.date);
+            return a.time_slot.localeCompare(b.time_slot);
+          });
+          cachedSessions = list;
+          emitChange();
+        },
+        (err) => {
+          emitError(`Seans verileri senkronizasyon hatası: ${err.message}`);
+        }
+      );
+      activeUnsubscribers.push(unsubSessions);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Seans dinleyicisi başlatılamadı: ${msg}`);
+    }
+
+    // 4. Real-time Schedule Config listener: counselors/{uid}/settings/schedule
+    try {
+      const scheduleDocRef = doc(db, 'counselors', userId, 'settings', 'schedule');
+      const unsubSchedule = onSnapshot(
+        scheduleDocRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            const parseResult = ScheduleConfigSchema.safeParse(data);
+            if (parseResult.success) {
+              cachedScheduleConfig = parseResult.data as ScheduleConfig;
+            } else {
+              cachedScheduleConfig = { ...DEFAULT_SCHEDULE_CONFIG, ...data };
+            }
+            emitChange();
+          }
+        },
+        (err) => {
+          emitError(`Çizelge ayarı okuma hatası: ${err.message}`);
+        }
+      );
+      activeUnsubscribers.push(unsubSchedule);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Çizelge dinleyicisi başlatılamadı: ${msg}`);
+    }
+
+    // 5. Counselor Name listener: counselors/{uid}
+    try {
+      const counselorDocRef = doc(db, 'counselors', userId);
+      const unsubCounselor = onSnapshot(
+        counselorDocRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.name) {
+              cachedCounselorName = data.name;
+              emitChange();
+            }
+          }
+        },
+        (err) => {
+          emitError(`Danışman profili okuma hatası: ${err.message}`);
+        }
+      );
+      activeUnsubscribers.push(unsubCounselor);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Profil dinleyicisi başlatılamadı: ${msg}`);
+    }
+  },
+
+  cleanupListeners() {
+    activeUnsubscribers.forEach((unsub) => unsub());
+    activeUnsubscribers = [];
+  },
+
+  clear() {
+    this.cleanupListeners();
+    cachedStudents = [];
+    cachedSessions = [];
+    cachedScheduleConfig = DEFAULT_SCHEDULE_CONFIG;
+    cachedCounselorName = 'Rehberlik & Psikolojik Danışmanlık Birimi';
+    activeUserId = null;
+    emitChange();
+  },
+
+  /**
+   * One-time migration:
+   * Sadece `_${userId}` ile biten anahtarları taşı.
+   * 'demo_rehberlik' ve genel `pusula_students_v1` / `pusula_sessions_v1` anahtarlarını taşıma, sadece sil.
+   */
+  async migrateLegacyLocalStorage(userId: string) {
+    if (typeof localStorage === 'undefined') return;
+    const migrationFlagKey = `pusula_migrated_v2_${userId}`;
+    if (localStorage.getItem(migrationFlagKey) === 'true') {
+      return;
+    }
+
+    try {
+      // 1. SADECE _${userId} ile biten kullanıcıya ait anahtarları taşı
+      const userStudentKey = `pusula_students_v1_${userId}`;
+      const userSessionKey = `pusula_sessions_v1_${userId}`;
+
+      let rawStudents: unknown[] = [];
+      const userStudentItem = localStorage.getItem(userStudentKey);
+      if (userStudentItem) {
+        try {
+          const parsed = JSON.parse(userStudentItem);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            rawStudents = parsed;
+          }
+        } catch (e) {
+          console.error('Migration parse error for student key:', userStudentKey, e);
+        }
+      }
+
+      let rawSessions: unknown[] = [];
+      const userSessionItem = localStorage.getItem(userSessionKey);
+      if (userSessionItem) {
+        try {
+          const parsed = JSON.parse(userSessionItem);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            rawSessions = parsed;
+          }
+        } catch (e) {
+          console.error('Migration parse error for session key:', userSessionKey, e);
+        }
+      }
+
+      // Check if user's Firestore already has students
+      const existingSnap = await getDocs(collection(db, 'counselors', userId, 'students'));
+      if (existingSnap.empty && (rawStudents.length > 0 || rawSessions.length > 0)) {
+        // Write migrated students in batches
+        if (rawStudents.length > 0) {
+          const batch = writeBatch(db);
+          rawStudents.forEach((st) => {
+            const parseResult = StudentSchema.safeParse(st);
+            const validStudent = parseResult.success
+              ? parseResult.data
+              : {
+                  ...(st as Record<string, unknown>),
+                  id: (st as { id?: string }).id || crypto.randomUUID(),
+                  created_at: (st as { created_at?: string }).created_at || new Date().toISOString(),
+                };
+            const docRef = doc(db, 'counselors', userId, 'students', validStudent.id as string);
+            batch.set(docRef, validStudent);
+          });
+          await batch.commit();
+        }
+
+        // Write migrated sessions in batches
+        if (rawSessions.length > 0) {
+          const batch = writeBatch(db);
+          rawSessions.forEach((sess) => {
+            const parseResult = SessionSchema.safeParse(sess);
+            const validSession = parseResult.success
+              ? parseResult.data
+              : {
+                  ...(sess as Record<string, unknown>),
+                  id: (sess as { id?: string }).id || crypto.randomUUID(),
+                  created_at: (sess as { created_at?: string }).created_at || new Date().toISOString(),
+                };
+            const docRef = doc(db, 'counselors', userId, 'sessions', validSession.id as string);
+            batch.set(docRef, validSession);
+          });
+          await batch.commit();
+        }
+      }
+
+      // 2. 'demo_rehberlik' ve genel `pusula_students_v1` / `pusula_sessions_v1` anahtarlarını taşıma, SADECE SİL.
+      // Ayrıca taşınan kullanıcı anahtarlarını da temizle.
+      const keysToDelete = [
+        userStudentKey,
+        userSessionKey,
+        'pusula_students_v1_demo_rehberlik',
+        'pusula_sessions_v1_demo_rehberlik',
+        'pusula_students_v1',
+        'pusula_sessions_v1',
+        'pusula_initialized_v1',
+      ];
+      keysToDelete.forEach((k) => localStorage.removeItem(k));
+      localStorage.setItem(migrationFlagKey, 'true');
+    } catch (err: unknown) {
+      console.error('LocalStorage migration failed:', err);
+    }
+  },
+
+  // Synchronous getters from in-memory verified cache
+  getStudents(_userId?: string): Student[] {
+    return cachedStudents;
+  },
+
+  getSessions(_userId?: string): Session[] {
+    return cachedSessions;
+  },
+
+  getCounselorName(_userId?: string): string {
+    return cachedCounselorName;
+  },
+
+  getScheduleConfig(_userId?: string): ScheduleConfig {
+    return cachedScheduleConfig;
+  },
+
+  async setCounselorName(name: string, userId?: string): Promise<void> {
+    const uid = userId || getActiveUserId();
+    if (!uid) return;
+    cachedCounselorName = name.trim();
+    emitChange();
+    if (isDemoMode) return;
+    try {
+      const counselorRef = doc(db, 'counselors', uid);
+      await setDoc(counselorRef, { name: name.trim() }, { merge: true });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Danışman adı kaydedilemedi: ${msg}`);
+    }
+  },
+
+  /**
+   * Add a single student document to counselors/{uid}/students/{studentId}
+   * Generates unique identifier with crypto.randomUUID()
+   * Validates with Zod StudentSchema
+   */
+  async addStudent(studentData: Omit<Student, 'id' | 'created_at'>): Promise<Student> {
+    const uid = getActiveUserId();
+    if (!uid) {
+      const errMsg = 'Öğrenci eklemek için oturum açmalısınız.';
+      emitError(errMsg);
+      throw new Error(errMsg);
+    }
+
+    const newId = crypto.randomUUID();
+    const newStudent: Student = {
+      ...studentData,
+      id: newId,
+      phone: autoFormatPhone(studentData.phone),
+      created_at: new Date().toISOString(),
+      last_meeting_date: studentData.last_meeting_date || null,
+      status_flags: studentData.status_flags || [],
+      target_goal: studentData.target_goal || '',
+      notes: studentData.notes || '',
+    };
+
+    // Zod validation
+    StudentSchema.parse(newStudent);
+
+    // Optimistic update
+    cachedStudents = [...cachedStudents, newStudent];
+    emitChange();
+
+    if (isDemoMode) {
+      return newStudent;
+    }
+
+    try {
+      const studentDocRef = doc(db, 'counselors', uid, 'students', newId);
+      await setDoc(studentDocRef, newStudent);
+    } catch (err: unknown) {
+      // Rollback on error
+      cachedStudents = cachedStudents.filter((s) => s.id !== newId);
+      emitChange();
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Öğrenci kaydedilemedi: ${msg}`);
+      throw err;
+    }
+
     return newStudent;
   },
 
-  updateStudent(student: Student) {
-    const students = this.getStudents();
-    const idx = students.findIndex((s) => s.id === student.id);
-    if (idx !== -1) {
-      students[idx] = {
-        ...student,
-        phone: autoFormatPhone(student.phone),
-      };
-      this.saveStudents(students);
+  /**
+   * Update a single student document at counselors/{uid}/students/{studentId}
+   */
+  async updateStudent(student: Student): Promise<void> {
+    const uid = getActiveUserId();
+    if (!uid) return;
+
+    const formatted: Student = {
+      ...student,
+      phone: autoFormatPhone(student.phone),
+    };
+
+    StudentSchema.parse(formatted);
+
+    // Optimistic update
+    cachedStudents = cachedStudents.map((s) => (s.id === student.id ? formatted : s));
+    emitChange();
+
+    if (isDemoMode) return;
+
+    try {
+      const studentDocRef = doc(db, 'counselors', uid, 'students', student.id);
+      await updateDoc(studentDocRef, { ...formatted });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Öğrenci güncellenemedi: ${msg}`);
+      throw err;
     }
   },
 
-  deleteStudent(id: string) {
-    const students = this.getStudents().filter((s) => s.id !== id);
-    this.saveStudents(students);
-    // Also remove reference in sessions
-    const sessions = this.getSessions().map((sess) =>
-      sess.student_id === id ? { ...sess, student_id: null } : sess
+  /**
+   * Delete a single student document from counselors/{uid}/students/{studentId}
+   * and clean up references in sessions.
+   */
+  async deleteStudent(studentId: string): Promise<void> {
+    const uid = getActiveUserId();
+    if (!uid) return;
+
+    // Optimistic
+    const prevStudents = [...cachedStudents];
+    cachedStudents = cachedStudents.filter((s) => s.id !== studentId);
+    
+    // Unassign student from any sessions in memory
+    cachedSessions = cachedSessions.map((sess) =>
+      sess.student_id === studentId ? { ...sess, student_id: null } : sess
     );
-    this.saveSessions(sessions);
+    emitChange();
+
+    if (isDemoMode) return;
+
+    try {
+      const studentDocRef = doc(db, 'counselors', uid, 'students', studentId);
+      await deleteDoc(studentDocRef);
+
+      const affectedSessions = cachedSessions.filter((s) => s.student_id === studentId);
+      if (affectedSessions.length > 0) {
+        const batch = writeBatch(db);
+        affectedSessions.forEach((sess) => {
+          const sessRef = doc(db, 'counselors', uid, 'sessions', sess.id);
+          batch.update(sessRef, { student_id: null });
+        });
+        await batch.commit();
+      }
+    } catch (err: unknown) {
+      cachedStudents = prevStudents;
+      emitChange();
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Öğrenci silinemedi: ${msg}`);
+      throw err;
+    }
   },
 
-  addSession(session: Omit<Session, 'id' | 'created_at'>): Session {
-    const sessions = this.getSessions();
+  /**
+   * Add a single session document to counselors/{uid}/sessions/{sessionId}
+   * Uses crypto.randomUUID()
+   * Validates with Zod SessionSchema
+   */
+  async addSession(sessionData: Omit<Session, 'id' | 'created_at'>): Promise<Session> {
+    const uid = getActiveUserId();
+    if (!uid) {
+      const errMsg = 'Seans eklemek için oturum açmalısınız.';
+      emitError(errMsg);
+      throw new Error(errMsg);
+    }
+
+    const newId = crypto.randomUUID();
     const newSession: Session = {
-      ...session,
-      id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      ...sessionData,
+      id: newId,
       created_at: new Date().toISOString(),
     };
-    sessions.push(newSession);
-    this.saveSessions(sessions);
 
-    // If marked "Geldi", update student's last_meeting_date
-    if (newSession.status === 'Geldi' && newSession.student_id) {
-      this.updateStudentLastMeeting(newSession.student_id, newSession.date);
+    SessionSchema.parse(newSession);
+
+    // Optimistic
+    cachedSessions = [...cachedSessions, newSession].sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.time_slot.localeCompare(b.time_slot);
+    });
+    emitChange();
+
+    if (isDemoMode) {
+      if (newSession.status === 'Geldi' && newSession.student_id) {
+        await this.updateStudentLastMeeting(newSession.student_id, newSession.date);
+      }
+      return newSession;
+    }
+
+    try {
+      const sessionDocRef = doc(db, 'counselors', uid, 'sessions', newId);
+      await setDoc(sessionDocRef, newSession);
+
+      if (newSession.status === 'Geldi' && newSession.student_id) {
+        await this.updateStudentLastMeeting(newSession.student_id, newSession.date);
+      }
+    } catch (err: unknown) {
+      cachedSessions = cachedSessions.filter((s) => s.id !== newId);
+      emitChange();
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Seans kaydedilemedi: ${msg}`);
+      throw err;
     }
 
     return newSession;
   },
 
-  updateSession(session: Session) {
-    const sessions = this.getSessions();
-    const idx = sessions.findIndex((s) => s.id === session.id);
-    if (idx !== -1) {
-      sessions[idx] = session;
-      this.saveSessions(sessions);
+  /**
+   * Update a single session document at counselors/{uid}/sessions/{sessionId}
+   */
+  async updateSession(session: Session): Promise<void> {
+    const uid = getActiveUserId();
+    if (!uid) return;
 
+    SessionSchema.parse(session);
+
+    // Optimistic
+    cachedSessions = cachedSessions.map((s) => (s.id === session.id ? session : s));
+    emitChange();
+
+    if (isDemoMode) {
       if (session.status === 'Geldi' && session.student_id) {
-        this.updateStudentLastMeeting(session.student_id, session.date);
+        await this.updateStudentLastMeeting(session.student_id, session.date);
       }
+      return;
     }
-  },
 
-  updateMultipleSessions(updatedList: Session[]) {
-    const sessions = this.getSessions();
-    const updateMap = new Map(updatedList.map((s) => [s.id, s]));
-    const result = sessions.map((s) => updateMap.get(s.id) || s);
-    this.saveSessions(result);
-
-    for (const session of updatedList) {
-      if (session.status === 'Geldi' && session.student_id) {
-        this.updateStudentLastMeeting(session.student_id, session.date);
-      }
-    }
-    return result;
-  },
-
-  deleteSession(id: string) {
-    const sessions = this.getSessions().filter((s) => s.id !== id);
-    this.saveSessions(sessions);
-  },
-
-  updateStudentLastMeeting(studentId: string, meetingDate: string) {
-    const students = this.getStudents();
-    const idx = students.findIndex((s) => s.id === studentId);
-    if (idx !== -1) {
-      students[idx].last_meeting_date = meetingDate;
-      this.saveStudents(students);
-    }
-  },
-
-  getScheduleConfig(userId?: string): ScheduleConfig {
-    const key = getUserStorageKey(STORAGE_KEYS.SCHEDULE_CONFIG, userId);
-    const activeUid = userId || getActiveUserId();
     try {
-      let data = localStorage.getItem(key);
-      // Migration from legacy un-scoped key
-      if (!data && (activeUid === 'demo_rehberlik' || activeUid === 'counselor_1' || activeUid === 'usr_counselor_1')) {
-        const legacyData = localStorage.getItem(STORAGE_KEYS.SCHEDULE_CONFIG);
-        if (legacyData) {
-          localStorage.setItem(key, legacyData);
-          data = legacyData;
+      const sessionDocRef = doc(db, 'counselors', uid, 'sessions', session.id);
+      await setDoc(sessionDocRef, session, { merge: true });
+
+      if (session.status === 'Geldi' && session.student_id) {
+        await this.updateStudentLastMeeting(session.student_id, session.date);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Seans güncellenemedi: ${msg}`);
+      throw err;
+    }
+  },
+
+  /**
+   * Update multiple sessions at counselors/{uid}/sessions/{sessionId} using writeBatch
+   */
+  async updateMultipleSessions(updatedList: Session[]): Promise<Session[]> {
+    const uid = getActiveUserId();
+    if (!uid) return updatedList;
+
+    // Validate all
+    updatedList.forEach((s) => SessionSchema.parse(s));
+
+    const updateMap = new Map(updatedList.map((s) => [s.id, s]));
+    cachedSessions = cachedSessions.map((s) => updateMap.get(s.id) || s);
+    emitChange();
+
+    if (isDemoMode) {
+      for (const sess of updatedList) {
+        if (sess.status === 'Geldi' && sess.student_id) {
+          await this.updateStudentLastMeeting(sess.student_id, sess.date);
         }
       }
+      return cachedSessions;
+    }
 
-      const isCoach = activeUid === 'demo_koc' || activeUid === 'usr_coach_2';
-      const baseDefault = isCoach ? COACH_SCHEDULE_CONFIG : DEFAULT_SCHEDULE_CONFIG;
-      if (!data) return baseDefault;
-      const parsed = JSON.parse(data);
-      // Upgrade legacy 40-min lesson duration to 15-min guidance session default
-      if (parsed.sessionDuration === 40) {
-        parsed.sessionDuration = 15;
-        parsed.breakDuration = 5;
-        parsed.sessionCount = 16;
-        parsed.lunchBreakAfter = 8;
-        this.saveScheduleConfig({ ...baseDefault, ...parsed }, activeUid);
+    try {
+      const batch = writeBatch(db);
+      updatedList.forEach((sess) => {
+        const sessRef = doc(db, 'counselors', uid, 'sessions', sess.id);
+        batch.set(sessRef, sess, { merge: true });
+      });
+      await batch.commit();
+
+      // Update student meetings for 'Geldi'
+      for (const sess of updatedList) {
+        if (sess.status === 'Geldi' && sess.student_id) {
+          await this.updateStudentLastMeeting(sess.student_id, sess.date);
+        }
       }
-      return { ...baseDefault, ...parsed };
-    } catch {
-      const isCoach = activeUid === 'demo_koc' || activeUid === 'usr_coach_2';
-      return isCoach ? COACH_SCHEDULE_CONFIG : DEFAULT_SCHEDULE_CONFIG;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Toplu seans güncellenemedi: ${msg}`);
+      throw err;
+    }
+
+    return cachedSessions;
+  },
+
+  /**
+   * Delete a single session document from counselors/{uid}/sessions/{sessionId}
+   */
+  async deleteSession(sessionId: string): Promise<void> {
+    const uid = getActiveUserId();
+    if (!uid) return;
+
+    const prevSessions = [...cachedSessions];
+    cachedSessions = cachedSessions.filter((s) => s.id !== sessionId);
+    emitChange();
+
+    if (isDemoMode) return;
+
+    try {
+      const sessionDocRef = doc(db, 'counselors', uid, 'sessions', sessionId);
+      await deleteDoc(sessionDocRef);
+    } catch (err: unknown) {
+      cachedSessions = prevSessions;
+      emitChange();
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Seans silinemedi: ${msg}`);
+      throw err;
     }
   },
 
-  saveScheduleConfig(config: ScheduleConfig, userId?: string) {
-    const key = getUserStorageKey(STORAGE_KEYS.SCHEDULE_CONFIG, userId);
-    localStorage.setItem(key, JSON.stringify(config));
-    scheduleCloudSync();
+  /**
+   * Updates student's last meeting date in counselors/{uid}/students/{studentId}
+   */
+  async updateStudentLastMeeting(studentId: string, meetingDate: string): Promise<void> {
+    const uid = getActiveUserId();
+    if (!uid) return;
+
+    cachedStudents = cachedStudents.map((s) =>
+      s.id === studentId ? { ...s, last_meeting_date: meetingDate } : s
+    );
+    emitChange();
+
+    if (isDemoMode) return;
+
+    try {
+      const studentDocRef = doc(db, 'counselors', uid, 'students', studentId);
+      await updateDoc(studentDocRef, { last_meeting_date: meetingDate });
+    } catch (err: unknown) {
+      console.error('Son görüşme tarihi güncellenemedi:', err);
+    }
   },
 
-  // Shift session times for given dates by deltaMinutes
-  shiftSessionsTime(dates: string[], deltaMinutes: number): Session[] {
+  /**
+   * Save schedule configuration to counselors/{uid}/settings/schedule
+   */
+  async saveScheduleConfig(config: ScheduleConfig): Promise<void> {
+    const uid = getActiveUserId();
+    if (!uid) return;
+
+    ScheduleConfigSchema.parse(config);
+    cachedScheduleConfig = config;
+    emitChange();
+
+    if (isDemoMode) return;
+
+    try {
+      const scheduleRef = doc(db, 'counselors', uid, 'settings', 'schedule');
+      await setDoc(scheduleRef, { ...config, updated_at: new Date().toISOString() });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      emitError(`Çizelge ayarları kaydedilemedi: ${msg}`);
+      throw err;
+    }
+  },
+
+  /**
+   * Shift session times for given dates by deltaMinutes
+   */
+  async shiftSessionsTime(dates: string[], deltaMinutes: number): Promise<Session[]> {
+    const uid = getActiveUserId();
     const dateSet = new Set(dates);
-    const sessions = this.getSessions();
-    const updated = sessions.map((sess) => {
-      if (dateSet.has(sess.date)) {
-        return {
-          ...sess,
-          time_slot: shiftTimeSlotString(sess.time_slot, deltaMinutes),
-        };
-      }
-      return sess;
-    });
+    const affected = cachedSessions.filter((s) => dateSet.has(s.date));
 
-    updated.sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date);
-      return a.time_slot.localeCompare(b.time_slot);
-    });
+    const updated = affected.map((sess) => ({
+      ...sess,
+      time_slot: shiftTimeSlotString(sess.time_slot, deltaMinutes),
+    }));
 
-    this.saveSessions(updated);
-    return updated;
+    if (uid && updated.length > 0) {
+      await this.updateMultipleSessions(updated);
+    }
+    return cachedSessions;
   },
 
-  // Add an explicit break/recess session
-  addBreakSession(date: string, time_slot: string, title?: string): Session[] {
-    const sessions = this.getSessions();
+  /**
+   * Add an explicit break/recess session document
+   */
+  async addBreakSession(date: string, time_slot: string, title?: string): Promise<Session[]> {
     const newBreak: Session = {
-      id: 'break_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      id: crypto.randomUUID(),
       date,
       time_slot,
       student_id: null,
@@ -960,43 +1023,45 @@ export const StorageService = {
       created_at: new Date().toISOString(),
     };
 
-    sessions.push(newBreak);
-    sessions.sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date);
-      return a.time_slot.localeCompare(b.time_slot);
-    });
-
-    this.saveSessions(sessions);
-    return sessions;
+    await this.addSession(newBreak);
+    return cachedSessions;
   },
 
-  // Apply custom configured schedule (duration, break, start time) to specified dates
-  applyScheduleConfigToDates(
+  /**
+   * Apply custom configured schedule to specified dates
+   */
+  async applyScheduleConfigToDates(
     dates: string[],
     config: ScheduleConfig,
     keepAssigned = true
-  ): Session[] {
-    this.saveScheduleConfig(config);
-    const dateSet = new Set(dates);
-    const currentSessions = this.getSessions();
+  ): Promise<Session[]> {
+    const uid = getActiveUserId();
+    await this.saveScheduleConfig(config);
 
-    // Map existing assigned sessions per date
+    const dateSet = new Set(dates);
     const existingAssignedMap = new Map<string, Session[]>();
+
     if (keepAssigned) {
       dates.forEach((d) => {
-        const assigned = currentSessions
+        const assigned = cachedSessions
           .filter((s) => s.date === d && s.student_id && !s.is_break)
           .sort((a, b) => a.time_slot.localeCompare(b.time_slot));
         existingAssignedMap.set(d, assigned);
       });
     }
 
-    // Retain sessions on other dates
-    const preservedSessions = currentSessions.filter((s) => !dateSet.has(s.date));
+    // Delete existing sessions on those dates
+    const sessionsToDelete = cachedSessions.filter((s) => dateSet.has(s.date));
+    if (!isDemoMode && uid && sessionsToDelete.length > 0) {
+      const deleteBatch = writeBatch(db);
+      sessionsToDelete.forEach((s) => {
+        deleteBatch.delete(doc(db, 'counselors', uid, 'sessions', s.id));
+      });
+      await deleteBatch.commit();
+    }
 
-    // Generate slots according to config
     const generatedSlots = generateSlotsFromScheduleConfig(config);
-    const newSessionsForDates: Session[] = [];
+    const newSessions: Session[] = [];
 
     dates.forEach((date) => {
       const assignedForThisDay = [...(existingAssignedMap.get(date) || [])];
@@ -1004,9 +1069,8 @@ export const StorageService = {
 
       generatedSlots.forEach((slot) => {
         if (slot.is_break) {
-          // Break slot
-          newSessionsForDates.push({
-            id: 'break_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          newSessions.push({
+            id: crypto.randomUUID(),
             date,
             time_slot: slot.time_slot,
             student_id: null,
@@ -1019,21 +1083,18 @@ export const StorageService = {
             created_at: new Date().toISOString(),
           });
         } else {
-          // Regular lesson slot
           if (assignedIndex < assignedForThisDay.length) {
-            // Re-assign previous student session to this slot
             const prevSess = assignedForThisDay[assignedIndex++];
-            newSessionsForDates.push({
+            newSessions.push({
               ...prevSess,
-              id: prevSess.id || 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+              id: crypto.randomUUID(),
               date,
               time_slot: slot.time_slot,
               is_break: false,
             });
           } else {
-            // New empty slot
-            newSessionsForDates.push({
-              id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            newSessions.push({
+              id: crypto.randomUUID(),
               date,
               time_slot: slot.time_slot,
               student_id: null,
@@ -1048,37 +1109,49 @@ export const StorageService = {
         }
       });
 
-      // If there were more assigned students than available slots, preserve the remainder
       while (assignedIndex < assignedForThisDay.length) {
-        const leftover = assignedForThisDay[assignedIndex++];
-        newSessionsForDates.push(leftover);
+        newSessions.push({
+          ...assignedForThisDay[assignedIndex++],
+          id: crypto.randomUUID(),
+        });
       }
     });
 
-    const finalSessions = [...preservedSessions, ...newSessionsForDates];
-    finalSessions.sort((a, b) => {
+    cachedSessions = [
+      ...cachedSessions.filter((s) => !dateSet.has(s.date)),
+      ...newSessions,
+    ].sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return a.time_slot.localeCompare(b.time_slot);
     });
+    emitChange();
 
-    this.saveSessions(finalSessions);
-    return finalSessions;
+    if (!isDemoMode && uid && newSessions.length > 0) {
+      const addBatch = writeBatch(db);
+      newSessions.forEach((sess) => {
+        addBatch.set(doc(db, 'counselors', uid, 'sessions', sess.id), sess);
+      });
+      await addBatch.commit();
+    }
+
+    return cachedSessions;
   },
 
-  // Generates 40 min slots with 10 min break and lunch break
-  fillStandardSlotsForDate(date: string): Session[] {
-    const existing = this.getSessions();
-    const existingForDate = existing.filter((s) => s.date === date);
-
-    const config = this.getScheduleConfig();
+  /**
+   * Generates standard slots for a single date
+   */
+  async fillStandardSlotsForDate(date: string): Promise<Session[]> {
+    const uid = getActiveUserId();
+    const existingForDate = cachedSessions.filter((s) => s.date === date);
+    const config = cachedScheduleConfig;
     const generatedSlots = generateSlotsFromScheduleConfig(config);
-    const newSessions: Session[] = [...existing];
 
+    const toAdd: Session[] = [];
     generatedSlots.forEach((slot) => {
       const alreadyHas = existingForDate.some((s) => s.time_slot === slot.time_slot);
       if (!alreadyHas) {
-        newSessions.push({
-          id: (slot.is_break ? 'break_' : 'sess_') + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        toAdd.push({
+          id: crypto.randomUUID(),
           date,
           time_slot: slot.time_slot,
           student_id: null,
@@ -1093,29 +1166,42 @@ export const StorageService = {
       }
     });
 
-    // Sort by time_slot
-    newSessions.sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date);
-      return a.time_slot.localeCompare(b.time_slot);
-    });
-    this.saveSessions(newSessions);
-    return newSessions;
+    if (toAdd.length > 0) {
+      cachedSessions = [...cachedSessions, ...toAdd].sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.time_slot.localeCompare(b.time_slot);
+      });
+      emitChange();
+    }
+
+    if (!isDemoMode && uid && toAdd.length > 0) {
+      const batch = writeBatch(db);
+      toAdd.forEach((sess) => {
+        batch.set(doc(db, 'counselors', uid, 'sessions', sess.id), sess);
+      });
+      await batch.commit();
+    }
+
+    return cachedSessions;
   },
 
-  // Populates standard slots for all weekdays (Mon-Fri) of the week with breaks & lunch
-  fillStandardSlotsForWeek(baseDate: string): Session[] {
+  /**
+   * Generates standard slots for all weekdays (Mon-Fri)
+   */
+  async fillStandardSlotsForWeek(baseDate: string): Promise<Session[]> {
+    const uid = getActiveUserId();
     const weekDays = getWeekDays(baseDate, false);
-    let allSessions = this.getSessions();
-    const config = this.getScheduleConfig();
+    const config = cachedScheduleConfig;
     const generatedSlots = generateSlotsFromScheduleConfig(config);
 
+    const toAdd: Session[] = [];
     weekDays.forEach((w) => {
-      const existingForDay = allSessions.filter((s) => s.date === w.date);
+      const existingForDay = cachedSessions.filter((s) => s.date === w.date);
       generatedSlots.forEach((slot) => {
         const alreadyHas = existingForDay.some((s) => s.time_slot === slot.time_slot);
         if (!alreadyHas) {
-          allSessions.push({
-            id: (slot.is_break ? 'break_' : 'sess_') + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          toAdd.push({
+            id: crypto.randomUUID(),
             date: w.date,
             time_slot: slot.time_slot,
             student_id: null,
@@ -1131,45 +1217,118 @@ export const StorageService = {
       });
     });
 
-    allSessions.sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date);
-      return a.time_slot.localeCompare(b.time_slot);
-    });
+    if (toAdd.length > 0) {
+      cachedSessions = [...cachedSessions, ...toAdd].sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.time_slot.localeCompare(b.time_slot);
+      });
+      emitChange();
+    }
 
-    this.saveSessions(allSessions);
-    return allSessions;
+    if (!isDemoMode && uid && toAdd.length > 0) {
+      const batch = writeBatch(db);
+      toAdd.forEach((sess) => {
+        batch.set(doc(db, 'counselors', uid, 'sessions', sess.id), sess);
+      });
+      await batch.commit();
+    }
+
+    return cachedSessions;
   },
 
+  /**
+   * Export all counselor data as JSON (for KVKK Data Portability / Backup)
+   */
   exportBackupJson(): string {
     const data = {
-      students: this.getStudents(),
-      sessions: this.getSessions(),
-      counselor_name: this.getCounselorName(),
-      version: '1.0',
+      students: cachedStudents,
+      sessions: cachedSessions,
+      counselor_name: cachedCounselorName,
+      schedule_config: cachedScheduleConfig,
+      version: '2.0',
       exported_at: new Date().toISOString(),
     };
     return JSON.stringify(data, null, 2);
   },
 
-  importBackupJson(jsonString: string): boolean {
+  /**
+   * Validates and imports JSON backup using Zod BackupImportSchema
+   * Returns validation result or throws error with details
+   */
+  async importBackupJson(jsonString: string): Promise<{ success: boolean; studentCount?: number; sessionCount?: number; error?: string }> {
     try {
-      const data = JSON.parse(jsonString);
-      if (Array.isArray(data.students) && Array.isArray(data.sessions)) {
-        this.saveStudents(data.students);
-        this.saveSessions(data.sessions);
-        if (data.counselor_name) {
-          this.setCounselorName(data.counselor_name);
-        }
-        return true;
+      const rawData = JSON.parse(jsonString);
+
+      // Validate with Zod
+      const parseResult = BackupImportSchema.safeParse(rawData);
+      if (!parseResult.success) {
+        const issues = parseResult.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ');
+        return { success: false, error: `JSON formatı geçersiz: ${issues}` };
       }
-      return false;
-    } catch {
-      return false;
+
+      const validated = parseResult.data;
+      const uid = getActiveUserId();
+      if (!uid) {
+        return { success: false, error: 'Veri yüklemek için oturum açmalısınız.' };
+      }
+
+      if (isDemoMode) {
+        cachedStudents = validated.students;
+        cachedSessions = validated.sessions;
+        if (validated.counselor_name) cachedCounselorName = validated.counselor_name;
+        if (validated.schedule_config) cachedScheduleConfig = validated.schedule_config;
+        emitChange();
+        return {
+          success: true,
+          studentCount: validated.students.length,
+          sessionCount: validated.sessions.length,
+        };
+      }
+
+      // Batch write students
+      if (validated.students.length > 0) {
+        const batch = writeBatch(db);
+        validated.students.forEach((st) => {
+          const docRef = doc(db, 'counselors', uid, 'students', st.id);
+          batch.set(docRef, st);
+        });
+        await batch.commit();
+      }
+
+      // Batch write sessions
+      if (validated.sessions.length > 0) {
+        const batch = writeBatch(db);
+        validated.sessions.forEach((sess) => {
+          const docRef = doc(db, 'counselors', uid, 'sessions', sess.id);
+          batch.set(docRef, sess);
+        });
+        await batch.commit();
+      }
+
+      if (validated.counselor_name) {
+        await this.setCounselorName(validated.counselor_name, uid);
+      }
+
+      if (validated.schedule_config) {
+        await this.saveScheduleConfig(validated.schedule_config);
+      }
+
+      return {
+        success: true,
+        studentCount: validated.students.length,
+        sessionCount: validated.sessions.length,
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, error: msg || 'JSON dosyası çözümlenemedi.' };
     }
   },
 
+  /**
+   * Export students to CSV
+   */
   exportToCsv(): string {
-    const students = this.getStudents();
+    const students = cachedStudents;
     const headers = ['Ad Soyad', 'Sınıf', 'Telefon', 'Son Görüşme', 'Teşhis Etiketleri', 'Hedef'].map((h) => `"${h}"`);
     const rows = students.map((s) => [
       sanitizeCsvCell(s.full_name),
@@ -1180,5 +1339,52 @@ export const StorageService = {
       sanitizeCsvCell(s.target_goal || ''),
     ]);
     return [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
+  },
+
+  /**
+   * Mark WhatsApp message as sent on a session
+   */
+  async markWhatsAppSent(sessionId: string, sent = true): Promise<Session | undefined> {
+    const session = cachedSessions.find((s) => s.id === sessionId);
+    if (!session) return undefined;
+    const updated: Session = {
+      ...session,
+      whatsapp_sent: sent,
+      whatsapp_sent_at: sent ? new Date().toISOString() : undefined,
+    };
+    await this.updateSession(updated);
+    return updated;
+  },
+
+  /**
+   * Save draft in browser storage to avoid accidental data loss
+   */
+  saveDraft<T>(key: string, data: T): void {
+    try {
+      localStorage.setItem(`pusula_draft_${key}`, JSON.stringify({ data, savedAt: Date.now() }));
+    } catch (_) {}
+  },
+
+  /**
+   * Retrieve saved draft
+   */
+  getDraft<T>(key: string): T | null {
+    try {
+      const raw = localStorage.getItem(`pusula_draft_${key}`);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed.data as T;
+    } catch (_) {
+      return null;
+    }
+  },
+
+  /**
+   * Clear saved draft
+   */
+  clearDraft(key: string): void {
+    try {
+      localStorage.removeItem(`pusula_draft_${key}`);
+    } catch (_) {}
   },
 };

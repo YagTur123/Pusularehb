@@ -2,24 +2,25 @@ import { useState } from 'react';
 import {
   Calendar,
   MessageSquare,
-  Zap,
   ArrowRight,
-  Search,
   Check,
   Copy,
-  Clock,
-  UserX,
   Users,
-  FileSpreadsheet,
-  Terminal,
   ShieldCheck,
-  ChevronRight,
+  FileSpreadsheet,
+  Clock,
   ExternalLink,
+  Sparkles,
+  Printer,
+  Database,
+  Lock,
 } from 'lucide-react';
 import { getTodayDateString, formatTurkishDate } from '../lib/storage';
 
 interface LandingPageProps {
   onLaunchWorkspace: () => void;
+  onOpenAuth?: (mode?: 'signin' | 'signup') => void;
+  onStartDemo?: () => void;
   onOpenBroadcast: () => void;
   onOpenSmartPaste: () => void;
   onOpenCommandPalette: () => void;
@@ -28,15 +29,16 @@ interface LandingPageProps {
 
 export function LandingPage({
   onLaunchWorkspace,
+  onOpenAuth,
+  onStartDemo,
   onOpenBroadcast,
   onOpenSmartPaste,
-  onOpenCommandPalette,
   onShowToast,
 }: LandingPageProps) {
-  const [activeMockupTab, setActiveMockupTab] = useState<'scheduler' | 'ascii' | 'summary' | 'risk'>('scheduler');
+  const [activeTab, setActiveTab] = useState<'scheduler' | 'ascii' | 'summary'>('scheduler');
   const [copiedAscii, setCopiedAscii] = useState(false);
 
-  const sampleAsciiText = `[PUSULA REHBERLİK SERVİSİ | GÜNLÜK SEANS PROGRAMI]
+  const sampleAsciiText = `[REHBERLİK SERVİSİ | GÜNLÜK SEANS PROGRAMI]
 Tarih: ${formatTurkishDate(getTodayDateString())}
 Danışman: Uzm. Psk. Dan. Mehmet Kaya
 \`\`\`
@@ -44,10 +46,10 @@ Danışman: Uzm. Psk. Dan. Mehmet Kaya
 | SAAT  | ÖĞRENCİ            | KONU           |
 +-------+--------------------+----------------+
 | 09:00 | Ahmet Yılmaz (12-A)| TYT Geometri   |
-| 09:50 | Zeynep Demir (12-B)| Paragraf Hız   |
-| 10:40 | Can Bozkurt (Mezun)| AYT Matematik  |
-| 11:30 | Elif Yıldız (12-C) | Sınav Kaygısı  |
-| 13:00 | Berke Öz (11-MF)   | 11. Sınıf Kamp |
+| 09:45 | Zeynep Demir (12-B)| Paragraf Rutin |
+| 10:30 | Can Bozkurt (Mezun)| AYT Matematik  |
+| 11:15 | Elif Yıldız (12-C) | Sınav Kaygısı  |
+| 13:00 | Berke Öz (11-A)    | Alan Seçimi    |
 +-------+--------------------+----------------+
 \`\`\`
 
@@ -58,592 +60,324 @@ Görüşmesi Olan Öğrenciler:
 @+905359124038 (Elif Yıldız)
 @+905362948172 (Berke Öz)
 
-* Önemli Not: Lütfen randevu saatinizden 5 dakika önce rehberlik biriminde hazır bulununuz.`;
+* Lütfen randevu saatinizden 5 dakika önce rehberlik odasında hazır bulununuz.`;
 
   const handleCopyAscii = async () => {
     try {
       await navigator.clipboard.writeText(sampleAsciiText);
       setCopiedAscii(true);
-      onShowToast('ASCII Tablosu Kopyalandı', 'WhatsApp grubuna yapıştırmaya hazır.', 'success');
-      setTimeout(() => setCopiedAscii(false), 2500);
+      onShowToast('Tablo Kopyalandı', 'WhatsApp grubuna yapıştırmaya hazır.', 'success');
+      setTimeout(() => setCopiedAscii(false), 2000);
     } catch {
       onOpenBroadcast();
     }
   };
 
   return (
-    <div className="w-full space-y-24 py-8 sm:py-14 text-zinc-200">
-      {/* 1. HERO SECTION (Asymmetric, Left-Aligned, Authentic Field Note) */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6">
-        <div className="text-left">
-          {/* Hero Title - Directly starting without mono eyebrow */}
-          <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-white leading-[1.14] mb-4">
-            Rehberlik seanslarını planlayın.
-            <br />
-            <span className="text-zinc-400 font-normal">WhatsApp grupları için kaymayan seans tablosu üretin.</span>
-          </h1>
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-16 space-y-16 text-stone-900 dark:text-stone-100">
+      {/* 1. HERO BÖLÜMÜ */}
+      <section className="max-w-3xl space-y-4">
+        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 text-xs font-medium border border-stone-200 dark:border-stone-700">
+          <ShieldCheck className="w-3.5 h-3.5 text-teal-700 dark:text-teal-400" />
+          <span>MEB Standartlarında Rehberlik & Psikolojik Danışma Çalışma Masası</span>
+        </div>
 
-          {/* Hero Subheading */}
-          <p className="text-sm sm:text-base text-zinc-400 max-w-2xl leading-relaxed mb-6">
-            40 dakikalık görüşme periyotlarını tek tıkla oluşturun, saatleri ve öğrenci isimleri mobilde kaymayan
-            sabit genişlikli WhatsApp tablosunu panoya alın. 20 gündür görüşme odasına girmeyen öğrencileri risk radarıyla yakalayın.
-          </p>
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-stone-900 dark:text-stone-100 leading-tight">
+          Rehberlik seans çizelgesi, resmi A4 çıktısı ve öğrenci takip sistemi.
+        </h1>
 
-          {/* Hero Action Buttons */}
-          <div className="flex flex-wrap items-center gap-3 mb-8">
+        <p className="text-sm sm:text-base text-stone-600 dark:text-stone-400 leading-relaxed max-w-2xl">
+          Okul psikolojik danışmanları ve rehber öğretmenler için: Günlük seans saatlerini belirleyin, WhatsApp gruplarında kaymayan sabit genişlikli monospace randevu duyurusu oluşturun, siyah-beyaz yazıcı uyumlu resmi A4 görüşme defteri çıktısı alın ve öğrenci görüşme kayıtlarını yönetin.
+        </p>
+
+        <div className="pt-2 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={onLaunchWorkspace}
+            className="flex items-center gap-2 px-4 py-2 rounded-md bg-[#0F766E] hover:bg-[#0D645E] text-white text-xs font-semibold transition-colors cursor-pointer"
+          >
+            <span>Giriş Yap</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+
+          {onStartDemo && (
             <button
-              onClick={onLaunchWorkspace}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-medium text-xs transition-colors shadow-xs"
+              type="button"
+              onClick={onStartDemo}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-stone-900 hover:bg-stone-800 dark:bg-stone-100 dark:hover:bg-white text-white dark:text-stone-900 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+              title="Kayıt olmadan, yalnızca bellekte çalışan demo verileriyle inceleyin"
             >
-              <span>Çalışma Masasını Aç</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-300 dark:text-amber-600" />
+              <span>Demo'yu Dene</span>
             </button>
+          )}
 
+          {onOpenAuth && (
             <button
-              onClick={handleCopyAscii}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-850 text-zinc-300 hover:text-white border border-zinc-800 text-xs font-medium transition-colors"
+              type="button"
+              onClick={() => onOpenAuth('signup')}
+              className="px-3.5 py-2 rounded-md border border-stone-300 dark:border-stone-700 text-stone-800 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 text-xs font-medium transition-colors cursor-pointer"
             >
-              {copiedAscii ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
-              <span>{copiedAscii ? 'Panoya Kopyalandı' : 'Örnek WhatsApp Tablosu'}</span>
+              Yeni Danışman Hesabı Aç
             </button>
-          </div>
+          )}
+
+          <button
+            type="button"
+            onClick={handleCopyAscii}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-md text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 text-xs font-medium transition-colors cursor-pointer"
+          >
+            {copiedAscii ? <Check className="w-3.5 h-3.5 text-teal-600" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copiedAscii ? 'Kopyalandı' : 'Örnek WhatsApp Çıktısı'}</span>
+          </button>
         </div>
       </section>
 
-      {/* 2. REAL INTERACTIVE PRODUCT VIEWPORT (Authentic Turkish Counselor Data) */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-950 overflow-hidden shadow-2xl">
-          {/* Window Header */}
-          <div className="flex flex-wrap items-center justify-between px-4 py-3 border-b border-zinc-850 bg-zinc-900/70 text-xs">
-            {/* Left: Window Controls & Active Context */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-zinc-700"></div>
-                <div className="w-2.5 h-2.5 rounded-full bg-zinc-700"></div>
-                <div className="w-2.5 h-2.5 rounded-full bg-zinc-700"></div>
-              </div>
-              <span className="text-zinc-600">|</span>
-              <span className="font-mono text-zinc-300">{formatTurkishDate(getTodayDateString())}</span>
-              <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[11px] bg-zinc-800 text-zinc-300 font-mono">
-                Uzm. Psk. Dan. Mehmet Kaya
-              </span>
-            </div>
-
-            {/* Right: Interactive View Switcher */}
-            <div className="flex items-center gap-1 bg-zinc-950 p-0.5 rounded-lg border border-zinc-800">
-              <button
-                onClick={() => setActiveMockupTab('scheduler')}
-                className={`px-2.5 py-1 rounded text-xs transition-colors ${
-                  activeMockupTab === 'scheduler'
-                    ? 'bg-zinc-800 text-white font-medium'
-                    : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                Seans Takvimi
-              </button>
-              <button
-                onClick={() => setActiveMockupTab('ascii')}
-                className={`px-2.5 py-1 rounded text-xs transition-colors flex items-center gap-1.5 ${
-                  activeMockupTab === 'ascii'
-                    ? 'bg-zinc-800 text-white font-medium'
-                    : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <Terminal className="w-3 h-3 text-emerald-400" />
-                <span>WhatsApp ASCII</span>
-              </button>
-              <button
-                onClick={() => setActiveMockupTab('summary')}
-                className={`px-2.5 py-1 rounded text-xs transition-colors ${
-                  activeMockupTab === 'summary'
-                    ? 'bg-zinc-800 text-white font-medium'
-                    : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                Bireysel Kart
-              </button>
-              <button
-                onClick={() => setActiveMockupTab('risk')}
-                className={`px-2.5 py-1 rounded text-xs transition-colors flex items-center gap-1 ${
-                  activeMockupTab === 'risk'
-                    ? 'bg-zinc-800 text-white font-medium'
-                    : 'text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                <span>Risk Radarı (2)</span>
-              </button>
-            </div>
+      {/* 2. CANLI ÖRNEK VE ETKİLEŞİMLİ ÖN İZLEME */}
+      <section className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-[#1E1E1E] overflow-hidden shadow-xs">
+        {/* Sekme Başlıkları */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/40 text-xs">
+          <div className="flex items-center gap-2 font-mono text-stone-600 dark:text-stone-400 text-[11px]">
+            <span className="w-2 h-2 rounded-full bg-teal-600 dark:bg-teal-400" />
+            <span>{formatTurkishDate(getTodayDateString())}</span>
           </div>
 
-          {/* Interactive Screen Body */}
-          <div className="p-4 sm:p-6 bg-zinc-950 min-h-[380px]">
-            {activeMockupTab === 'scheduler' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs text-zinc-400 pb-2 border-b border-zinc-850">
-                  <span>Günlük Seans Çizelgesi (40 dk periyotlar)</span>
-                  <span className="font-mono text-emerald-400">5 Seans Planlandı • 2 Tamamlandı</span>
-                </div>
-
-                <div className="space-y-1.5 font-sans">
-                  {/* Row 1 */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/60 border border-zinc-850 hover:border-zinc-750 transition-colors text-xs">
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-zinc-400 w-12">09:00</span>
-                      <div>
-                        <span className="font-medium text-white">Ahmet Yılmaz</span>
-                        <span className="ml-1.5 font-mono text-[11px] text-zinc-400">12-A</span>
-                      </div>
-                    </div>
-                    <div className="hidden md:flex items-center gap-2">
-                      <span className="text-zinc-300">TYT Geometri Net Analizi</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700/60">Geometri Eksiği</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-emerald-400 font-medium">
-                        Geldi
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Row 2 */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/60 border border-zinc-850 hover:border-zinc-750 transition-colors text-xs">
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-zinc-400 w-12">09:50</span>
-                      <div>
-                        <span className="font-medium text-white">Zeynep Demir</span>
-                        <span className="ml-1.5 font-mono text-[11px] text-zinc-400">12-B</span>
-                      </div>
-                    </div>
-                    <div className="hidden md:flex items-center gap-2">
-                      <span className="text-zinc-300">Paragraf Hızlandırma</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700/60">Paragraf Rutini</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-emerald-400 font-medium">
-                        Geldi
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Row 3 */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/90 border border-zinc-750 text-xs">
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-amber-400 w-12 font-medium">10:40</span>
-                      <div>
-                        <span className="font-medium text-white">Can Bozkurt</span>
-                        <span className="ml-1.5 font-mono text-[11px] text-zinc-400">Mezun</span>
-                      </div>
-                    </div>
-                    <div className="hidden md:flex items-center gap-2">
-                      <span className="text-zinc-200">AYT Limit-Süreklilik</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700/60">AYT Matematik</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-zinc-400">
-                        Bekliyor
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Row 4 */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-900/60 border border-zinc-850 hover:border-zinc-750 transition-colors text-xs">
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-zinc-400 w-12">11:30</span>
-                      <div>
-                        <span className="font-medium text-white">Elif Yıldız</span>
-                        <span className="ml-1.5 font-mono text-[11px] text-zinc-400">12-C</span>
-                      </div>
-                    </div>
-                    <div className="hidden md:flex items-center gap-2">
-                      <span className="text-zinc-300">Deneme Kaygısı & Uyku</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700/60">Sınav Kaygısı</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/30 text-rose-300 font-semibold text-xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                        <span>Gelmedi</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 flex items-center justify-between">
-                  <span className="text-[11px] text-zinc-500">
-                    Öğrenci isimlerine tıklayarak görüşme geçmişini ve geçmiş ödevleri inceleyebilirsiniz.
-                  </span>
-                  <button
-                    onClick={onLaunchWorkspace}
-                    className="flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white font-medium underline"
-                  >
-                    <span>Canlı Takvimi Aç</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activeMockupTab === 'ascii' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-zinc-400">Sabit Genişlikli WhatsApp ASCII Çıktısı (Monospace)</span>
-                  <button
-                    onClick={handleCopyAscii}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-750 text-white text-xs font-mono"
-                  >
-                    {copiedAscii ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                    <span>{copiedAscii ? 'Panoya Kopyalandı' : 'Metni Kopyala'}</span>
-                  </button>
-                </div>
-
-                <pre className="p-4 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 font-mono text-xs leading-relaxed overflow-x-auto whitespace-pre">
-                  {sampleAsciiText}
-                </pre>
-              </div>
-            )}
-
-            {activeMockupTab === 'summary' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div className="p-4 rounded-lg bg-zinc-900 border border-zinc-800 space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-                    <span className="font-semibold text-white">Bireysel Görüşme Özeti Oluşturucu</span>
-                    <span className="text-[11px] text-zinc-500">Ahmet Yılmaz (12-A)</span>
-                  </div>
-
-                  <div className="space-y-2 text-zinc-300">
-                    <div>
-                      <span className="text-zinc-500 block text-[11px]">Görüşülen Konu:</span>
-                      <p className="font-medium text-white">TYT Geometri Net Analizi & Problemler Rutini</p>
-                    </div>
-
-                    <div>
-                      <span className="text-zinc-500 block text-[11px]">Ödev & Haftalık Kararlar:</span>
-                      <p className="p-2 rounded bg-zinc-950 border border-zinc-850 font-mono text-[11px] text-zinc-300">
-                        • 3D Geometri Üçgenler Test 1-6 arası bitirilecek.<br />
-                        • Her gün 20 paragraf + 15 problem çözülecek.<br />
-                        • Yanlış yapılan sorular kesilip analiz defterine yapıştırılacak.
-                      </p>
-                    </div>
-
-                    <div>
-                      <span className="text-zinc-500 block text-[11px]">Sonraki Takip Seansı:</span>
-                      <p className="font-mono text-emerald-400">15 Eylül Pazartesi, 09:00</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* WhatsApp Chat Preview */}
-                <div className="p-4 rounded-lg bg-[#0b141a] border border-zinc-800 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 pb-2 border-b border-zinc-800 text-[11px] text-zinc-400 font-mono">
-                      <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>WhatsApp Görünümü (+90 532 411 20 89)</span>
-                    </div>
-
-                    <div className="p-3 rounded-lg bg-[#1f2c34] text-zinc-200 text-[11px] leading-relaxed font-sans space-y-1.5 shadow-sm">
-                      <p className="font-semibold text-emerald-400">[PUSULA REHBERLİK SERVİSİ | BİREYSEL GÖRÜŞME KARTI]</p>
-                      <p className="text-zinc-400">━━━━━━━━━━━━━━━━━━━━━━━━━</p>
-                      <p><span className="text-zinc-400">Öğrenci:</span> Ahmet Yılmaz (12-A)</p>
-                      <p><span className="text-zinc-400">Tarih:</span> {formatTurkishDate(getTodayDateString())} - 09:00</p>
-                      <p><span className="text-zinc-400">Danışman:</span> Uzm. Psk. Dan. Mehmet Kaya</p>
-                      <p><span className="text-zinc-400">Görüşme Konusu:</span> TYT Geometri Net Analizi</p>
-                      <div className="pt-1 text-zinc-300">
-                        <p className="font-medium text-white">Görüşme Kararları ve Ödevler:</p>
-                        <p className="text-zinc-300">• 3D Geometri Üçgenler Test 1-6 tamamlanacak.</p>
-                        <p className="text-zinc-300">• Günlük 20 paragraf + 15 problem çözülecek.</p>
-                      </div>
-                      <p className="text-zinc-400 pt-1">Sonraki Randevu: 15 Eylül Pazartesi, 09:00</p>
-                    </div>
-                  </div>
-
-                  <div className="pt-3 flex justify-end">
-                    <button
-                      onClick={onLaunchWorkspace}
-                      className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
-                    >
-                      WhatsApp'ta Aç
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeMockupTab === 'risk' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs pb-2 border-b border-zinc-850">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                    <span className="font-semibold text-white">20+ Gündür Görüşülmeyen Öğrenciler</span>
-                  </div>
-                  <span className="text-zinc-500 text-[11px]">Sistem son görüşme tarihlerini otomatik takip eder</span>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-between text-xs">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white">Barış Kaya</span>
-                        <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400">12-D</span>
-                        <span className="text-[11px] text-amber-400 font-mono">24 gündür görüşülmedi</span>
-                      </div>
-                      <p className="text-zinc-400 text-[11px] mt-0.5">Hedef: Hacettepe Tıp • Son Seans: 14 Ağustos • Etiket: Net Düşüşü</p>
-                    </div>
-                    <button
-                      onClick={onLaunchWorkspace}
-                      className="px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium"
-                    >
-                      Bugüne Randevu Ver
-                    </button>
-                  </div>
-
-                  <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-between text-xs">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white">Selin Acar</span>
-                        <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400">Mezun</span>
-                        <span className="text-[11px] text-amber-400 font-mono">31 gündür görüşülmedi</span>
-                      </div>
-                      <p className="text-zinc-400 text-[11px] mt-0.5">Hedef: Boğaziçi İktisat • Son Seans: 7 Ağustos • Etiket: AYT Matematik</p>
-                    </div>
-                    <button
-                      onClick={onLaunchWorkspace}
-                      className="px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium"
-                    >
-                      Bugüne Randevu Ver
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('scheduler')}
+              className={`px-2.5 py-1 rounded-[5px] text-xs font-medium transition-colors cursor-pointer ${
+                activeTab === 'scheduler'
+                  ? 'bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-xs'
+                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
+              }`}
+            >
+              Seans Çizelgesi
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('ascii')}
+              className={`px-2.5 py-1 rounded-[5px] text-xs font-medium transition-colors cursor-pointer ${
+                activeTab === 'ascii'
+                  ? 'bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-xs'
+                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
+              }`}
+            >
+              WhatsApp ASCII
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('summary')}
+              className={`px-2.5 py-1 rounded-[5px] text-xs font-medium transition-colors cursor-pointer ${
+                activeTab === 'summary'
+                  ? 'bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-xs'
+                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900'
+              }`}
+            >
+              Bireysel Kart
+            </button>
           </div>
+        </div>
+
+        {/* Gövde */}
+        <div className="p-4 sm:p-5">
+          {activeTab === 'scheduler' && (
+            <div className="divide-y divide-stone-100 dark:divide-stone-800 text-xs">
+              <div className="flex items-center justify-between py-2 px-3 hover:bg-stone-50 dark:hover:bg-stone-900/30 rounded-md transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-stone-500 w-12 text-[11px]">09:00</span>
+                  <span className="font-medium text-stone-900 dark:text-stone-100">Ahmet Yılmaz</span>
+                  <span className="text-stone-500 text-[11px]">12-A</span>
+                </div>
+                <div className="hidden sm:block text-stone-600 dark:text-stone-400">TYT Geometri Net Analizi</div>
+                <span className="px-2 py-0.5 rounded-[4px] text-[11px] font-medium bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  Geldi
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between py-2 px-3 hover:bg-stone-50 dark:hover:bg-stone-900/30 rounded-md transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-stone-500 w-12 text-[11px]">09:45</span>
+                  <span className="font-medium text-stone-900 dark:text-stone-100">Zeynep Demir</span>
+                  <span className="text-stone-500 text-[11px]">12-B</span>
+                </div>
+                <div className="hidden sm:block text-stone-600 dark:text-stone-400">Paragraf Rutini & Zaman Yönetimi</div>
+                <span className="px-2 py-0.5 rounded-[4px] text-[11px] font-medium bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                  Geldi
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between py-2 px-3 hover:bg-stone-50 dark:hover:bg-stone-900/30 rounded-md transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-stone-500 w-12 text-[11px]">10:30</span>
+                  <span className="font-medium text-stone-900 dark:text-stone-100">Can Bozkurt</span>
+                  <span className="text-stone-500 text-[11px]">Mezun</span>
+                </div>
+                <div className="hidden sm:block text-stone-600 dark:text-stone-400">AYT Matematik Soru Analizi</div>
+                <span className="px-2 py-0.5 rounded-[4px] text-[11px] font-medium bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300 border border-stone-200 dark:border-stone-700">
+                  Bekliyor
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between py-2 px-3 hover:bg-stone-50 dark:hover:bg-stone-900/30 rounded-md transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-stone-500 w-12 text-[11px]">11:15</span>
+                  <span className="font-medium text-stone-900 dark:text-stone-100">Elif Yıldız</span>
+                  <span className="text-stone-500 text-[11px]">12-C</span>
+                </div>
+                <div className="hidden sm:block text-stone-600 dark:text-stone-400">Sınav Kaygısı ve Deneme Takibi</div>
+                <span className="px-2 py-0.5 rounded-[4px] text-[11px] font-medium bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                  Gelmedi
+                </span>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'ascii' && (
+            <div className="space-y-3">
+              <pre className="p-3.5 rounded-md bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-800 dark:text-stone-200 font-mono text-[11px] leading-relaxed overflow-x-auto">
+                {sampleAsciiText}
+              </pre>
+            </div>
+          )}
+
+          {activeTab === 'summary' && (
+            <div className="p-4 rounded-md bg-stone-50 dark:bg-stone-900/50 border border-stone-200 dark:border-stone-800 space-y-2.5 text-xs">
+              <div className="flex items-baseline justify-between pb-2 border-b border-stone-200 dark:border-stone-800">
+                <span className="font-semibold text-stone-900 dark:text-stone-100">Ahmet Yılmaz (12-A) - Seans Notu</span>
+                <span className="font-mono text-[11px] text-stone-500">{formatTurkishDate(getTodayDateString())}</span>
+              </div>
+              <p className="text-stone-600 dark:text-stone-400 leading-relaxed">
+                <strong>Görüşme Konusu:</strong> TYT Geometri Üçgenler eksikleri ve deneme net düşüşü analiz edildi.
+              </p>
+              <p className="text-stone-600 dark:text-stone-400 leading-relaxed">
+                <strong>Haftalık Karar & Ödev:</strong> Günlük 20 problem ve 1 test geometrik çizim fasikülü tamamlanacak.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* 3. ASYMMETRICAL FEATURE BENTO (Breaking the symmetrical 3-card grid) */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 space-y-4">
-        <div className="mb-6">
-          <h2 className="font-display text-xl sm:text-2xl font-semibold text-white tracking-tight">
-            Rehberlik biriminin gerçek iş yüküne göre modellendi
+      {/* 3. İŞLEVSEL BİLGİ BÖLÜMÜ (Kartsız, İnce Ayrım Çizgili) */}
+      <section className="pt-6 border-t border-stone-200 dark:border-stone-800 space-y-8">
+        <div>
+          <h2 className="text-base font-semibold text-stone-900 dark:text-stone-100">
+            Sistemin Temel İşlevleri
           </h2>
-          <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-            Gereksiz formlar veya karmaşık menüler yok. Yalnızca seans saatleri, WhatsApp çıktısı ve öğrenci takibi.
+          <p className="text-xs text-stone-600 dark:text-stone-400 mt-1">
+            Gereksiz menüler veya pazarlama dili yok; doğrudan MEB rehberlik servisi iş akışı.
           </p>
         </div>
 
-        {/* Row 1: Asymmetric 65% / 35% */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Bento Item 1 (65% width): WhatsApp ASCII Monospace */}
-          <div className="lg:col-span-8 p-6 rounded-xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 mb-2">
-                <Terminal className="w-3.5 h-3.5" />
-                <span>ASCII TABLO MOTORU</span>
-              </div>
-              <h3 className="font-display text-lg font-semibold text-white tracking-tight">
-                WhatsApp gruplarında saatleri ve isimleri kaymayan hizalı tablo
-              </h3>
-              <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed max-w-xl">
-                Standart WhatsApp mesajlarında karakter genişlikleri değişken olduğu için saat ve öğrenci sütunları mobilde darmadağın olur.
-                Pusula, 7-20-16 karakter hassasiyetinde sabit genişlikli ASCII sınırları çizer ve öğrencileri alta otomatik etiketler.
-              </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-2">
+            <div className="w-7 h-7 rounded-md bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-teal-700 dark:text-teal-400">
+              <Calendar className="w-4 h-4" />
             </div>
-
-            <div className="mt-5 p-3.5 rounded-lg bg-zinc-900 border border-zinc-850 font-mono text-[11px] text-zinc-300 overflow-x-auto">
-              <span className="text-zinc-500"># WhatsApp'a yapıştırıldığında monospace blok olarak görüntülenir:</span>
-              <p className="text-emerald-400/90 mt-1">
-                +-------+--------------------+----------------+<br />
-                | SAAT  | ÖĞRENCİ            | KONU           |<br />
-                +-------+--------------------+----------------+<br />
-                | 09:00 | Ahmet Yılmaz (12-A)| TYT Geometri   |<br />
-                | 09:50 | Zeynep Demir (12-B)| Paragraf Rutin |<br />
-                +-------+--------------------+----------------+
-              </p>
-            </div>
-          </div>
-
-          {/* Bento Item 2 (35% width): Student Portfolio & History */}
-          <div className="lg:col-span-4 p-6 rounded-xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 mb-2">
-                <Users className="w-3.5 h-3.5" />
-                <span>ÖĞRENCİ PORTFÖYÜ</span>
-              </div>
-              <h3 className="font-display text-lg font-semibold text-white tracking-tight">
-                Kronolojik görüşme geçmişi ve teşhisler
-              </h3>
-              <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
-                Bir öğrenci odaya girdiğinde önceki seanslarda konuşulanları, verilen ödevleri ve veli iletişim notlarını tek tıkla açın.
-              </p>
-            </div>
-
-            <div className="mt-5 p-3 rounded-lg bg-zinc-900/80 border border-zinc-850 space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-white">Ahmet Yılmaz (12-A)</span>
-                <span className="text-[11px] font-mono text-zinc-500">4 görüşme</span>
-              </div>
-              <div className="text-[11px] text-zinc-400 border-t border-zinc-800/80 pt-2 space-y-1">
-                <div className="flex items-center justify-between text-zinc-400">
-                  <span>Son Konu:</span>
-                  <span className="text-zinc-200">TYT Geometri Net Analizi</span>
-                </div>
-                <div className="flex items-center justify-between text-zinc-400">
-                  <span>Önceki Karar:</span>
-                  <span className="text-zinc-400 truncate max-w-[140px]">Haftalık soru çizelgesi</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Row 2: Asymmetric 35% / 65% */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Bento Item 3 (35% width): Smart Regex Paste */}
-          <div className="lg:col-span-4 p-6 rounded-xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 mb-2">
-                <FileSpreadsheet className="w-3.5 h-3.5 text-zinc-400" />
-                <span>TOPLU İÇE AKTARIM</span>
-              </div>
-              <h3 className="font-display text-lg font-semibold text-white tracking-tight">
-                Excel veya WhatsApp listesinden tek yapıştırma
-              </h3>
-              <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
-                e-Okul veya Excel'den aldığınız karışık telefon formatlarını (0532, +90, boşluklu) otomatik temizleyip 905xxxxxxxxx formatına çevirir.
-              </p>
-            </div>
-
-            <div className="mt-5 p-3 rounded bg-zinc-900 border border-zinc-850 font-mono text-[11px] text-zinc-400">
-              <span className="text-zinc-500 block text-[10px]">Girdi:</span>
-              <p className="truncate">Ahmet Yılmaz	12-A	0 (532) 411 20 89</p>
-              <span className="text-emerald-400 block text-[10px] mt-1.5">Temiz Çıktı:</span>
-              <p className="text-zinc-200">Ahmet Yılmaz (12-A) &bull; +905324112089</p>
-            </div>
-          </div>
-
-          {/* Bento Item 4 (65% width): Post-Meeting Action Cards */}
-          <div className="lg:col-span-8 p-6 rounded-xl bg-zinc-950 border border-zinc-800 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-mono text-zinc-400 mb-2">
-                <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-                <span>BİREYSEL GERİ BİLDİRİM</span>
-              </div>
-              <h3 className="font-display text-lg font-semibold text-white tracking-tight">
-                Görüşme bitiminde öğrenciye ve veliye tek tıkla şablon mesaj
-              </h3>
-              <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed max-w-xl">
-                Görüşme bittiğinde rehberlik masasında kararlaştırılan ödevleri, deneme net hedeflerini ve bir sonraki randevu tarihini
-                tek bir butona basarak doğrudan öğrencinin WhatsApp sohbetine aktarın.
-              </p>
-            </div>
-
-            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-850">
-                <span className="font-semibold text-white block mb-1">Görüşme Kararları & Ödevler</span>
-                <p className="text-zinc-400 text-[11px] leading-normal">
-                  Soru bankası hedefleri, deneme analizi ve paragraf rutinleri tek satırda kaydedilir.
-                </p>
-              </div>
-              <div className="p-3 rounded-lg bg-zinc-900 border border-zinc-850">
-                <span className="font-semibold text-white block mb-1">Gelmedi Uyarısı</span>
-                <p className="text-zinc-400 text-[11px] leading-normal">
-                  Randevusuna gelmeyen öğrenciye tek tıkla yeni randevu hatırlatma mesajı açılır.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. WORKFLOW COMPARISON (Real Counselor Day: Old vs Pusula) */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="border border-zinc-800 rounded-xl bg-zinc-950 p-6 sm:p-8">
-          <div className="max-w-2xl mb-6">
-            <h2 className="font-display text-xl font-semibold text-white tracking-tight">
-              Klasik yöntem vs. Pusula iş akışı
-            </h2>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-              Günün her aşamasında rehberlik danışmanının harcadığı zamanı ölçtük.
+            <h3 className="text-xs font-semibold text-stone-900 dark:text-stone-100">
+              WhatsApp Monospace Tablo
+            </h3>
+            <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+              Standart WhatsApp mesajlarında mobilde harf genişlikleri nedeniyle kayan seans saatlerini sabit genişlikli tablo formatında panoya kopyalar.
             </p>
           </div>
 
-          <div className="divide-y divide-zinc-850 text-xs">
-            {/* Step 1 */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 py-4 items-center">
-              <div className="md:col-span-3 font-mono text-zinc-400">
-                <span className="text-white font-semibold block">08:30 Sabah Duyurusu</span>
-                <span>Günlük seans tablosu</span>
-              </div>
-              <div className="md:col-span-4 text-zinc-500">
-                <span className="text-rose-400 block font-medium">Eski Yöntem (15-20 dk):</span>
-                <span>WhatsApp'a elle seans saatlerini yazma, mobilde yazı tipleri kaydığı için bozuk hizalama.</span>
-              </div>
-              <div className="md:col-span-5 text-zinc-300">
-                <span className="text-emerald-400 block font-medium">Pusula ile (10 saniye):</span>
-                <span>Standart 40 dk seansları doldur, ⌘Enter ile hizalı ASCII tablosunu kopyala ve gruba yapıştır.</span>
-              </div>
+          <div className="space-y-2">
+            <div className="w-7 h-7 rounded-md bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-teal-700 dark:text-teal-400">
+              <Printer className="w-4 h-4" />
             </div>
+            <h3 className="text-xs font-semibold text-stone-900 dark:text-stone-100">
+              A4 Resmi Görüşme Çıktısı
+            </h3>
+            <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+              Siyah-beyaz yazıcı ve MEB resmi defter standartlarına uygun, 12mm kenar boşluklu, onay kutulu A4 günlük ve haftalık seans çizelgesi çıktısı verir.
+            </p>
+          </div>
 
-            {/* Step 2 */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 py-4 items-center">
-              <div className="md:col-span-3 font-mono text-zinc-400">
-                <span className="text-white font-semibold block">11:00 Seans Takibi</span>
-                <span>Görüşme esnasında</span>
-              </div>
-              <div className="md:col-span-4 text-zinc-500">
-                <span className="text-rose-400 block font-medium">Eski Yöntem:</span>
-                <span>Defter veya ajanda sayfalarında geçmiş görüşmeleri ve verilen eski hedefleri arama.</span>
-              </div>
-              <div className="md:col-span-5 text-zinc-300">
-                <span className="text-emerald-400 block font-medium">Pusula ile:</span>
-                <span>Öğrencinin ismine tıklayarak son görüşmelerini, net durumunu ve ödev geçmişini tek pencerede gör.</span>
-              </div>
+          <div className="space-y-2">
+            <div className="w-7 h-7 rounded-md bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-teal-700 dark:text-teal-400">
+              <Users className="w-4 h-4" />
             </div>
-
-            {/* Step 3 */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 py-4 items-center">
-              <div className="md:col-span-3 font-mono text-zinc-400">
-                <span className="text-white font-semibold block">16:30 Gün Sonu Raporu</span>
-                <span>Devamsızlık & risk kontrolü</span>
-              </div>
-              <div className="md:col-span-4 text-zinc-500">
-                <span className="text-rose-400 block font-medium">Eski Yöntem:</span>
-                <span>Kim geldi kim gelmedi elle işaretleme; unutulan öğrencileri haftalar sonra fark etme.</span>
-              </div>
-              <div className="md:col-span-5 text-zinc-300">
-                <span className="text-emerald-400 block font-medium">Pusula ile:</span>
-                <span>Risk radarı 20 gündür görüşülmeyen öğrencileri otomatik listeler, kaçıranlara tek tıkla telafi mesajı iletir.</span>
-              </div>
-            </div>
+            <h3 className="text-xs font-semibold text-stone-900 dark:text-stone-100">
+              Öğrenci Kaydı ve Seans Geçmişi
+            </h3>
+            <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+              Görüşülen konular, ödevler ve durumlar (Geldi / Gelmedi / Bekliyor) kronolojik olarak listelenir. Excel/CSV aktarımı desteklenir.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* 5. BOTTOM CALL TO ACTION */}
-      <section className="max-w-4xl mx-auto text-center px-4 sm:px-6">
-        <div className="p-8 sm:p-12 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-4">
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold text-white tracking-tight">
-            Rehberlik masanızı hemen kullanmaya başlayın
-          </h2>
-          <p className="text-xs sm:text-sm text-zinc-400 max-w-xl mx-auto leading-relaxed">
-            Hesap oluşturma, sunucu kurulumu veya kredi kartı gerekmez. Tarayıcınızda anında açılır, tüm verileriniz bilgisayarınızda yerel kalır.
-          </p>
+      {/* 4. VERİLER NEREDE TUTULUR? */}
+      <section className="pt-6 border-t border-stone-200 dark:border-stone-800 space-y-4">
+        <div className="flex items-center gap-2 text-xs font-semibold text-stone-900 dark:text-stone-100">
+          <Database className="w-4 h-4 text-teal-700 dark:text-teal-400" />
+          <span>Veriler Nerede ve Nasıl Tutulur?</span>
+        </div>
 
-          <div className="pt-3 flex flex-wrap items-center justify-center gap-3">
-            <button
-              onClick={onLaunchWorkspace}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-medium text-xs transition-colors shadow-xs"
-            >
-              <span>Canlı Çalışma Masasını Başlat</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={onOpenSmartPaste}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-850 text-zinc-300 border border-zinc-800 text-xs font-medium transition-colors"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Öğrenci Listesi İçe Aktar</span>
-            </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div className="p-3.5 rounded-md border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/40 space-y-1.5">
+            <div className="flex items-center gap-2 font-semibold text-stone-900 dark:text-stone-100">
+              <Lock className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              <span>Gerçek Kullanım (Firestore Veritabanı)</span>
+            </div>
+            <p className="text-stone-600 dark:text-stone-400 leading-relaxed">
+              Oturum açtığınızda öğrenci ve randevu verileri Google Firebase Firestore üzerinde, yalnızca danışman kimliğinize (UID) ait özel ve şifreli alt koleksiyonda saklanır. Başka hiçbir okul veya kullanıcı bu verilere erişemez.
+            </p>
           </div>
+
+          <div className="p-3.5 rounded-md border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/40 space-y-1.5">
+            <div className="flex items-center gap-2 font-semibold text-stone-900 dark:text-stone-100">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Demo Modu (Sadece Tarayıcı RAM Belleği)</span>
+            </div>
+            <p className="text-stone-600 dark:text-stone-400 leading-relaxed">
+              "Demo'yu Dene" butonuna basıldığında Firebase veritabanına veya harici sunuculara hiçbir istek yapılmaz. Veriler geçici olarak tarayıcı belleğinde (React state) tutulur, sayfa yenilendiğinde sıfırlanır.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. ALT EYLEM ÇAĞRISI */}
+      <section className="pt-6 border-t border-stone-200 dark:border-stone-800 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h4 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+            Rehberlik masanızı kullanmaya başlayın
+          </h4>
+          <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+            Hesap açarak veritabanı eşitlemesiyle veya demo modunda doğrudan deneyebilirsiniz.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {onStartDemo && (
+            <button
+              type="button"
+              onClick={onStartDemo}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-stone-900 hover:bg-stone-800 dark:bg-stone-100 dark:hover:bg-white text-white dark:text-stone-900 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-300 dark:text-amber-600" />
+              <span>Demo'yu Dene</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onLaunchWorkspace}
+            className="px-4 py-2 rounded-md bg-[#0F766E] hover:bg-[#0D645E] text-white text-xs font-semibold transition-colors cursor-pointer"
+          >
+            Giriş Yap
+          </button>
+
+          {onOpenAuth && (
+            <button
+              type="button"
+              onClick={() => onOpenAuth('signup')}
+              className="px-4 py-2 rounded-md border border-stone-300 dark:border-stone-700 text-stone-800 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 text-xs font-medium transition-colors cursor-pointer"
+            >
+              Kayıt Ol
+            </button>
+          )}
         </div>
       </section>
     </div>

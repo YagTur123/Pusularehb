@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Student, Session, DIAGNOSTIC_TAGS } from '../types';
 import {
   Search,
@@ -9,19 +9,26 @@ import {
   Edit2,
   Trash2,
   Calendar,
-  AlertCircle,
   Clock,
-  UserX,
-  Target,
-  ExternalLink,
   Download,
   UploadCloud,
-  FileSpreadsheet,
+  UserPlus,
+  CheckSquare,
+  Square,
+  ArrowUpDown,
+  Tag,
+  Share2,
+  Filter,
+  X,
+  Send,
+  CalendarPlus,
+  ChevronRight,
 } from 'lucide-react';
-import { displayPhone, formatTurkishDate, StorageService } from '../lib/storage';
+import { displayPhone, formatTurkishDate, StorageService, getTodayDateString } from '../lib/storage';
 import { getWhatsAppDirectUrl, openExternalUrl } from '../lib/whatsapp';
 import { StudentHistoryModal } from './StudentHistoryModal';
 import { StudentProfileModal } from './StudentProfileModal';
+import { StudentDrawer } from './StudentDrawer';
 import { RiskFilter } from './RiskRadarBar';
 
 interface StudentCRMDirectoryProps {
@@ -32,10 +39,14 @@ interface StudentCRMDirectoryProps {
   onClearRiskFilter: () => void;
   onSaveStudent: (student: Omit<Student, 'id' | 'created_at'>, id?: string) => void;
   onDeleteStudent: (id: string) => void;
-  onShowToast: (title: string, desc?: string, type?: 'success' | 'info' | 'warning') => void;
+  onShowToast: (title: string, desc?: string, type?: 'success' | 'info' | 'warning', action?: { label: string; onClick: () => void }) => void;
   onQuickScheduleStudent: (student: Student) => void;
   onOpenSmartPaste?: () => void;
 }
+
+type SortField = 'name' | 'grade' | 'last_meeting' | 'next_session';
+type SortDirection = 'asc' | 'desc';
+type QuickFilterType = 'all' | 'uncontacted_30d' | 'uncontacted_20d' | 'missed_this_week' | 'has_next_session' | 'never_contacted';
 
 export function StudentCRMDirectory({
   students,
@@ -52,12 +63,25 @@ export function StudentCRMDirectory({
   const [search, setSearch] = useState('');
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [selectedTag, setSelectedTag] = useState<string>('all');
+  const [quickFilter, setQuickFilter] = useState<QuickFilterType>('all');
+
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  // Multi-selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const lastSelectedIdxRef = useRef<number | null>(null);
+
+  // Modals & Drawer state
+  const [drawerStudent, setDrawerStudent] = useState<Student | null>(null);
   const [historyStudent, setHistoryStudent] = useState<Student | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [batchTagModalOpen, setBatchTagModalOpen] = useState(false);
 
-  // Collect distinct classes
+  // Distinct classes
   const classes = useMemo(() => {
     const set = new Set<string>();
     students.forEach((s) => {
@@ -66,9 +90,26 @@ export function StudentCRMDirectory({
     return Array.from(set).sort();
   }, [students]);
 
+  const todayStr = getTodayDateString();
+
+  // Next planned session for each student
+  const nextSessionMap = useMemo(() => {
+    const map = new Map<string, Session>();
+    sessions
+      .filter((s) => s.student_id && s.date >= todayStr && !s.is_break)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.time_slot.localeCompare(b.time_slot))
+      .forEach((s) => {
+        if (!map.has(s.student_id!)) {
+          map.set(s.student_id!, s);
+        }
+      });
+    return map;
+  }, [sessions, todayStr]);
+
   // Filter students
   const filteredStudents = useMemo(() => {
     const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
     const twentyDaysAgo = new Date(now.getTime() - 20 * 86400000);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
 
@@ -79,13 +120,28 @@ export function StudentCRMDirectory({
         .filter(Boolean)
     );
 
-    return students.filter((s) => {
-      // Risk filter
+    let list = students.filter((s) => {
+      // Risk radar prop filter
       if (activeRiskFilter === 'uncontacted_20d') {
         if (!s.last_meeting_date) return true;
         if (new Date(s.last_meeting_date) >= twentyDaysAgo) return false;
       } else if (activeRiskFilter === 'missed_this_week') {
         if (!missedStudentIds.has(s.id)) return false;
+      }
+
+      // Quick filter preset
+      if (quickFilter === 'uncontacted_30d') {
+        if (!s.last_meeting_date) return true;
+        if (new Date(s.last_meeting_date) >= thirtyDaysAgo) return false;
+      } else if (quickFilter === 'uncontacted_20d') {
+        if (!s.last_meeting_date) return true;
+        if (new Date(s.last_meeting_date) >= twentyDaysAgo) return false;
+      } else if (quickFilter === 'missed_this_week') {
+        if (!missedStudentIds.has(s.id)) return false;
+      } else if (quickFilter === 'has_next_session') {
+        if (!nextSessionMap.has(s.id)) return false;
+      } else if (quickFilter === 'never_contacted') {
+        if (s.last_meeting_date) return false;
       }
 
       // Class filter
@@ -98,7 +154,7 @@ export function StudentCRMDirectory({
         return false;
       }
 
-      // Text search
+      // Search query
       if (search.trim()) {
         const query = search.toLowerCase();
         const matchesName = s.full_name.toLowerCase().includes(query);
@@ -111,49 +167,234 @@ export function StudentCRMDirectory({
 
       return true;
     });
-  }, [students, sessions, activeRiskFilter, selectedClass, selectedTag, search]);
 
+    // Sorting
+    list.sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'name') {
+        cmp = a.full_name.localeCompare(b.full_name, 'tr');
+      } else if (sortField === 'grade') {
+        cmp = a.class_grade.localeCompare(b.class_grade);
+      } else if (sortField === 'last_meeting') {
+        const aDate = a.last_meeting_date || '0000-00-00';
+        const bDate = b.last_meeting_date || '0000-00-00';
+        cmp = bDate.localeCompare(aDate); // newest first by default
+      } else if (sortField === 'next_session') {
+        const aSess = nextSessionMap.get(a.id);
+        const bSess = nextSessionMap.get(b.id);
+        const aVal = aSess ? `${aSess.date} ${aSess.time_slot}` : '9999-99-99';
+        const bVal = bSess ? `${bSess.date} ${bSess.time_slot}` : '9999-99-99';
+        cmp = aVal.localeCompare(bVal);
+      }
+
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+
+    return list;
+  }, [students, sessions, activeRiskFilter, quickFilter, selectedClass, selectedTag, search, sortField, sortDirection, nextSessionMap]);
+
+  // Handle header click to toggle sort
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Multi-selection with Shift key
+  const handleSelectRow = (studentId: string, index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (e.shiftKey && lastSelectedIdxRef.current !== null) {
+      const start = Math.min(lastSelectedIdxRef.current, index);
+      const end = Math.max(lastSelectedIdxRef.current, index);
+      const newSelected = new Set(selectedIds);
+
+      for (let i = start; i <= end; i++) {
+        if (filteredStudents[i]) {
+          newSelected.add(filteredStudents[i].id);
+        }
+      }
+      setSelectedIds(newSelected);
+    } else {
+      const newSelected = new Set(selectedIds);
+      if (newSelected.has(studentId)) {
+        newSelected.delete(studentId);
+      } else {
+        newSelected.add(studentId);
+      }
+      setSelectedIds(newSelected);
+      lastSelectedIdxRef.current = index;
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === filteredStudents.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredStudents.map((s) => s.id)));
+    }
+  };
+
+  // Direct WhatsApp chat
   const handleOpenDirectChat = (student: Student) => {
-    const text = `Merhaba ${student.full_name}, Pusula Rehberlik servisinden yazıyorum.`;
+    const text = `Merhaba ${student.full_name}, Pusula Rehberlik servisinden görüşme planınız için yazıyorum.`;
     const url = getWhatsAppDirectUrl(student.phone, text);
     openExternalUrl(url);
   };
 
-  const handleExportCsv = () => {
-    const csvContent = StorageService.exportToCsv();
+  // Export CSV (Full or Selected)
+  const handleExportCsv = (onlySelected = false) => {
+    const targetStudents = onlySelected
+      ? students.filter((s) => selectedIds.has(s.id))
+      : students;
+
+    const headers = ['Ad Soyad', 'Sınıf', 'Telefon', 'Son Görüşme', 'Teşhis Etiketleri', 'Hedef'].map((h) => `"${h}"`);
+    const rows = targetStudents.map((s) => [
+      `"${s.full_name.replace(/"/g, '""')}"`,
+      `"${s.class_grade.replace(/"/g, '""')}"`,
+      `"${s.phone.replace(/"/g, '""')}"`,
+      `"${s.last_meeting_date || '-'}"`,
+      `"${s.status_flags.join(', ')}"`,
+      `"${(s.target_goal || '').replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `rehberlik_ogrenci_listesi_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
+    link.href = url;
+    link.download = `rehberlik_ogrenci_listesi_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
-    document.body.removeChild(link);
-    onShowToast('CSV İndirildi', 'Öğrenci portföyü Excel / CSV formatında kaydedildi.', 'success');
+    URL.revokeObjectURL(url);
+    onShowToast('CSV İndirildi', `${targetStudents.length} öğrenci dışa aktarıldı.`, 'success');
+  };
+
+  // Batch action: Apply tag to all selected
+  const handleApplyBatchTag = (tag: string) => {
+    const targetStudents = students.filter((s) => selectedIds.has(s.id));
+    targetStudents.forEach((st) => {
+      if (!st.status_flags.includes(tag)) {
+        onSaveStudent({
+          ...st,
+          status_flags: [...st.status_flags, tag],
+        }, st.id);
+      }
+    });
+    setBatchTagModalOpen(false);
+    onShowToast(
+      'Toplu Etiket Eklendi',
+      `${selectedIds.size} öğrenciye "${tag}" etiketi tanımlandı.`,
+      'success'
+    );
+  };
+
+  // Batch action: Schedule sessions
+  const handleBatchSchedule = () => {
+    const targetStudents = students.filter((s) => selectedIds.has(s.id));
+    targetStudents.forEach((st) => {
+      onQuickScheduleStudent(st);
+    });
+    onShowToast(
+      'Toplu Seans Planlandı',
+      `${selectedIds.size} öğrenci için randevu oluşturuldu.`,
+      'success'
+    );
+    setSelectedIds(new Set());
   };
 
   return (
     <div className="space-y-3">
-      {/* Top Filter Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-[#141622] p-2.5 rounded-lg border border-slate-200 dark:border-white/[0.07] shadow-xs transition-colors">
+      {/* 1. Filtre Çipleri Şeridi */}
+      <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 text-xs">
+        <span className="text-[11px] font-semibold text-stone-500 mr-1 flex items-center gap-1">
+          <Filter className="w-3 h-3" />
+          <span>Filtreler:</span>
+        </span>
+
+        <button
+          type="button"
+          onClick={() => setQuickFilter('all')}
+          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer border ${
+            quickFilter === 'all'
+              ? 'bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 border-transparent font-semibold shadow-xs'
+              : 'bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:bg-stone-100'
+          }`}
+        >
+          Tümü ({students.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setQuickFilter('uncontacted_30d')}
+          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer border ${
+            quickFilter === 'uncontacted_30d'
+              ? 'bg-amber-600 text-white border-transparent font-semibold shadow-xs'
+              : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 hover:bg-amber-100'
+          }`}
+        >
+          30+ Gündür Görüşülmeyenler
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setQuickFilter('missed_this_week')}
+          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer border ${
+            quickFilter === 'missed_this_week'
+              ? 'bg-rose-600 text-white border-transparent font-semibold shadow-xs'
+              : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800 hover:bg-rose-100'
+          }`}
+        >
+          Bu Hafta Gelmeyenler
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setQuickFilter('has_next_session')}
+          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer border ${
+            quickFilter === 'has_next_session'
+              ? 'bg-teal-700 text-white border-transparent font-semibold shadow-xs'
+              : 'bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300 border-teal-200 dark:border-teal-800 hover:bg-teal-100'
+          }`}
+        >
+          Yaklaşan Randevusu Olanlar
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setQuickFilter('never_contacted')}
+          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer border ${
+            quickFilter === 'never_contacted'
+              ? 'bg-stone-800 text-white border-transparent font-semibold shadow-xs'
+              : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 border-stone-200 dark:border-stone-700 hover:bg-stone-200'
+          }`}
+        >
+          Hiç Görüşülmeyenler
+        </button>
+      </div>
+
+      {/* 2. Arama ve Sınıf Seçici Çubuğu */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 p-2 rounded-lg bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 text-xs">
         <div className="flex flex-wrap items-center gap-2 flex-1 max-w-2xl">
-          {/* Search Input */}
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="w-3.5 h-3.5 text-black dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          {/* Arama Input */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="w-3.5 h-3.5 text-stone-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Öğrenci, sınıf veya telefon ara..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-md bg-white dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-xs text-black dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-black dark:focus:border-zinc-500"
+              placeholder="İsim, sınıf veya hedef ara..."
+              className="w-full pl-8 pr-2.5 py-1.5 rounded-md bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-xs text-stone-900 dark:text-stone-100 placeholder-stone-400 focus:outline-none focus:border-teal-600"
             />
           </div>
 
-          {/* Sınıf Filter */}
+          {/* Sınıf Filtresi */}
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="px-2.5 py-1.5 rounded-md bg-white dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-xs text-black dark:text-zinc-300 focus:outline-none focus:border-black dark:focus:border-zinc-500 cursor-pointer font-medium"
+            className="px-2.5 py-1.5 rounded-md bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-xs text-stone-800 dark:text-stone-200 focus:outline-none cursor-pointer"
+            aria-label="Sınıf filtresi"
           >
             <option value="all">Tüm Sınıflar</option>
             {classes.map((cls) => (
@@ -163,11 +404,12 @@ export function StudentCRMDirectory({
             ))}
           </select>
 
-          {/* Tag Filter */}
+          {/* Etiket Filtresi */}
           <select
             value={selectedTag}
             onChange={(e) => setSelectedTag(e.target.value)}
-            className="px-2.5 py-1.5 rounded-md bg-white dark:bg-[#12141e] border border-slate-300 dark:border-white/[0.08] text-xs text-black dark:text-zinc-300 focus:outline-none focus:border-black dark:focus:border-zinc-500 max-w-[160px] truncate cursor-pointer font-medium"
+            className="px-2.5 py-1.5 rounded-md bg-stone-50 dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-xs text-stone-800 dark:text-stone-200 focus:outline-none max-w-[140px] truncate cursor-pointer"
+            aria-label="Teşhis etiketi filtresi"
           >
             <option value="all">Tüm Etiketler</option>
             {DIAGNOSTIC_TAGS.map((tag) => (
@@ -176,220 +418,324 @@ export function StudentCRMDirectory({
               </option>
             ))}
           </select>
-
-          {/* Active Risk Radar indication badge */}
-          {activeRiskFilter !== 'none' && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white dark:bg-amber-500/10 border border-black dark:border-amber-500/30 text-black dark:text-amber-300 text-xs font-semibold shadow-2xs">
-              <span>
-                {activeRiskFilter === 'uncontacted_20d' ? '20+ Gün İletişimsiz' : 'Gelmeyenler'}
-              </span>
-              <button
-                onClick={onClearRiskFilter}
-                className="text-black dark:text-amber-400 hover:opacity-75 font-bold ml-1 cursor-pointer"
-                title="Filtreyi kaldır"
-              >
-                &times;
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-1.5">
-          {/* Bulk Import Button */}
+        {/* Aksiyon Butonları */}
+        <div className="flex items-center gap-2">
           {onOpenSmartPaste && (
             <button
               type="button"
               onClick={onOpenSmartPaste}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white hover:bg-white text-black dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 dark:text-indigo-300 border border-slate-300 dark:border-indigo-800/50 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
-              title="e-Okul veya Excel'den toplu öğrenci aktarımı yap"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 text-xs font-medium transition-colors cursor-pointer"
+              title="Excel veya metinden yapıştır"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-black dark:text-current" />
-              <span className="hidden sm:inline">Toplu İçe Aktar (e-Okul / Excel)</span>
-              <span className="sm:hidden">İçe Aktar</span>
+              <UploadCloud className="w-3.5 h-3.5 text-stone-500" />
+              <span className="hidden sm:inline">Toplu İçe Aktar</span>
             </button>
           )}
 
-          {/* CSV Export Button */}
           <button
             type="button"
-            onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-white hover:bg-white dark:bg-[#181a26] dark:hover:bg-[#1e2130] border border-slate-300 dark:border-white/[0.08] text-black dark:text-zinc-300 dark:hover:text-white text-xs font-medium transition-colors cursor-pointer shadow-2xs"
-            title="CSV formatında indir"
+            onClick={() => handleExportCsv(false)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 text-xs font-medium transition-colors cursor-pointer"
+            title="CSV dosyası olarak indir"
           >
-            <Download className="w-3.5 h-3.5 text-black dark:text-zinc-400" />
-            <span>CSV İndir</span>
+            <Download className="w-3.5 h-3.5 text-stone-500" />
+            <span className="hidden sm:inline">CSV İndir</span>
           </button>
 
-          {/* Add Student Button */}
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white hover:bg-white text-black font-bold dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-100 border border-black dark:border-white/[0.1] text-xs transition-colors cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#0F766E] hover:bg-[#0D645E] text-white text-xs font-semibold transition-colors cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5 text-black dark:text-current" />
+            <Plus className="w-3.5 h-3.5" />
             <span>Öğrenci Ekle</span>
           </button>
         </div>
       </div>
 
-      {/* Students Table */}
-      <div className="border border-slate-200/90 dark:border-white/[0.08] rounded-xl overflow-hidden bg-white dark:bg-[#121420] shadow-xs transition-colors">
-        <div className="overflow-x-auto">
+      {/* 3. Toplu İşlem Çubuğu (Floating Batch Bar) */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-14 z-20 flex flex-wrap items-center justify-between gap-3 p-2.5 rounded-lg bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 shadow-lg animate-fadeIn text-xs">
+          <div className="flex items-center gap-2 font-semibold">
+            <span className="px-2 py-0.5 rounded-md bg-stone-800 dark:bg-stone-200 text-teal-400 dark:text-teal-700 font-mono">
+              {selectedIds.size}
+            </span>
+            <span>Öğrenci Seçildi</span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleBatchSchedule}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-700 hover:bg-teal-600 text-white font-medium cursor-pointer transition-colors"
+            >
+              <CalendarPlus className="w-3.5 h-3.5" />
+              <span>Seans Planla</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setBatchTagModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-stone-800 hover:bg-stone-700 dark:bg-stone-200 dark:hover:bg-stone-300 text-white dark:text-stone-900 font-medium cursor-pointer transition-colors"
+            >
+              <Tag className="w-3.5 h-3.5" />
+              <span>Etiket Ekle</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleExportCsv(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-stone-800 hover:bg-stone-700 dark:bg-stone-200 dark:hover:bg-stone-300 text-white dark:text-stone-900 font-medium cursor-pointer transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Seçilenleri İndir</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="px-2.5 py-1 rounded-md border border-stone-700 dark:border-stone-300 hover:bg-stone-800 dark:hover:bg-stone-200 text-stone-300 dark:text-stone-700 transition-colors cursor-pointer"
+            >
+              Temizle
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Öğrenci Listesi: Masaüstü Sıralanabilir Tablo / Mobil Yatay Kartlar */}
+      <div className="rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-[#1F1F1F] overflow-hidden">
+        {/* Masaüstü Tablo Görünümü */}
+        <div className="hidden sm:block overflow-x-auto max-h-[calc(100vh-280px)]">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-slate-50/90 dark:bg-[#0c0e17] border-b border-slate-200 dark:border-white/[0.08] text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 select-none">
-                <th className="align-middle py-3 px-4 min-w-[220px]">Öğrenci & Sınıf</th>
-                <th className="align-middle py-3 px-4 w-40 font-mono">Telefon</th>
-                <th className="align-middle py-3 px-4 w-44">Son Görüşme</th>
-                <th className="align-middle py-3 px-4 min-w-[240px]">Hedef & Teşhis Etiketleri</th>
-                <th className="align-middle py-3 px-4 text-right w-44">İşlemler</th>
+            <thead className="sticky top-0 z-10 bg-stone-50/95 dark:bg-stone-900/95 backdrop-blur-xs border-b border-stone-200 dark:border-stone-800">
+              <tr className="text-[11px] font-semibold text-stone-500 dark:text-stone-400 select-none">
+                <th className="py-2.5 px-3 w-10 text-center">
+                  <button
+                    type="button"
+                    onClick={handleSelectAll}
+                    className="p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-800 cursor-pointer"
+                    aria-label="Tümünü seç"
+                  >
+                    {selectedIds.size > 0 && selectedIds.size === filteredStudents.length ? (
+                      <CheckSquare className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    ) : (
+                      <Square className="w-4 h-4 text-stone-400" />
+                    )}
+                  </button>
+                </th>
+
+                <th className="py-2.5 px-3 min-w-[180px]">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('name')}
+                    className="flex items-center gap-1 font-semibold hover:text-stone-900 dark:hover:text-stone-100 cursor-pointer"
+                  >
+                    <span>Öğrenci Adı</span>
+                    <ArrowUpDown className="w-3 h-3 text-stone-400" />
+                  </button>
+                </th>
+
+                <th className="py-2.5 px-3 w-24">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('grade')}
+                    className="flex items-center gap-1 font-semibold hover:text-stone-900 dark:hover:text-stone-100 cursor-pointer"
+                  >
+                    <span>Sınıf</span>
+                    <ArrowUpDown className="w-3 h-3 text-stone-400" />
+                  </button>
+                </th>
+
+                <th className="py-2.5 px-3 w-32 font-mono">Telefon</th>
+
+                <th className="py-2.5 px-3 w-36">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('last_meeting')}
+                    className="flex items-center gap-1 font-semibold hover:text-stone-900 dark:hover:text-stone-100 cursor-pointer"
+                  >
+                    <span>Son Görüşme</span>
+                    <ArrowUpDown className="w-3 h-3 text-stone-400" />
+                  </button>
+                </th>
+
+                <th className="py-2.5 px-3 w-40">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('next_session')}
+                    className="flex items-center gap-1 font-semibold hover:text-stone-900 dark:hover:text-stone-100 cursor-pointer"
+                  >
+                    <span>Sonraki Seans</span>
+                    <ArrowUpDown className="w-3 h-3 text-stone-400" />
+                  </button>
+                </th>
+
+                <th className="py-2.5 px-3 min-w-[180px]">Hedef & Durum</th>
+                <th className="py-2.5 px-3 text-right w-32">İşlemler</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200/90 dark:divide-white/[0.07] font-sans">
+            <tbody className="divide-y divide-stone-100 dark:divide-stone-800/60">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-14 text-center text-slate-500 dark:text-zinc-500 text-xs">
-                    Kayıtlı öğrenci bulunamadı.
+                  <td colSpan={8} className="py-12 text-center text-stone-500 text-xs">
+                    <div className="max-w-xs mx-auto space-y-2">
+                      <p>Kriterlere uygun kayıtlı öğrenci bulunamadı.</p>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#0F766E] text-white text-xs font-semibold hover:bg-[#0D645E] cursor-pointer"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Yeni Öğrenci Ekle</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map((student) => {
-                  // Check 20+ days status
+                filteredStudents.map((student, idx) => {
+                  const isSelected = selectedIds.has(student.id);
+                  const nextSess = nextSessionMap.get(student.id);
+
                   const now = new Date();
-                  const isUncontacted20d = !student.last_meeting_date ||
-                    (now.getTime() - new Date(student.last_meeting_date).getTime()) > 20 * 86400000;
+                  const isUncontacted20d =
+                    !student.last_meeting_date ||
+                    now.getTime() - new Date(student.last_meeting_date).getTime() > 20 * 86400000;
 
                   return (
                     <tr
                       key={student.id}
-                      className="group transition-colors duration-150 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20"
+                      onClick={() => setDrawerStudent(student)}
+                      className={`hover:bg-stone-50/90 dark:hover:bg-stone-800/50 transition-colors h-11 cursor-pointer ${
+                        isSelected ? 'bg-teal-50/50 dark:bg-teal-950/20' : ''
+                      }`}
                     >
-                      {/* Name & Grade */}
-                      <td className="align-middle py-3.5 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <button
-                            type="button"
-                            onClick={() => setHistoryStudent(student)}
-                            className="font-bold text-sm text-slate-900 dark:text-zinc-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 text-left transition-colors cursor-pointer"
-                          >
-                            {student.full_name}
-                          </button>
-                          <span className="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 border border-slate-200/80 dark:border-zinc-700 shrink-0">
-                            {student.class_grade}
-                          </span>
-                          {isUncontacted20d && (
-                            <span
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-200/90 dark:border-amber-800/40 shrink-0"
-                              title="20+ gündür görüşülmedi"
-                            >
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                              <span>20+ Gün</span>
-                            </span>
+                      {/* Checkbox (Shift-Click Range Support) */}
+                      <td className="py-2 px-3 text-center" onClick={(e) => handleSelectRow(student.id, idx, e)}>
+                        <button
+                          type="button"
+                          className="p-1 rounded hover:bg-stone-200 dark:hover:bg-stone-700 cursor-pointer"
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                          ) : (
+                            <Square className="w-4 h-4 text-stone-400" />
                           )}
-                        </div>
+                        </button>
                       </td>
 
-                      {/* Phone */}
-                      <td className="align-middle py-3.5 px-4 font-mono text-xs font-semibold text-slate-800 dark:text-zinc-200 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 shrink-0" />
-                          <span>{displayPhone(student.phone)}</span>
-                        </div>
+                      {/* Ad Soyad */}
+                      <td className="py-2 px-3">
+                        <span className="font-semibold text-stone-900 dark:text-stone-100 hover:text-teal-700 dark:hover:text-teal-400 text-left truncate block">
+                          {student.full_name}
+                        </span>
+                      </td>
+
+                      {/* Sınıf */}
+                      <td className="py-2 px-3 text-stone-600 dark:text-stone-400 font-mono text-[11px]">
+                        {student.class_grade || '-'}
+                      </td>
+
+                      {/* Telefon */}
+                      <td className="py-2 px-3 font-mono text-stone-600 dark:text-stone-400 text-[11px] whitespace-nowrap">
+                        {displayPhone(student.phone)}
                       </td>
 
                       {/* Son Görüşme */}
-                      <td className="align-middle py-3.5 px-4 whitespace-nowrap">
+                      <td className="py-2 px-3 whitespace-nowrap">
                         {student.last_meeting_date ? (
-                          <div className="flex items-center gap-2">
-                            <Clock className={`w-3.5 h-3.5 shrink-0 ${isUncontacted20d ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-zinc-500'}`} />
-                            <span className={`text-xs ${isUncontacted20d ? 'text-amber-900 dark:text-amber-300 font-bold' : 'text-slate-800 dark:text-zinc-200 font-medium'}`}>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-stone-700 dark:text-stone-300">
                               {formatTurkishDate(student.last_meeting_date)}
                             </span>
+                            {isUncontacted20d && (
+                              <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" title="20+ gündür görüşülmedi" />
+                            )}
                           </div>
                         ) : (
-                          <span className="text-slate-400 dark:text-zinc-500 text-xs font-normal flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-600 shrink-0" />
-                            <span>Hiç görüşülmedi</span>
-                          </span>
+                          <span className="text-stone-400 dark:text-stone-500 italic">Görüşülmedi</span>
                         )}
                       </td>
 
-                      {/* Hedef & Teşhis Etiketleri */}
-                      <td className="align-middle py-3.5 px-4">
-                        <div className="space-y-1 max-w-sm">
-                          {student.target_goal && (
-                            <div className="text-xs font-semibold text-slate-900 dark:text-zinc-200 truncate">
-                              {student.target_goal}
-                            </div>
-                          )}
+                      {/* Sonraki Seans */}
+                      <td className="py-2 px-3 whitespace-nowrap">
+                        {nextSess ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                              {nextSess.date === todayStr ? 'Bugün' : formatTurkishDate(nextSess.date).split(' ').slice(0, 2).join(' ')} {nextSess.time_slot}
+                            </span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onQuickScheduleStudent(student);
+                            }}
+                            className="text-[11px] text-teal-700 dark:text-teal-400 hover:underline cursor-pointer"
+                          >
+                            + Seans Planla
+                          </button>
+                        )}
+                      </td>
 
+                      {/* Hedef & Durum */}
+                      <td className="py-2 px-3">
+                        <div className="flex items-center gap-1.5 text-stone-600 dark:text-stone-400 text-xs truncate max-w-xs">
+                          {student.target_goal && (
+                            <span className="font-medium text-stone-800 dark:text-stone-200 truncate">
+                              {student.target_goal}
+                            </span>
+                          )}
+                          {student.target_goal && student.status_flags?.length > 0 && (
+                            <span aria-hidden="true" className="text-stone-300 dark:text-stone-600">·</span>
+                          )}
                           {student.status_flags && student.status_flags.length > 0 && (
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 dark:bg-zinc-800 dark:text-zinc-200 dark:border-zinc-700/80">
-                                {student.status_flags[0]}
-                              </span>
-                              {student.status_flags.length > 1 && (
-                                <span className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[160px]">
-                                  {student.status_flags.slice(1).join(', ')}
-                                </span>
-                              )}
-                            </div>
+                            <span className="text-stone-500 dark:text-stone-400 text-[11px] truncate">
+                              {student.status_flags.slice(0, 2).join(', ')}
+                            </span>
                           )}
                         </div>
                       </td>
 
-                      {/* Aksiyonlar (Temiz, çerçevesiz, hover-vurgulu butonlar) */}
-                      <td className="align-middle py-3.5 px-4 text-right">
+                      {/* İşlemler */}
+                      <td className="py-2 px-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
-                          {/* Quick Schedule */}
                           <button
                             type="button"
                             onClick={() => onQuickScheduleStudent(student)}
-                            className="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:text-zinc-400 dark:hover:text-indigo-300 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer"
-                            title="Bugüne seans planla"
+                            className="p-1.5 rounded-md text-stone-500 hover:text-teal-700 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
+                            title="Bugüne seans ata"
                           >
-                            <Calendar className="w-4 h-4" />
+                            <Calendar className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* WhatsApp Direct Chat */}
                           <button
                             type="button"
                             onClick={() => handleOpenDirectChat(student)}
-                            className="p-2 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-md text-stone-500 hover:text-emerald-700 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
                             title="WhatsApp mesajı"
                           >
-                            <MessageSquare className="w-4 h-4" />
+                            <MessageSquare className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Past Meeting History */}
-                          <button
-                            type="button"
-                            onClick={() => setHistoryStudent(student)}
-                            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                            title="Geçmiş seanslar"
-                          >
-                            <History className="w-4 h-4" />
-                          </button>
-
-                          {/* Edit Profile */}
-                          <button
-                            type="button"
-                            onClick={() => setEditingStudent(student)}
-                            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                            title="Düzenle"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-
-                          {/* Delete Student */}
                           <button
                             type="button"
                             onClick={() => setStudentToDelete(student)}
-                            className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:text-zinc-500 dark:hover:text-rose-400 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-md text-stone-400 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                             title="Sil"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setDrawerStudent(student)}
+                            className="p-1.5 rounded-md text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition-colors cursor-pointer"
+                            title="Detayları aç"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -400,51 +746,217 @@ export function StudentCRMDirectory({
             </tbody>
           </table>
         </div>
+
+        {/* Mobil Görünüm: Yatay Kaydırılabilir Kartlar (Min 44px Dokunma Hedefleri) */}
+        <div className="block sm:hidden p-3 bg-stone-50/50 dark:bg-stone-900/30">
+          {filteredStudents.length === 0 ? (
+            <div className="py-8 text-center text-xs text-stone-500 space-y-2">
+              <p>Kayıtlı öğrenci bulunamadı.</p>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                className="min-h-[44px] px-4 rounded-md bg-[#0F766E] text-white text-xs font-semibold inline-flex items-center justify-center gap-1.5"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Öğrenci Ekle</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
+              {filteredStudents.map((student) => {
+                const nextSess = nextSessionMap.get(student.id);
+
+                return (
+                  <div
+                    key={student.id}
+                    onClick={() => setDrawerStudent(student)}
+                    className="min-w-[280px] max-w-[320px] shrink-0 snap-center p-3.5 rounded-lg bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 shadow-xs space-y-2.5 cursor-pointer"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-semibold text-xs text-stone-900 dark:text-stone-100">
+                          {student.full_name}
+                        </h4>
+                        <div className="flex items-center gap-2 text-[11px] text-stone-500 mt-0.5">
+                          <span className="font-mono">{student.class_grade || 'Sınıf yok'}</span>
+                          <span>•</span>
+                          <span className="font-mono">{displayPhone(student.phone)}</span>
+                        </div>
+                      </div>
+
+                      {nextSess && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                          {nextSess.time_slot}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-[11px] space-y-1 text-stone-600 dark:text-stone-400">
+                      <div>Son Görüşme: {student.last_meeting_date ? formatTurkishDate(student.last_meeting_date) : 'Yok'}</div>
+                      {student.target_goal && <div>Hedef: {student.target_goal}</div>}
+                    </div>
+
+                    {/* Dokunma Hedefleri En Az 44px */}
+                    <div className="grid grid-cols-3 gap-1 pt-1 border-t border-stone-100 dark:border-stone-800" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => onQuickScheduleStudent(student)}
+                        className="min-h-[44px] rounded-md bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 flex items-center justify-center transition-colors cursor-pointer"
+                        title="Seans planla"
+                      >
+                        <Calendar className="w-4 h-4 text-teal-700 dark:text-teal-400" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDirectChat(student)}
+                        className="min-h-[44px] rounded-md bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 flex items-center justify-center transition-colors cursor-pointer"
+                        title="WhatsApp sohbeti"
+                      >
+                        <MessageSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setDrawerStudent(student)}
+                        className="min-h-[44px] rounded-md bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 flex items-center justify-center transition-colors cursor-pointer"
+                        title="Panel"
+                      >
+                        <ChevronRight className="w-4 h-4 text-stone-600" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* 5. Slide-Over Öğrenci Yan Paneli (Drawer) */}
+      {drawerStudent && (
+        <StudentDrawer
+          student={drawerStudent}
+          allSessions={sessions}
+          counselorName={counselorName}
+          onClose={() => setDrawerStudent(null)}
+          onSaveStudent={(data, id) => {
+            onSaveStudent(data, id);
+            // keep drawer student synced
+            if (id && drawerStudent.id === id) {
+              setDrawerStudent({ ...drawerStudent, ...data });
+            }
+          }}
+          onQuickSchedule={onQuickScheduleStudent}
+          onShowToast={onShowToast}
+        />
+      )}
+
+      {/* Silme Onay Modalı (Undo Toast ile desteklenir) */}
       {studentToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-2xl max-w-md w-full p-6 text-slate-800 dark:text-zinc-200 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400 mb-3">
-              <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/40">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">
-                Öğrenci Kaydını Sil
-              </h3>
-            </div>
-            <p className="text-sm text-slate-600 dark:text-zinc-300 mb-2">
-              <strong className="text-slate-900 dark:text-white">{studentToDelete.full_name}</strong> isimli öğrenciyi ve CRM profilini silmek istediğinize emin misiniz?
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          onClick={() => setStudentToDelete(null)}
+        >
+          <div
+            className="max-w-md w-full p-5 rounded-lg bg-white dark:bg-[#1E1E1E] border border-stone-200 dark:border-stone-800 shadow-md space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+              Öğrenci Kaydını Sil
+            </h3>
+            <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
+              <strong>{studentToDelete.full_name}</strong> isimli öğrencinin profili silinecektir.
             </p>
-            <p className="text-xs text-slate-400 dark:text-zinc-500 mb-6">
-              Bu işlem öğrencinin profil bilgilerini sistemden kaldırır. Geçmiş görüşmeler arşivde tutulmaya devam edebilir.
-            </p>
-            <div className="flex items-center justify-end gap-2">
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setStudentToDelete(null)}
-                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 text-xs font-medium hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                className="px-3 py-1.5 rounded-md border border-stone-200 dark:border-stone-700 text-xs font-medium text-stone-700 dark:text-stone-300 hover:bg-stone-50 cursor-pointer"
               >
                 Vazgeç
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  onDeleteStudent(studentToDelete.id);
-                  onShowToast('Öğrenci Silindi', studentToDelete.full_name, 'info');
+                  const deletedStudent = studentToDelete;
+                  onDeleteStudent(deletedStudent.id);
+                  onShowToast(
+                    'Öğrenci Silindi',
+                    deletedStudent.full_name,
+                    'info',
+                    {
+                      label: 'Geri Al',
+                      onClick: () => {
+                        onSaveStudent({
+                          full_name: deletedStudent.full_name,
+                          class_grade: deletedStudent.class_grade,
+                          phone: deletedStudent.phone,
+                          status_flags: deletedStudent.status_flags,
+                          last_meeting_date: deletedStudent.last_meeting_date,
+                          target_goal: deletedStudent.target_goal,
+                          notes: deletedStudent.notes,
+                        }, deletedStudent.id);
+                      },
+                    }
+                  );
                   setStudentToDelete(null);
                 }}
-                className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium transition-colors shadow-xs cursor-pointer"
+                className="px-3 py-1.5 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold cursor-pointer"
               >
-                Evet, Sil
+                Sil
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* History Modal */}
+      {/* Toplu Etiket Modalı */}
+      {batchTagModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          onClick={() => setBatchTagModalOpen(false)}
+        >
+          <div
+            className="max-w-md w-full p-5 rounded-lg bg-white dark:bg-[#1E1E1E] border border-stone-200 dark:border-stone-800 shadow-md space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+              Seçili {selectedIds.size} Öğrenciye Etiket Ekle
+            </h3>
+            <p className="text-xs text-stone-500">
+              Tanımlanacak teşhis veya takip etiketini seçin:
+            </p>
+            <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto pt-1">
+              {DIAGNOSTIC_TAGS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => handleApplyBatchTag(tag)}
+                  className="px-2.5 py-1 rounded text-xs font-medium bg-stone-100 hover:bg-teal-50 hover:text-teal-800 dark:bg-stone-800 dark:hover:bg-teal-950/60 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 transition-colors cursor-pointer"
+                >
+                  + {tag}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setBatchTagModalOpen(false)}
+                className="px-3 py-1.5 rounded-md border border-stone-200 text-xs font-medium cursor-pointer"
+              >
+                Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Geçmiş Modalı */}
       {historyStudent && (
         <StudentHistoryModal
           student={historyStudent}
@@ -454,7 +966,7 @@ export function StudentCRMDirectory({
         />
       )}
 
-      {/* Edit Modal */}
+      {/* Düzenleme Modalı */}
       {editingStudent && (
         <StudentProfileModal
           student={editingStudent}
@@ -467,7 +979,7 @@ export function StudentCRMDirectory({
         />
       )}
 
-      {/* Add New Student Modal */}
+      {/* Yeni Öğrenci Ekleme Modalı */}
       {isAddModalOpen && (
         <StudentProfileModal
           onSave={(data) => {

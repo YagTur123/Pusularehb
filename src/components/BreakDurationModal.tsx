@@ -98,6 +98,14 @@ export function BreakDurationModal({
     }
   }, [session?.id]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !session) return null;
 
   const deltaMinutes = minutes - currentDuration;
@@ -145,32 +153,36 @@ export function BreakDurationModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 dark:bg-black/75 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="break-duration-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-white dark:bg-[#181a26] border border-slate-200 dark:border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden flex flex-col text-slate-800 dark:text-zinc-200"
+        className="w-full max-w-md bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 rounded-lg shadow-lg overflow-hidden flex flex-col text-stone-800 dark:text-stone-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 border-b border-slate-200 dark:border-white/[0.08] flex items-center justify-between bg-amber-50/70 dark:bg-amber-950/20">
+        <div className="p-4 border-b border-stone-200 dark:border-stone-800 flex items-center justify-between bg-stone-50 dark:bg-stone-900/50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-500/20 border border-amber-300/80 dark:border-amber-500/30 flex items-center justify-center text-amber-700 dark:text-amber-300">
+            <div className="w-8 h-8 rounded-md bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-700 dark:text-amber-400">
               {isLunch ? <Utensils className="w-4 h-4" /> : <Coffee className="w-4 h-4" />}
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
-                Teneffüs & Mola Süresi Ayarla
+              <h2 id="break-duration-title" className="text-sm font-semibold text-stone-900 dark:text-stone-100 tracking-tight">
+                Teneffüs & Mola Süresi
               </h2>
-              <p className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono">
-                Başlangıç: {session.time_slot} | Mevcut: {currentDuration} dakika
+              <p className="text-[11px] text-stone-500 dark:text-stone-400 font-mono">
+                Başlangıç: {session.time_slot} | Mevcut: {currentDuration} dk
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+            aria-label="Kapat"
+            className="p-1.5 rounded text-stone-400 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -180,7 +192,7 @@ export function BreakDurationModal({
         <div className="p-4 space-y-4">
           {/* Quick Preset Buttons */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-2">
+            <label className="block text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-2">
               Hızlı Süre Seçenekleri
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -191,16 +203,16 @@ export function BreakDurationModal({
                     key={preset.mins}
                     type="button"
                     onClick={() => handleSelectPreset(preset.mins)}
-                    className={`p-2 rounded-xl text-left transition-all cursor-pointer border ${
+                    className={`p-2 rounded-md text-left transition-colors cursor-pointer border ${
                       isSelected
-                        ? 'bg-amber-500 text-white font-bold border-amber-500 shadow-xs'
-                        : 'bg-slate-50 hover:bg-slate-100/80 dark:bg-white/[0.03] dark:hover:bg-white/[0.06] text-slate-800 dark:text-zinc-200 border-slate-200/80 dark:border-white/[0.06]'
+                        ? 'bg-amber-600 text-white font-medium border-amber-600 shadow-xs'
+                        : 'bg-stone-50 hover:bg-stone-100 dark:bg-stone-800/50 dark:hover:bg-stone-800 text-stone-800 dark:text-stone-200 border-stone-200 dark:border-stone-800'
                     }`}
                   >
-                    <div className="text-xs font-bold font-mono">{preset.label}</div>
+                    <div className="text-xs font-semibold font-mono">{preset.label}</div>
                     <div
                       className={`text-[10px] truncate ${
-                        isSelected ? 'text-amber-100' : 'text-slate-500 dark:text-zinc-400'
+                        isSelected ? 'text-amber-100' : 'text-stone-500 dark:text-stone-400'
                       }`}
                     >
                       {preset.desc}
@@ -212,13 +224,13 @@ export function BreakDurationModal({
           </div>
 
           {/* Stepper / Custom Minute Input */}
-          <div className="bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.06] rounded-xl p-3">
+          <div className="bg-stone-50 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800 rounded-md p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-900 dark:text-white">
+                <label className="block text-xs font-medium text-stone-900 dark:text-stone-100">
                   Özel Dakika Belirleyin
                 </label>
-                <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                <p className="text-[11px] text-stone-500 dark:text-stone-400">
                   Dilediğiniz dakika sayısını yazabilir veya butonlarla ayarlayabilirsiniz.
                 </p>
               </div>
@@ -227,7 +239,7 @@ export function BreakDurationModal({
                 <button
                   type="button"
                   onClick={() => setMinutes((prev) => Math.max(1, prev - 1))}
-                  className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer transition-colors"
+                  className="w-8 h-8 rounded bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 flex items-center justify-center text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 cursor-pointer transition-colors"
                   title="1 dakika azalt"
                 >
                   <Minus className="w-3.5 h-3.5" />
@@ -244,16 +256,16 @@ export function BreakDurationModal({
                         setMinutes(Math.max(1, Math.min(180, val)));
                       }
                     }}
-                    className="w-16 h-8 text-center text-sm font-bold font-mono bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
+                    className="w-16 h-8 text-center text-sm font-semibold font-mono bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded text-stone-900 dark:text-white focus:border-stone-500 focus:outline-hidden"
                   />
-                  <span className="absolute right-1 text-[10px] font-bold text-slate-400 pointer-events-none">
+                  <span className="absolute right-1 text-[10px] font-medium text-stone-400 pointer-events-none">
                     dk
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setMinutes((prev) => Math.min(180, prev + 1))}
-                  className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer transition-colors"
+                  className="w-8 h-8 rounded bg-white dark:bg-stone-800 border border-stone-300 dark:border-stone-700 flex items-center justify-center text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 cursor-pointer transition-colors"
                   title="1 dakika artır"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -264,7 +276,7 @@ export function BreakDurationModal({
 
           {/* Title Input */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">
+            <label className="block text-[11px] font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-1">
               Teneffüs Başlığı / Açıklaması
             </label>
             <input
@@ -272,44 +284,44 @@ export function BreakDurationModal({
               value={customTitle}
               onChange={(e) => setCustomTitle(e.target.value)}
               placeholder="Örn: 5 dk Teneffüs, Kısa Mola, vb."
-              className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
+              className="w-full px-3 py-2 text-xs rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-900 dark:text-white focus:border-stone-500 focus:outline-hidden"
             />
           </div>
 
           {/* Time Shift Option & Dynamic Preview */}
-          <div className="rounded-xl border border-amber-200/90 dark:border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/15 p-3 space-y-2">
+          <div className="rounded-md border border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2">
             <label className="flex items-start gap-2.5 cursor-pointer">
               <input
                 type="checkbox"
                 checked={shiftSubsequent}
                 onChange={(e) => setShiftSubsequent(e.target.checked)}
-                className="mt-0.5 rounded border-slate-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                className="mt-0.5 rounded border-stone-300 text-amber-600 focus:ring-0 cursor-pointer"
               />
               <div className="text-xs">
-                <span className="font-bold text-slate-900 dark:text-white">
+                <span className="font-semibold text-stone-900 dark:text-stone-100">
                   Sonraki seans saatlerini otomatik kaydır (Önerilen)
                 </span>
-                <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5">
+                <p className="text-[11px] text-stone-600 dark:text-stone-400 mt-0.5">
                   Teneffüs kısaldığında sonraki seanslar öne çekilir, uzadığında ileri alınır. Boşluk ve çakışma yaşanmaz.
                 </p>
               </div>
             </label>
 
             {/* Visual Time Flow Indicator */}
-            <div className="pt-2 border-t border-amber-200/60 dark:border-amber-500/20 flex items-center justify-between text-xs font-mono">
-              <div className="flex items-center gap-1.5 text-slate-700 dark:text-zinc-300">
-                <Clock className="w-3.5 h-3.5 text-amber-600" />
+            <div className="pt-2 border-t border-amber-200/80 dark:border-amber-800/40 flex items-center justify-between text-xs font-mono">
+              <div className="flex items-center gap-1.5 text-stone-700 dark:text-stone-300">
+                <Clock className="w-3.5 h-3.5 text-amber-700 dark:text-amber-400" />
                 <span>{breakStart}</span>
-                <ArrowRight className="w-3 h-3 text-slate-400" />
-                <span className="font-bold text-amber-800 dark:text-amber-300">{breakEnd}</span>
-                <span className="text-[10px] text-slate-500">({minutes} dk mola)</span>
+                <ArrowRight className="w-3 h-3 text-stone-400" />
+                <span className="font-semibold text-amber-800 dark:text-amber-300">{breakEnd}</span>
+                <span className="text-[10px] text-stone-500">({minutes} dk mola)</span>
               </div>
               {deltaMinutes !== 0 && shiftSubsequent && (
                 <span
-                  className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
+                  className={`text-[11px] font-medium px-1.5 py-0.5 rounded ${
                     deltaMinutes < 0
                       ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                      : 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300'
+                      : 'bg-stone-200 text-stone-800 dark:bg-stone-800 dark:text-stone-300'
                   }`}
                 >
                   Sonrakiler: {deltaMinutes > 0 ? `+${deltaMinutes}` : deltaMinutes} dk
@@ -320,18 +332,18 @@ export function BreakDurationModal({
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50/80 dark:bg-[#141622] flex items-center justify-end gap-2">
+        <div className="p-3 border-t border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/50 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="px-3.5 py-2 rounded-md text-xs font-medium text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
           >
             Vazgeç
           </button>
           <button
             type="button"
             onClick={handleApply}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-stone-900 hover:bg-stone-800 text-white dark:bg-stone-100 dark:hover:bg-white dark:text-stone-950 text-xs font-medium transition-colors shadow-xs cursor-pointer"
           >
             <Check className="w-3.5 h-3.5" />
             <span>Süreyi Kaydet ve Uygula</span>

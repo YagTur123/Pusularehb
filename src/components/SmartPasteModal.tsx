@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Student, ParsedStudentRow } from '../types';
 import { parseBulkStudentText } from '../lib/parser';
 import { StorageService } from '../lib/storage';
@@ -23,6 +23,14 @@ export function SmartPasteModal({
   const [inputText, setInputText] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const handleFileUpload = (file: File) => {
     if (!file) return;
@@ -85,29 +93,35 @@ export function SmartPasteModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden text-slate-800 dark:text-slate-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="smart-paste-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+    >
+      <div className="bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 rounded-lg shadow-lg max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden text-stone-800 dark:text-stone-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/50">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20">
-              <UploadCloud className="w-5 h-5" />
+            <div className="p-1.5 rounded-md bg-stone-100 text-stone-700 border border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700">
+              <UploadCloud className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <span>Akıllı Toplu Öğrenci İçe Aktarma</span>
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30">
-                  Smart Regex
+              <h3 id="smart-paste-title" className="text-sm font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                <span>Toplu Öğrenci İçe Aktarma</span>
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-stone-200 text-stone-800 dark:bg-stone-800 dark:text-stone-300">
+                  Otomatik Ayrıştırma
                 </span>
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Excel sütunları veya karışık WhatsApp listelerini yapıştırın; isim, sınıf, telefon ve etiketler otomatik ayıklanır.
+              <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                Excel sütunları veya metin listesini yapıştırın; isim, sınıf ve telefon otomatik ayıklanır.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Kapat"
+            className="p-1.5 text-stone-400 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200 rounded hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -270,22 +284,22 @@ export function SmartPasteModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60">
-          <div className="text-xs text-slate-500">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900/50">
+          <div className="text-xs text-stone-500">
             Aynı telefon numarasına sahip mükerrer kayıtlar otomatik filtrelenir.
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-3 py-1.5 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-md text-xs font-medium text-stone-600 hover:text-stone-900 hover:bg-stone-100 dark:text-stone-400 dark:hover:text-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
             >
               İptal
             </button>
             <button
               onClick={handleImport}
               disabled={validRows.length === 0}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-xs transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium bg-teal-600 hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed text-white shadow-xs transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{validRows.length} Öğrenciyi Sisteme Aktar</span>

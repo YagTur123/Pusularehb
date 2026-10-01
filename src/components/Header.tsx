@@ -3,29 +3,20 @@ import {
   Compass,
   Calendar,
   Users,
-  MessageSquare,
-  UploadCloud,
-  Download,
   Search,
-  Check,
-  UserCheck,
+  Download,
+  UploadCloud,
   FileSpreadsheet,
-  Layers,
-  ArrowRight,
-  LogIn,
-  UserPlus,
-  LogOut,
-  ChevronDown,
-  User as UserIcon,
-  ShieldCheck,
   Sun,
   Moon,
-  Cloud,
   CloudCheck,
   CloudOff,
   RefreshCw,
-  Palette,
-  Sparkles,
+  LogOut,
+  User as UserIcon,
+  ChevronDown,
+  MoreHorizontal,
+  Settings,
 } from 'lucide-react';
 import { StorageService } from '../lib/storage';
 import { cloudSync, SyncStatus } from '../lib/firebaseSync';
@@ -43,9 +34,9 @@ interface HeaderProps {
   onOpenAuth: (mode?: 'signin' | 'signup') => void;
   onOpenProfile: () => void;
   onSignOut: () => void;
-  onQuickDemoLogin?: (roleType: 'counselor' | 'coach') => void;
   theme?: 'light' | 'dark';
   onToggleTheme?: () => void;
+  saveStatus?: 'saved' | 'saving' | 'offline';
 }
 
 export function Header({
@@ -60,40 +51,18 @@ export function Header({
   onOpenAuth,
   onOpenProfile,
   onSignOut,
-  onQuickDemoLogin,
   theme = 'light',
   onToggleTheme,
+  saveStatus = 'saved',
 }: HeaderProps) {
-  const [counselorName, setCounselorName] = useState(() => currentUser?.name || StorageService.getCounselorName());
-  const [isEditingCounselor, setIsEditingCounselor] = useState(false);
-  const [editNameInput, setEditNameInput] = useState(counselorName);
-  const [showBackupMenu, setShowBackupMenu] = useState(false);
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
-  const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [isCloudEnabled, setIsCloudEnabled] = useState(() => cloudSync.isEnabled());
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const backupMenuRef = useRef<HTMLDivElement>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
 
-  const handleToggleCloudSync = async () => {
-    if (isCloudEnabled) {
-      cloudSync.setEnabled(false);
-      setIsCloudEnabled(false);
-      onShowToast('Bulut Eşitleme Durduruldu', 'Verileriniz yalnızca bu cihazın yerel hafızasında saklanacaktır.', 'info');
-    } else {
-      cloudSync.setEnabled(true);
-      setIsCloudEnabled(true);
-      setIsManualSyncing(true);
-      const success = await cloudSync.syncLocalToCloud();
-      setIsManualSyncing(false);
-      if (success) {
-        onShowToast('Bulut Eşitlendi', 'Tüm seanslar ve öğrenci verileri Firebase Firestore bulutunda güncellendi.', 'success');
-      } else {
-        onShowToast('Bulut Eşitleme', 'Bulut bağlantısı açıldı.', 'info');
-      }
-    }
-  };
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const toolsMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsub = cloudSync.onStatusChange((status) => {
@@ -103,33 +72,27 @@ export function Header({
   }, []);
 
   useEffect(() => {
-    if (currentUser?.name) {
-      setCounselorName(currentUser.name);
-      setEditNameInput(currentUser.name);
-    }
-  }, [currentUser]);
-
-  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (backupMenuRef.current && !backupMenuRef.current.contains(event.target as Node)) {
-        setShowBackupMenu(false);
+      if (toolsMenuRef.current && !toolsMenuRef.current.contains(event.target as Node)) {
+        setShowToolsMenu(false);
       }
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
       }
     }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setShowToolsMenu(false);
+        setShowUserMenu(false);
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
-
-  const handleSaveCounselor = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editNameInput.trim()) return;
-    StorageService.setCounselorName(editNameInput.trim());
-    setCounselorName(editNameInput.trim());
-    setIsEditingCounselor(false);
-    onShowToast('Danışman Adı Güncellendi', editNameInput.trim(), 'success');
-  };
 
   const handleExportJson = () => {
     const json = StorageService.exportBackupJson();
@@ -140,8 +103,8 @@ export function Header({
     a.download = `pusula_yedek_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setShowBackupMenu(false);
-    onShowToast('Yedek İndirildi', 'JSON formatında tüm veritabanı dışa aktarıldı.', 'success');
+    setShowToolsMenu(false);
+    onShowToast('Yedek İndirildi', 'JSON veritabanı yedeği kaydedildi.', 'success');
   };
 
   const handleExportCsv = () => {
@@ -153,367 +116,261 @@ export function Header({
     a.download = `pusula_ogrenciler_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    setShowBackupMenu(false);
-    onShowToast('Excel/CSV Dışa Aktarıldı', 'Öğrenci listesi indirildi.', 'success');
+    setShowToolsMenu(false);
+    onShowToast('Excel/CSV İndirildi', 'Öğrenci listesi kaydedildi.', 'success');
   };
 
-  const handleImportJsonFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportJsonFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       const content = evt.target?.result as string;
       if (content) {
-        const success = StorageService.importBackupJson(content);
-        if (success) {
+        const res = await StorageService.importBackupJson(content);
+        if (res.success) {
           refreshData();
-          onShowToast('Yedek Başarıyla Yüklendi', 'Tüm öğrenci ve seans kayıtları güncellendi.', 'success');
+          onShowToast('Yedek Yüklendi', 'Tüm kayıtlar başarıyla güncellendi.', 'success');
         } else {
-          onShowToast('Yükleme Hatası', 'Geçersiz JSON yedek dosyası formatı.', 'warning');
+          onShowToast('Yükleme Hatası', res.error || 'Geçersiz dosya formatı.', 'warning');
         }
       }
     };
     reader.readAsText(file);
     if (e.target) e.target.value = '';
-    setShowBackupMenu(false);
+    setShowToolsMenu(false);
   };
 
   return (
-    <header className="border-b-2 border-black dark:border-white/[0.1] bg-white/98 dark:bg-[#13151f]/95 backdrop-blur-md sticky top-0 z-30 transition-colors shadow-2xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-        {/* Logo & Linear Breadcrumb */}
+    <header className="border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-[#1A1A1A] sticky top-0 z-30 transition-colors">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between gap-3">
+        {/* Sol Alan: Logo & Sekmeler */}
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2.5">
-            {/* Prominent Pusula Logo */}
-            <div className="w-9 h-9 rounded-xl bg-white dark:bg-gradient-to-br dark:from-blue-600 dark:to-indigo-700 border-2 border-black dark:border-blue-400/80 flex items-center justify-center text-black dark:text-white shadow-sm transition-transform hover:scale-105">
-              <Compass className="w-5 h-5 stroke-[2.4]" />
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-md bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 flex items-center justify-center text-teal-700 dark:text-teal-400">
+              <Compass className="w-4 h-4 stroke-[2]" />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-base font-black tracking-tight text-black dark:text-white">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-sm font-semibold tracking-tight text-stone-900 dark:text-stone-100">
                 Pusula
               </span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-black text-white dark:bg-blue-500/20 dark:text-blue-300 border border-black dark:border-blue-400/40">
+              <span className="text-xs text-stone-500 dark:text-stone-400 font-normal hidden sm:inline">
                 Rehberlik
-              </span>
-              <span className="text-slate-400 dark:text-zinc-600 font-bold">/</span>
-              <span className="text-xs text-black dark:text-zinc-300 font-bold">
-                {activeTab === 'scheduler' ? 'Seanslar' : 'Öğrenciler'}
               </span>
             </div>
           </div>
 
-          {/* Linear Segmented View Tabs Slider */}
-          <nav className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-[#181a24] border-2 border-black dark:border-white/20 p-1 rounded-xl shadow-xs">
+          {/* Sekme Seçici (Seanslar / Öğrenciler) */}
+          <nav aria-label="Ana Gezinti" className="flex items-center gap-0.5 sm:gap-1 bg-stone-100 dark:bg-stone-900/60 p-0.5 rounded-md border border-stone-200 dark:border-stone-800">
             <button
+              type="button"
               onClick={() => setActiveTab('scheduler')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs transition-all cursor-pointer ${
+              aria-label="Seanslar Sekmesi"
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-[5px] text-xs font-medium transition-colors cursor-pointer min-h-[36px] sm:min-h-0 ${
                 activeTab === 'scheduler'
-                  ? 'bg-white text-black font-extrabold border-2 border-black shadow-2xs dark:border-transparent dark:bg-zinc-800 dark:text-blue-400'
-                  : 'text-black hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 font-semibold'
+                  ? 'bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-xs'
+                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
               }`}
             >
-              <Calendar className="w-3.5 h-3.5 stroke-[2.2]" />
-              <span>Seanslar</span>
+              <Calendar className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline sm:inline">Seanslar</span>
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('students')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs transition-all cursor-pointer ${
+              aria-label="Öğrenciler Sekmesi"
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-1 rounded-[5px] text-xs font-medium transition-colors cursor-pointer min-h-[36px] sm:min-h-0 ${
                 activeTab === 'students'
-                  ? 'bg-white text-black font-extrabold border-2 border-black shadow-2xs dark:border-transparent dark:bg-zinc-800 dark:text-blue-400'
-                  : 'text-black hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 font-semibold'
+                  ? 'bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 shadow-xs'
+                  : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'
               }`}
             >
-              <Users className="w-3.5 h-3.5 stroke-[2.2]" />
-              <span>Öğrenciler</span>
+              <Users className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline sm:inline">Öğrenciler</span>
             </button>
           </nav>
         </div>
 
-        {/* Center / Linear Search Command Bar */}
-        <div className="flex-1 max-w-sm hidden lg:block">
+        {/* Orta Alan: Arama Çubuğu (⌘K) */}
+        <div className="flex-1 max-w-sm hidden md:block">
           <button
             onClick={onOpenCommandPalette}
-            className="w-full flex items-center justify-between px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200/80 dark:bg-[#181a24] dark:hover:bg-[#1d202d] border border-slate-200 dark:border-white/[0.08] text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200 text-xs transition-colors group cursor-pointer"
+            className="w-full flex items-center justify-between px-2.5 py-1 rounded-md bg-stone-100/80 hover:bg-stone-100 dark:bg-stone-900/60 dark:hover:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-300 text-xs transition-colors cursor-pointer"
+            aria-label="Komut paletini veya aramayı aç"
           >
             <span className="flex items-center gap-2">
-              <Search className="w-3 h-3 text-slate-400 group-hover:text-slate-600 dark:text-zinc-500 dark:group-hover:text-zinc-300" />
-              <span className="text-[11px]">Ara veya komut yaz...</span>
+              <Search className="w-3.5 h-3.5" />
+              <span className="text-xs">Öğrenci veya komut ara...</span>
             </span>
-            <kbd className="px-1.5 py-0.2 text-[10px] font-mono font-medium rounded bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 shadow-2xs">
+            <kbd className="px-1.5 py-0.2 text-[10px] font-mono rounded bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400">
               ⌘K
             </kbd>
           </button>
         </div>
 
-        {/* Right actions */}
+        {/* Sağ Alan: Araçlar & Profil */}
         <div className="flex items-center gap-2">
-          {/* Smart Paste (Excel/WhatsApp) */}
-          <button
-            onClick={onOpenSmartPaste}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white hover:bg-slate-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200 dark:border-white/[0.08] text-xs font-medium text-slate-700 dark:text-zinc-200 transition-colors cursor-pointer shadow-2xs"
-            title="Excel veya WhatsApp'tan toplu öğrenci yapıştır"
-          >
-            <UploadCloud className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>İçe Aktar</span>
-          </button>
-
-          {/* Backup dropdown */}
-          <div className="relative" ref={backupMenuRef}>
-            <button
-              onClick={() => setShowBackupMenu(!showBackupMenu)}
-              className="px-2.5 py-1 rounded-md bg-white hover:bg-slate-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-slate-200 dark:border-white/[0.08] text-xs font-medium text-slate-700 dark:text-zinc-200 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-              title="Yedekleme & Dışa Aktarma"
-            >
-              <Download className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
-              <span className="hidden sm:inline">Yedekle</span>
-            </button>
-
-            {showBackupMenu && (
-              <div className="absolute right-0 mt-1 w-44 rounded-lg bg-white dark:bg-[#181a24] border border-slate-200 dark:border-white/[0.08] shadow-xl p-1 z-50 text-xs animate-in fade-in">
-                <button
-                  onClick={handleExportJson}
-                  className="w-full text-left px-2 py-1 rounded text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-zinc-800 flex items-center gap-2 cursor-pointer"
+          {/* Kaydetme Durumu Göstergesi */}
+          {currentUser && (
+            <div className="hidden sm:flex items-center">
+              {saveStatus === 'saving' && (
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/40 text-[11px] font-medium text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800 animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-600" />
+                  <span>Kaydediliyor...</span>
+                </div>
+              )}
+              {saveStatus === 'offline' && (
+                <div
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-[11px] font-medium text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                  title="Çevrimdışısınız. Değişiklikler yerel olarak saklanmaktadır ve internet gelince eşitlenecektir."
                 >
-                  <Download className="w-3 h-3 text-emerald-500" />
-                  <span>JSON Yedeği İndir</span>
-                </button>
-                <button
-                  onClick={handleExportCsv}
-                  className="w-full text-left px-2 py-1 rounded text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-zinc-800 flex items-center gap-2 cursor-pointer"
-                >
-                  <FileSpreadsheet className="w-3 h-3 text-sky-500" />
-                  <span>Excel (CSV) İndir</span>
-                </button>
-                <div className="h-px bg-slate-200 dark:bg-white/[0.06] my-1" />
-                <label className="w-full cursor-pointer text-left px-2 py-1 rounded text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-zinc-800 flex items-center gap-2">
-                  <UploadCloud className="w-3 h-3 text-amber-500" />
-                  <span>JSON Yükle</span>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json"
-                    onChange={handleImportJsonFile}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            )}
-          </div>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <span>Çevrimdışı</span>
+                </div>
+              )}
+              {saveStatus === 'saved' && (
+                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-stone-100 dark:bg-stone-800 text-[11px] font-medium text-stone-600 dark:text-stone-400 border border-stone-200 dark:border-stone-700">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span>Kaydedildi</span>
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* Cloud Firestore Sync Toggle Switch ("Slider Anahtar") */}
+          {/* Mobil Arama Butonu */}
           <button
             type="button"
-            role="switch"
-            aria-checked={isCloudEnabled}
-            onClick={handleToggleCloudSync}
-            disabled={isManualSyncing}
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-white/[0.05] dark:hover:bg-white/[0.08] border-2 border-black dark:border-white/20 transition-all cursor-pointer group shadow-2xs select-none"
-            title={
-              isCloudEnabled
-                ? syncStatus === 'syncing' || isManualSyncing
-                  ? 'Bulut eşitleme aktif (Eşitleniyor...)'
-                  : 'Bulut eşitleme açık ve veriler güvende. Kapatmak için anahtara tıklayın.'
-                : 'Bulut eşitleme kapalı (Yalnızca yerel cihaz). Açmak için anahtara tıklayın.'
-            }
+            onClick={onOpenCommandPalette}
+            className="md:hidden p-1.5 rounded-md text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
+            aria-label="Ara"
           >
-            <div className="flex items-center gap-1.5">
-              {syncStatus === 'syncing' || isManualSyncing ? (
-                <RefreshCw className="w-4 h-4 animate-spin text-amber-500 shrink-0" />
-              ) : isCloudEnabled && (syncStatus === 'synced' || syncStatus !== 'offline') ? (
-                <CloudCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 stroke-[2.2]" />
-              ) : (
-                <CloudOff className="w-4 h-4 text-slate-500 dark:text-zinc-500 shrink-0 stroke-[2]" />
-              )}
-              <span className="text-xs font-bold text-black dark:text-zinc-200 hidden md:inline whitespace-nowrap">
-                Bulut
-              </span>
-            </div>
-
-            {/* Belirgin Slider Anahtarı (Prominent Toggle Switch Track & Sliding Knob) */}
-            <div
-              className={`w-10 h-5.5 rounded-full p-0.5 border-2 transition-colors duration-200 ease-in-out flex items-center shrink-0 shadow-inner ${
-                isCloudEnabled && syncStatus !== 'offline'
-                  ? syncStatus === 'syncing' || isManualSyncing
-                    ? 'bg-amber-500 border-black dark:border-amber-400'
-                    : 'bg-emerald-600 border-black dark:bg-emerald-500 dark:border-emerald-400'
-                  : 'bg-slate-200 dark:bg-zinc-700 border-black dark:border-zinc-500'
-              }`}
-            >
-              <div
-                className={`w-4 h-4 rounded-full bg-white border border-black/30 shadow-md transform transition-transform duration-200 ease-in-out ${
-                  isCloudEnabled && syncStatus !== 'offline' ? 'translate-x-4.5' : 'translate-x-0'
-                }`}
-              />
-            </div>
+            <Search className="w-4 h-4" />
           </button>
 
-          {/* Theme Switcher Toggle Switch ("Slider Anahtar" - Açık / Koyu) */}
+          {/* Tema Değiştirici */}
           {onToggleTheme && (
             <button
               type="button"
-              role="switch"
-              aria-checked={theme === 'dark'}
               onClick={onToggleTheme}
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-white/[0.05] dark:hover:bg-white/[0.08] border-2 border-black dark:border-white/20 transition-all cursor-pointer group shadow-2xs select-none"
-              title={theme === 'light' ? 'Koyu Temaya Geç (Gece Modu)' : 'Açık Temaya Geç (Gündüz Modu)'}
+              className="p-1.5 rounded-md text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
+              title={theme === 'light' ? 'Koyu temaya geç' : 'Açık temaya geç'}
+              aria-label={theme === 'light' ? 'Koyu temaya geç' : 'Açık temaya geç'}
             >
-              <div className="flex items-center gap-1.5">
-                {theme === 'light' ? (
-                  <Sun className="w-4 h-4 text-amber-500 shrink-0 stroke-[2.4]" />
-                ) : (
-                  <Moon className="w-4 h-4 text-blue-400 shrink-0 stroke-[2.4]" />
-                )}
-                <span className="text-xs font-bold text-black dark:text-zinc-200 hidden md:inline whitespace-nowrap">
-                  {theme === 'light' ? 'Gündüz' : 'Gece'}
-                </span>
-              </div>
-
-              {/* Belirgin Slider Anahtarı (Prominent Toggle Switch Track & Sliding Knob) */}
-              <div
-                className={`w-10 h-5.5 rounded-full p-0.5 border-2 transition-colors duration-200 ease-in-out flex items-center shrink-0 shadow-inner ${
-                  theme === 'dark'
-                    ? 'bg-blue-600 border-black dark:bg-blue-500 dark:border-blue-400'
-                    : 'bg-amber-400 border-black'
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded-full bg-white border border-black/30 shadow-md transform transition-transform duration-200 ease-in-out ${
-                    theme === 'dark' ? 'translate-x-4.5' : 'translate-x-0'
-                  }`}
-                />
-              </div>
+              {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
           )}
 
-          {/* Authentication & Counselor Profile */}
-          <div className="relative pl-2 border-l-2 border-black dark:border-white/[0.1]" ref={userMenuRef}>
+          {/* Araçlar / Menü (İçe/Dışa Aktar, WhatsApp Duyurusu) */}
+          {currentUser && (
+            <div className="relative" ref={toolsMenuRef}>
+              <button
+                type="button"
+                onClick={() => setShowToolsMenu(!showToolsMenu)}
+                className="p-1.5 rounded-md text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
+                title="Araçlar ve Dışa Aktarma"
+                aria-label="Araçlar menüsü"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+
+              {showToolsMenu && (
+                <div className="absolute right-0 mt-1 w-52 rounded-lg bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 shadow-md p-1 z-50 text-xs">
+                  <button
+                    onClick={() => {
+                      setShowToolsMenu(false);
+                      onOpenSmartPaste();
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-md text-stone-700 hover:text-stone-900 hover:bg-stone-100 dark:text-stone-300 dark:hover:text-stone-100 dark:hover:bg-stone-800/80 flex items-center gap-2 cursor-pointer"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5 text-teal-700 dark:text-teal-400" />
+                    <span>Toplu Öğrenci Yapıştır</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowToolsMenu(false);
+                      onOpenBroadcast();
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-md text-stone-700 hover:text-stone-900 hover:bg-stone-100 dark:text-stone-300 dark:hover:text-stone-100 dark:hover:bg-stone-800/80 flex items-center gap-2 cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-stone-500" />
+                    <span>WhatsApp Günlük İlanı</span>
+                  </button>
+
+                  <div className="h-px bg-stone-200 dark:bg-stone-800 my-1" />
+
+                  <button
+                    onClick={handleExportCsv}
+                    className="w-full text-left px-2.5 py-1.5 rounded-md text-stone-700 hover:text-stone-900 hover:bg-stone-100 dark:text-stone-300 dark:hover:text-stone-100 dark:hover:bg-stone-800/80 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-stone-500" />
+                    <span>Öğrenci Listesi (CSV)</span>
+                  </button>
+
+                  <button
+                    onClick={handleExportJson}
+                    className="w-full text-left px-2.5 py-1.5 rounded-md text-stone-700 hover:text-stone-900 hover:bg-stone-100 dark:text-stone-300 dark:hover:text-stone-100 dark:hover:bg-stone-800/80 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5 text-stone-500" />
+                    <span>Tam Veri Yedeği (JSON)</span>
+                  </button>
+
+                  <label className="w-full cursor-pointer text-left px-2.5 py-1.5 rounded-md text-stone-700 hover:text-stone-900 hover:bg-stone-100 dark:text-stone-300 dark:hover:text-stone-100 dark:hover:bg-stone-800/80 flex items-center gap-2">
+                    <UploadCloud className="w-3.5 h-3.5 text-stone-500" />
+                    <span>JSON Yedeği Yükle</span>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".json"
+                      onChange={handleImportJsonFile}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Profil / Oturum Kontrolleri */}
+          <div className="relative pl-1" ref={userMenuRef}>
             {currentUser ? (
               <div>
                 <button
                   type="button"
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2 px-2 py-1 rounded-xl hover:bg-slate-100 dark:hover:bg-white/[0.05] border-2 border-transparent hover:border-black dark:hover:border-white/20 transition-all cursor-pointer group"
-                  title={`${currentUser.name} - ${currentUser.role}`}
+                  className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer text-left"
+                  aria-label="Kullanıcı hesabı menüsü"
                 >
-                  <div
-                    className={`w-8 h-8 rounded-full border-2 border-black dark:border-white/30 flex items-center justify-center text-xs font-black shadow-xs ${
-                      currentUser.avatar_color || 'bg-black text-white dark:bg-blue-600 dark:text-white'
-                    }`}
-                  >
+                  <div className="w-6 h-6 rounded bg-stone-200 dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-xs font-semibold flex items-center justify-center">
                     {currentUser.name.charAt(0).toUpperCase()}
                   </div>
-                  <div className="hidden sm:block text-left">
-                    <span className="block text-xs font-extrabold text-black dark:text-white max-w-[130px] truncate leading-tight">
-                      {currentUser.name}
-                    </span>
-                    <span className="block text-[10px] text-slate-700 dark:text-zinc-400 max-w-[130px] truncate leading-tight font-semibold">
-                      {currentUser.role.split(' ')[0]}
-                    </span>
-                  </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-black dark:text-zinc-400 group-hover:scale-110 transition-transform stroke-[2.5]" />
+                  <span className="text-xs font-medium text-stone-800 dark:text-stone-200 hidden sm:inline max-w-[120px] truncate">
+                    {currentUser.name}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-stone-400" />
                 </button>
 
-                {/* User Dropdown Menu */}
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-1.5 w-64 rounded-xl bg-white dark:bg-[#0e1017] border border-slate-200 dark:border-white/[0.1] shadow-2xl p-1.5 z-50 text-xs animate-in fade-in duration-100">
-                    {/* User Summary Card */}
-                    <div className="px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.05] mb-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-slate-900 dark:text-white truncate text-xs">
-                          {currentUser.name}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium truncate mb-0.5">
-                        {currentUser.role}
-                      </div>
-                      {currentUser.school && (
-                        <div className="text-[10px] text-slate-500 dark:text-zinc-400 truncate flex items-center gap-1">
-                          <span>🏫</span>
-                          <span>{currentUser.school}</span>
-                        </div>
-                      )}
-                      <div className="text-[10px] text-slate-400 dark:text-zinc-500 truncate mt-1">
-                        {currentUser.email}
-                      </div>
+                  <div className="absolute right-0 mt-1 w-56 rounded-lg bg-white dark:bg-[#1F1F1F] border border-stone-200 dark:border-stone-800 shadow-md p-1.5 z-50 text-xs">
+                    <div className="px-2 py-1.5 border-b border-stone-200 dark:border-stone-800 mb-1">
+                      <p className="font-semibold text-stone-900 dark:text-stone-100 truncate">{currentUser.name}</p>
+                      <p className="text-[11px] text-stone-500 dark:text-stone-400 truncate">{currentUser.email}</p>
                     </div>
 
-                    {/* Actions */}
                     <button
                       type="button"
                       onClick={() => {
                         setShowUserMenu(false);
                         onOpenProfile();
                       }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-zinc-800/80 flex items-center gap-2 cursor-pointer transition-colors"
+                      className="w-full text-left px-2 py-1.5 rounded-md text-stone-700 hover:text-stone-900 hover:bg-stone-100 dark:text-stone-300 dark:hover:text-stone-100 dark:hover:bg-stone-800 flex items-center gap-2 cursor-pointer"
                     >
-                      <UserIcon className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
-                      <span>Profili & Kurum Bilgilerini Düzenle</span>
+                      <Settings className="w-3.5 h-3.5 text-stone-500" />
+                      <span>Danışman Profili & Ayarlar</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowUserMenu(false);
-                        onOpenAuth('signin');
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-zinc-800/80 flex items-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <LogIn className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-                      <span>Hesap Değiştir (Giriş Yap)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowUserMenu(false);
-                        onOpenAuth('signup');
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-300 dark:hover:text-white dark:hover:bg-zinc-800/80 flex items-center gap-2 cursor-pointer transition-colors"
-                    >
-                      <UserPlus className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
-                      <span>Yeni Danışman Hesabı Aç</span>
-                    </button>
-
-                    {onQuickDemoLogin && (
-                      <div className="pt-1.5 pb-1 border-t border-slate-200 dark:border-white/[0.06] mt-1">
-                        <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium block px-1 mb-1">
-                          ⚡ Demo Profiline Geçiş:
-                        </span>
-                        <div className="grid grid-cols-2 gap-1 px-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowUserMenu(false);
-                              onQuickDemoLogin('counselor');
-                            }}
-                            className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all text-center cursor-pointer ${
-                              currentUser.id === 'usr_counselor_1'
-                                ? 'bg-emerald-50 border-emerald-300 text-emerald-800 dark:bg-emerald-950/50 dark:border-emerald-500/50 dark:text-emerald-200'
-                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 dark:bg-white/[0.04] dark:border-white/[0.06] dark:text-zinc-300'
-                            }`}
-                          >
-                            Rehber Öğretmen
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowUserMenu(false);
-                              onQuickDemoLogin('coach');
-                            }}
-                            className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all text-center cursor-pointer ${
-                              currentUser.id === 'usr_coach_2'
-                                ? 'bg-indigo-50 border-indigo-300 text-indigo-800 dark:bg-indigo-950/50 dark:border-indigo-500/50 dark:text-indigo-200'
-                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700 dark:bg-white/[0.04] dark:border-white/[0.06] dark:text-zinc-300'
-                            }`}
-                          >
-                            YKS Koçu
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="h-px bg-slate-200 dark:bg-white/[0.06] my-1" />
+                    <div className="h-px bg-stone-200 dark:bg-stone-800 my-1" />
 
                     <button
                       type="button"
@@ -521,84 +378,34 @@ export function Header({
                         setShowUserMenu(false);
                         onSignOut();
                       }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:text-rose-300 dark:hover:bg-rose-950/30 flex items-center gap-2 cursor-pointer transition-colors"
+                      className="w-full text-left px-2 py-1.5 rounded-md text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30 flex items-center gap-2 cursor-pointer"
                     >
-                      <LogOut className="w-3.5 h-3.5 text-rose-500" />
-                      <span>Çıkış Yap</span>
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Oturumu Kapat</span>
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-1.5">
-                {onQuickDemoLogin && (
-                  <div className="hidden lg:flex items-center gap-1 mr-1 bg-slate-100 dark:bg-white/[0.04] px-2 py-1 rounded-md border border-slate-200 dark:border-white/[0.06]">
-                    <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium">Demo:</span>
-                    <button
-                      type="button"
-                      onClick={() => onQuickDemoLogin('counselor')}
-                      className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 hover:underline cursor-pointer"
-                      title="Uzm. Psk. Dan. Yağız Efe (Okul Rehberliği)"
-                    >
-                      Rehberlik
-                    </button>
-                    <span className="text-slate-300 dark:text-zinc-700 text-[9px]">•</span>
-                    <button
-                      type="button"
-                      onClick={() => onQuickDemoLogin('coach')}
-                      className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 hover:underline cursor-pointer"
-                      title="Merve Aydın (YKS Koçluğu)"
-                    >
-                      Koçluk
-                    </button>
-                  </div>
-                )}
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => onOpenAuth('signin')}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#0e1015] dark:hover:bg-zinc-800 border border-slate-200 dark:border-white/[0.08] text-slate-700 hover:text-slate-900 dark:text-zinc-300 dark:hover:text-white text-xs font-medium transition-colors cursor-pointer"
+                  className="px-2.5 py-1 rounded-md text-xs font-medium text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors cursor-pointer"
                 >
-                  <LogIn className="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400" />
-                  <span>Giriş Yap</span>
+                  Giriş Yap
                 </button>
                 <button
                   type="button"
                   onClick={() => onOpenAuth('signup')}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors cursor-pointer shadow-xs"
+                  className="px-2.5 py-1 rounded-md text-xs font-medium bg-[#0F766E] hover:bg-[#0D645E] text-white transition-colors cursor-pointer"
                 >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Kayıt Ol</span>
+                  Kayıt Ol
                 </button>
               </div>
             )}
           </div>
         </div>
-      </div>
-
-      {/* Mobile Sub-Navigation Bar */}
-      <div className="md:hidden flex items-center justify-around border-t border-slate-200 dark:border-white/[0.06] bg-slate-100 dark:bg-[#08090a] px-2 py-1">
-        <button
-          onClick={() => setActiveTab('scheduler')}
-          className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-medium rounded transition-colors cursor-pointer ${
-            activeTab === 'scheduler'
-              ? 'bg-white text-slate-900 shadow-2xs dark:bg-zinc-800 dark:text-white'
-              : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
-          }`}
-        >
-          <Calendar className="w-3.5 h-3.5" />
-          <span>Seanslar</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('students')}
-          className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-medium rounded transition-colors cursor-pointer ${
-            activeTab === 'students'
-              ? 'bg-white text-slate-900 shadow-2xs dark:bg-zinc-800 dark:text-white'
-              : 'text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200'
-          }`}
-        >
-          <Users className="w-3.5 h-3.5" />
-          <span>Öğrenciler</span>
-        </button>
       </div>
     </header>
   );

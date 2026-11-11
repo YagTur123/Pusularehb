@@ -1,0 +1,96 @@
+{
+  "outer_mm": [
+    494.0,
+    389.0,
+    33.0
+  ],
+  "wall_thickness_mm": 6.0,
+  "base_thickness_mm": 5.0,
+  "wall_height_mm": 28.0,
+  "devices_real_mm": {
+    "Galaxy Tab S10 FE+ (tablet)": [
+      300.6,
+      194.7
+    ],
+    "Galaxy S25 (telefon)": [
+      146.9,
+      70.5
+    ],
+    "Samsung 10000mAh powerbank": [
+      141.8,
+      71.0
+    ],
+    "Galaxy Watch 7 (44mm)": [
+      44.4,
+      44.4
+    ],
+    "Galaxy Buds 2": [
+      50.0,
+      50.2
+    ],
+    "Anker Atom III 65W": [
+      66.1,
+      38.3
+    ]
+  },
+  "pockets_outer_xy": {
+    "Galaxy Tab S10 FE+ (tablet)": [
+      6,
+      6,
+      317,
+      211
+    ],
+    "Aksesuar / kablo gözü": [
+      6,
+      217,
+      317,
+      383
+    ],
+    "Galaxy S25 (telefon)": [
+      323,
+      6,
+      488,
+      90
+    ],
+    "Samsung 10000mAh powerbank": [
+      323,
+      96,
+      488,
+      180
+    ],
+    "Galaxy Watch 7 (44mm)": [
+      323,
+      186,
+      488,
+      251
+    ],
+    "Galaxy Buds 2": [
+      323,
+      257,
+      488,
+      323
+    ],
+    "Anker Atom III 65W": [
+      323,
+      329,
+      488,
+      383
+    ],
+    "NOTCH tablet": [
+      70,
+      0,
+      250,
+      6
+    ],
+    "NOTCH phone": [
+      350,
+      0,
+      470,
+      6
+    ]
+  },
+  "finger_slots": [
+    "tablet",
+    "phone"
+  ]
+}

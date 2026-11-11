@@ -1,0 +1,51 @@
+# Birleşik Masa / Şarj Organizer Tepsisi — 3D Baskı Dosyaları
+
+Bu klasörde, aşağıdaki 6 cihazın **hepsini tek bir tepsi içinde** tutacak şekilde
+hazırlanmış, 3D yazıcıya doğrudan gönderilebilecek bir `.stl` modeli bulunur.
+
+| # | Cihaz | Gerçek boyut (mm) | Göz boyutu (mm) |
+|---|-------|-------------------|-----------------|
+| 1 | Galaxy Tab S10 FE+ (tablet) | 300.6 × 194.7 × 6.0 | 311 × 205 |
+| 2 | Galaxy S25 (telefon)        | 146.9 × 70.5 × 7.2  | 157 × 81 (sağ sütun) |
+| 3 | Samsung 10000 mAh powerbank (EB‑P1100) | 141.8 × 71 × 14 | 152 × 81 (sağ sütun) |
+| 4 | Galaxy Watch 7 (44 mm)     | 44.4 × 44.4 × 9.7  | 60 × 60 (sağ sütun) |
+| 5 | Galaxy Buds 2 (şarj kutusu)| 50.0 × 50.2 × 27.8 | 61 × 61 (sağ sütun) |
+| 6 | Anker Atom III 65W         | 66.1 × 38.3 × 30   | 77 × 49 (sağ sütun) |
+
+Ayrıca sol altta fazladan bir **aksesuar / kablo gözü** var.
+
+## Dosyalar
+- `combined_organizer.stl` — baskıya hazır birleşik model (494 × 389 × 33 mm).
+- `preview.png` — üstten görünüm (yerleşim şeması).
+- `params.json` — tüm boyut ve göz koordinatları (tekrar üretim / düzenleme için).
+- `gen.py` — modeli üreten sıfır‑bağımlılıklı Python betiği (istediğinizde göz boyutlarını değiştirip yeniden çalıştırabilirsiniz).
+
+## Yerleşim
+- **Sol kolon:** Tablet (büyük göz) + aksesuar/kablo gözü (altında).
+- **Sağ kolon (üstten alta):** Telefon → Powerbank → Watch 7 → Buds 2 → Anker Atom III.
+- **Ön duvarda 2 slot:** Tablet ve telefon gözlerinin önünde, parmakla çıkarmak ve
+  şarj kablosunu geçirmek için açıklıklar (şarj organizatörü olarak kullanılabilir).
+
+## Baskı önerileri
+- **Malzeme:** PLA veya PETG.
+- **Nozzle:** 0.4 mm, **Katman yüksekliği:** 0.2 mm.
+- **Duvar/perimeter:** 3, **İnfill:** %15–20 (grid), **Taban/üst:** yeterli.
+- **Destek (support):** Gerekmez — tüm şekiller dikey ekstrüzyon, taşma (overhang) yok.
+- **Brim:** Taban büyük olduğu için ilk katmanda hafif yapışma sorunu olursa brim açılabilir.
+- **Yön:** Olduğu gibi düz zemine (tablaya) basılır.
+
+## Önemli not — baskı yatağı boyutu
+Model **494 × 389 mm** olduğundan tek parça olarak ancak ~500 mm'lik bir yatakta
+(ör. 400×400, 350×350, Ultimaker vb.) basılabilir. 220×220 ya da 256×256 gibi
+küçük yataklarda **tek parça sığmaz**.
+
+Seçenekler:
+1. `gen.py` içindeki göz koordinatlarını düzenleyip modeli ikiye bölerek (sol / sağ
+   parça) ayrı bastırıp birleştirebiliriz — isterseniz bölmüş versiyonu da üretebilirim.
+2. Cihaz gözlerini ölçeklendirerek küçültmek **önerilmez**, çünkü cihazlar sığmayabilir.
+
+## İlersi için
+- Gözlere 5–10 mm pay bırakıldı. Baskınızda çekme/küçülme olursa `gen.py`
+  içindeki `pockets` listesindeki koordinatları ~0.2–0.4 mm büyüterek yeniden üretebilirsiniz.
+- İsterseniz aynı cihazlar için ayrı ayrı stand/kılıf (.stl) veya kapaklı bir seyahat
+  kutusu versiyonu da hazırlayabilirim.

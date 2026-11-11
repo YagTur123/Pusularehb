@@ -67,8 +67,8 @@
   </div>
 
   <aside id="panel">
-    <h1>Birleşik Masa / Şarj Organizeri</h1>
-    <div class="sub">6 cihaz tek tepside • 494 × 389 × 33 mm • %0 destek, PLA/PETG</div>
+    <h1>Masa İstasyonu — Tablet & Telefon Dik</h1>
+    <div class="sub">6 cihaz tek istasyonda • 360 × 250 × 317 mm • destek yok, PLA/PETG</div>
 
     <div class="card">
       <h2>Cihazlar ve göz boyutları</h2>
@@ -81,9 +81,9 @@
     <div class="card">
       <h2>Yerleşim</h2>
       <div class="meta">
-        <span class="tag">Sol kolon</span> Tablet (büyük göz) + aksesuar/kablo gözü<br><br>
-        <span class="tag">Sağ kolon ↑</span> Telefon → Powerbank → Watch 7 → Buds 2 → Anker Atom III<br><br>
-        Ön duvarda tablet ve telefon için parmak/kablo slotu var.
+        <span class="tag">Ön (kullanıcı)</span> Tablet ve telefon <b>dik/ayakta</b>, ekran size dönük<br><br>
+        <span class="tag">Arka</span> Powerbank → Watch 7 → Buds 2 → Anker + kalem/kablo gözü<br><br>
+        Cihazlar üstten slotlara yerleştirilir; taban 360 × 250 mm, toplam yükseklik 317 mm.
       </div>
       <img src="preview.png" alt="yerleşim şeması" style="width:100%;border-radius:8px;margin-top:8px;border:1px solid var(--line)">
     </div>
@@ -102,8 +102,9 @@
       <div class="meta">
         Malzeme: <code>PLA / PETG</code> • Katman: <code>0.2 mm</code><br>
         Duvar: <code>3</code> • İnfill: <code>%15–20</code> • Destek: <code>yok</code><br><br>
-        Model 494 mm geniş → tek parça ancak ~400–500 mm yatakta basılır.
-        Küçük yatakta bölünmüş (sol/sağ) versiyon isteyebilirsiniz.
+        Taban <code>360 × 250 mm</code>, toplam yükseklik <code>317 mm</code> (tablet dik).<br>
+        Z yüksekliğınız 317 mm olmalı; az ise tablet yatay (flat) versiyon isteyin.
+        Küçük yatakta bölünmüş versiyon da hazırlayabilirim.
       </div>
     </div>
   </aside>
@@ -115,12 +116,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 
 const devices = [
-  {name:"Galaxy Tab S10 FE+ (tablet)", real:"300.6 × 194.7 × 6.0", pocket:"311 × 205", zone:"Sol kolon"},
-  {name:"Galaxy S25 (telefon)",       real:"146.9 × 70.5 × 7.2",  pocket:"157 × 81",  zone:"Sağ kolon"},
-  {name:"Samsung 10000 mAh powerbank",real:"141.8 × 71 × 14",     pocket:"152 × 81",  zone:"Sağ kolon"},
-  {name:"Galaxy Watch 7 (44 mm)",     real:"44.4 × 44.4 × 9.7",   pocket:"60 × 60",   zone:"Sağ kolon"},
-  {name:"Galaxy Buds 2",              real:"50.0 × 50.2 × 27.8",  pocket:"61 × 61",   zone:"Sağ kolon"},
-  {name:"Anker Atom III 65W",         real:"66.1 × 38.3 × 30",    pocket:"77 × 49",   zone:"Sağ kolon"},
+  {name:"Galaxy Tab S10 FE+ (tablet)", real:"300.6 × 194.7 × 6.0", pocket:"Dik slot 200×12 (Y), 311 yüksek", zone:"Ön (dik)"},
+  {name:"Galaxy S25 (telefon)",       real:"146.9 × 70.5 × 7.2",  pocket:"Dik slot 78×12 (Y), 166 yüksek",  zone:"Ön (dik)"},
+  {name:"Samsung 10000 mAh powerbank",real:"141.8 × 71 × 14",     pocket:"Gömme göz 152 × 81",  zone:"Arka"},
+  {name:"Galaxy Watch 7 (44 mm)",     real:"44.4 × 44.4 × 9.7",   pocket:"Gömme göz 60 × 60",   zone:"Arka"},
+  {name:"Galaxy Buds 2",              real:"50.0 × 50.2 × 27.8",  pocket:"Gömme göz 61 × 61",   zone:"Arka"},
+  {name:"Anker Atom III 65W",         real:"66.1 × 38.3 × 30",    pocket:"Gömme göz 77 × 49",   zone:"Arka"},
 ];
 const tbody = document.getElementById('rows');
 devices.forEach(d=>{

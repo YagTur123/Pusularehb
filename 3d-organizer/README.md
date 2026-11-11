@@ -13,10 +13,10 @@ hazırlanmış, 3D yazıcıya doğrudan gönderilebilecek bir `.stl` modeli bulu
 | 5 | Galaxy Buds 2 (şarj kutusu)| 50.0 × 50.2 × 27.8 | Gömme göz 61 × 61 |
 | 6 | Anker Atom III 65W         | 66.1 × 38.3 × 30   | Gömme göz 77 × 49 |
 
-Ayrıca sol altta fazladan bir **aksesuar / kablo gözü** var.
+Arkada ayrıca bir **kalem / kablo gözü** bulunur.
 
 ## Dosyalar
-- `combined_organizer.stl` — baskıya hazır birleşik model (494 × 389 × 33 mm).
+- `combined_organizer.stl` — baskıya hazır birleşik model (360 × 250 × 317 mm).
 - `preview.png` — üstten görünüm (yerleşim şeması).
 - `params.json` — tüm boyut ve göz koordinatları (tekrar üretim / düzenleme için).
 - `gen.py` — modeli üreten sıfır‑bağımlılıklı Python betiği (istediğinizde göz boyutlarını değiştirip yeniden çalıştırabilirsiniz).
@@ -24,7 +24,7 @@ Ayrıca sol altta fazladan bir **aksesuar / kablo gözü** var.
 ## Yerleşim
 - **Ön (kullanıcıya yakın):** Tablet ve telefon **dik / ayakta** durur (uzun slotlar).
 - **Arka / sağ bölge:** Powerbank, Watch 7, Buds 2, Anker Atom III için gömme gözler + ayrı bir kalem/kablo gözü.
-- Taban **360 × 250 mm**; tablet slotu **221 mm**, telefon slotu **166 mm** yüksekliğinde.
+- Taban **360 × 250 mm**; tablet slotu **317 mm** (tablet dik), telefon slotu **166 mm** yüksekliğinde. Toplam yükseklik 317 mm.
 
 ## Baskı önerileri
 - **Malzeme:** PLA veya PETG.
@@ -35,9 +35,10 @@ Ayrıca sol altta fazladan bir **aksesuar / kablo gözü** var.
 - **Yön:** Olduğu gibi düz zemine (tablaya) basılır.
 
 ## Önemli not — baskı yatağı boyutu
-Model **494 × 389 mm** olduğundan tek parça olarak ancak ~500 mm'lik bir yatakta
-(ör. 400×400, 350×350, Ultimaker vb.) basılabilir. 220×220 ya da 256×256 gibi
-küçük yataklarda **tek parça sığmaz**.
+Taban **360 × 250 mm**, toplam yükseklik **317 mm** (tablet dik durduğu için Z=317 gerekir).
+Yatak Z yüksekliğiniz 317 mm altındaysa tablet yatay (flat) versiyon isteyin.
+Taban 360 mm geniş olduğundan tek parça ancak ~360 mm'lik bir yatakta (ör. 400×400,
+350×350, Ultimaker vb.) basılır. 220×220 / 256×256 gibi küçük yataklarda **tek parça sığmaz**.
 
 Seçenekler:
 1. `gen.py` içindeki göz koordinatlarını düzenleyip modeli ikiye bölerek (sol / sağ

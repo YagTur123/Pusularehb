@@ -1,12 +1,13 @@
 {
-  "outer_mm": [
-    494.0,
-    389.0,
-    33.0
+  "type": "vertical desk station",
+  "base_mm": [
+    360.0,
+    250.0,
+    6.0
   ],
-  "wall_thickness_mm": 6.0,
-  "base_thickness_mm": 5.0,
-  "wall_height_mm": 28.0,
+  "outer_wall_height_mm": 30.0,
+  "tablet_slot_height_mm": 221.0,
+  "phone_slot_height_mm": 166.0,
   "devices_real_mm": {
     "Galaxy Tab S10 FE+ (tablet)": [
       300.6,
@@ -33,64 +34,48 @@
       38.3
     ]
   },
-  "pockets_outer_xy": {
-    "Galaxy Tab S10 FE+ (tablet)": [
-      6,
-      6,
-      317,
-      211
+  "pockets_inner_xy": {
+    "TABLET (dik)": [
+      24,
+      20,
+      32,
+      223
     ],
-    "Aksesuar / kablo gözü": [
-      6,
-      217,
-      317,
-      383
+    "TELEFON (dik)": [
+      76,
+      20,
+      88,
+      98
     ],
-    "Galaxy S25 (telefon)": [
-      323,
-      6,
-      488,
-      90
+    "Powerbank": [
+      100,
+      20,
+      252,
+      101
     ],
-    "Samsung 10000mAh powerbank": [
-      323,
-      96,
-      488,
-      180
+    "Watch 7": [
+      100,
+      110,
+      160,
+      170
     ],
-    "Galaxy Watch 7 (44mm)": [
-      323,
-      186,
-      488,
-      251
+    "Buds 2": [
+      165,
+      110,
+      226,
+      171
     ],
-    "Galaxy Buds 2": [
-      323,
-      257,
-      488,
-      323
+    "Anker 65W": [
+      231,
+      110,
+      308,
+      159
     ],
-    "Anker Atom III 65W": [
-      323,
-      329,
-      488,
-      383
-    ],
-    "NOTCH tablet": [
-      70,
-      0,
-      250,
-      6
-    ],
-    "NOTCH phone": [
-      350,
-      0,
-      470,
-      6
+    "Kalem/Kablo": [
+      314,
+      20,
+      354,
+      230
     ]
-  },
-  "finger_slots": [
-    "tablet",
-    "phone"
-  ]
+  }
 }
